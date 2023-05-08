@@ -10,7 +10,7 @@
                         "test_idx": ["10367:13943"],
                         "dropna": true,
                         "log_transform": true,
-                        "eval_metric": "root_mean_square_error",
+                        "eval_metrics": ["root_mean_squared_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
                         "target": "Cn2_15m"
                     }
                 },
@@ -22,7 +22,7 @@
                         "test_idx": ["6047:9791"],
                         "dropna": false,
                         "log_transform": true,
-                        "eval_metric": "root_mean_square_error",
+                        "eval_metrics": ["root_mean_squared_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
                         "target": "Cn2_15m"
                     }
                 }
