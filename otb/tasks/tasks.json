@@ -11,7 +11,8 @@
                         "dropna": true,
                         "log_transform": true,
                         "eval_metrics": ["root_mean_squared_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
-                        "target": "Cn2_15m"
+                        "target": "Cn2_15m",
+                        "remove": ["Cn2_6m", "Cn2_15m", "Cn2_25m"]
                     }
                 },
                 "tm": {
@@ -23,7 +24,8 @@
                         "dropna": false,
                         "log_transform": true,
                         "eval_metrics": ["root_mean_squared_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
-                        "target": "Cn2_15m"
+                        "target": "Cn2_15m",
+                        "remove": ["Cn2_6m", "Cn2_15m", "Cn2_25m"]
                     }
                 }
             },
