@@ -51,23 +51,3 @@ class Datasets(metaclass=Singleton):
 
         else:
             raise ValueError(f'Missing data dependencies for dataset {ds_name}.')
-
-    def _build_task_names(self):
-        """Gather `.` separated task names for easier inclusion checking."""
-        task_names = set()
-        task_paths = [(t, t, v) for t, v in self.tasks.items()]
-        next_paths = []
-
-        while task_paths or next_paths:
-            if not task_paths:
-                task_paths = next_paths
-                next_paths = []
-            
-            _, full_k, v = task_paths.pop()
-
-            if 'description' in v:
-                task_names.add(full_k)
-            else:
-                next_paths.extend([(nk, f'{full_k}.{nk}', nv) for nk, nv in v.items()])
-
-        self.task_names = task_names
