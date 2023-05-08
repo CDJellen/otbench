@@ -2,18 +2,16 @@ import os
 import json
 from typing import Optional
 
-from ._singleton import Singleton
 
-
-class Tasks(metaclass=Singleton):
+class Tasks(object):
     """A singleton helper for recording supported benchmarking tasks."""
 
-    def __init__(self, root_dir: Optional[str]) -> None:
+    def __init__(self, root_dir: Optional[str] = None) -> None:
         """Read the currently-supported benchmarking task for loaders and evaluators."""
         if root_dir is None:
             root_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))  # obtain root path
         tasks_path = os.path.join(root_dir, 'tasks', 'tasks.json')
-        tasks = json.loads(tasks_path)
+        tasks = json.load(open(tasks_path, 'rb'))
 
         self.tasks = tasks
         self._build_task_names()

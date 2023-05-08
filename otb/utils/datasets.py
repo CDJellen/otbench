@@ -4,13 +4,11 @@ from typing import Optional
 import pandas as pd
 import xarray as xr
 
-from ._singleton import Singleton
 
-
-class Datasets(metaclass=Singleton):
+class Datasets(object):
     """A singleton helper for in-memory datasets."""
 
-    def __init__(self, root_dir = Optional[str]) -> None:
+    def __init__(self, root_dir: Optional[str] = None) -> None:
         """Read the currently-supported benchmarking task for loaders and evaluators."""
         self.data_sets = {}
 
@@ -51,3 +49,12 @@ class Datasets(metaclass=Singleton):
 
         else:
             raise ValueError(f'Missing data dependencies for dataset {ds_name}.')
+
+    def get_train():
+        pass
+
+    def get_test():
+        pass
+
+    def remove_target():
+        pass
