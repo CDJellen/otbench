@@ -5,19 +5,22 @@ import numpy as np
 import pandas as pd
 
 from ..utils.eval_metrics import *
-from ..utils.tasks import Tasks
+from ..tasks.tasks import Tasks
+from ..datasets.datasets import Datasets
 
 # try import torch
 
-t = Tasks()
+TASKS = Tasks()
+DATASETS = Datasets()
+
 
 class RegressionEvaluator:
 
     def __init__(self, task_name: str, root_dir: Optional[str]) -> None:
         """The base evaluator for regression tasks."""
         # check if task_name is a supported task
-        if not t.is_supported_task(task_name):
-            raise ValueError(f'Task {task_name} is not in supported tasks {t.task_names}')
+        if not TASKS.is_supported_task(task_name):
+            raise ValueError(f'Task {task_name} is not in supported tasks {TASKS.task_names}')
 
         # load the values for `y_true` as an `np.ndarray
         if root_dir is None:

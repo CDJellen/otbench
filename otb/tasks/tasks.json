@@ -6,6 +6,7 @@
                     "Cn2_15m": {
                         "description": "Regression task for MLO Cn2 data, where the last 12 days are set aside for validation",
                         "description_long": "This dataset evaluates regression approaches for predicting the extent of optical turbulence, as measured by Cn2 at an elevation of 15m. Optical turbulence on data collected at the Mauna Loa Solar Observatory between 27 July 2006 and 8 August 2006, inclusive, are used to evaluate prediction accuracy under the root-mean square error metric.",
+                        "ds_name": "mlo_cn2",
                         "train_idx": ["0:10367"],
                         "test_idx": ["10367:13943"],
                         "dropna": true,
@@ -19,6 +20,7 @@
                     "Cn2_15m": {
                         "description": "Regression task for MLO Cn2 data, where the middle 14 days from the middle are set aside for validation",
                         "description_long": "This dataset evaluates regression approaches for predicting the extent of optical turbulence, as measured by Cn2 at an elevation of 15m. Optical turbulence on data collected at the Mauna Loa Solar Observatory between 1 July 2006 and 14 July 2006, inclusive, are used to evaluate prediction accuracy under the root-mean square error metric.",
+                        "ds_name": "mlo_cn2",
                         "train_idx": ["0:6047", "9791:13943"],
                         "test_idx": ["6047:9791"],
                         "dropna": true,
