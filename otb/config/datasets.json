@@ -1,0 +1,12 @@
+{
+    "mlo_cn2": {
+        "local_data_path": "mlo_cn2.nc",
+        "citation_path": "citation.md",
+        "remove_data_path": "ftp://foo.bar"
+    },
+    "usna_cn2": {
+        "local_data_path": "usna_cn2.nc",
+        "citation_path": "citation.md",
+        "remove_data_path": "google.drive"
+    }
+}
