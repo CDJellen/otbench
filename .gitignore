@@ -1,2 +1,5 @@
 *ignore.ipynb
 *.pyc
+.venv
+otb/cache/processed/*.pickle
+

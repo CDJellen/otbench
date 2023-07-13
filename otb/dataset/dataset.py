@@ -42,8 +42,12 @@ class Dataset(object):
                 raise ValueError(f"requested {start_idx}:{end_idx} out of bounds for df with len {len(self._df)}.")
         included = np.concatenate(ranges)
         return self._df.iloc[included, :]
-        
-    def get_train(self, task: dict, data_type: str = "pd") -> Tuple[pd.DataFrame, pd.DataFrame]:
+    
+    def get_all(self, data_type: str = "pd") -> Any:
+        """Obtain the training data for this dataset from the supplied task."""
+        return self._handle_return_type(data=self._df, return_type=data_type)
+    
+    def get_train(self, task: dict, data_type: str = "pd") -> Tuple[Any, Any]:
         """Obtain the training data for this dataset from the supplied task."""
         indices = [int(i) for i in task["train_idx"] for i in i.split(":")]
         starts, stops = indices[::2], indices[1::2]
@@ -51,7 +55,7 @@ class Dataset(object):
         X, y = self._handle_task(data=data, task=task)
         return self._handle_return_type(data=X, return_type=data_type), self._handle_return_type(data=y, return_type=data_type)
 
-    def get_test(self, task: dict, data_type: str = "pd") -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_test(self, task: dict, data_type: str = "pd") -> Tuple[Any, Any]:
         """Obtain the test data for this dataset from the supplied task."""
         indices = [int(i) for i in task["test_idx"] for i in i.split(":")]
         starts, stops = indices[::2], indices[1::2]
@@ -59,7 +63,7 @@ class Dataset(object):
         X, y = self._handle_task(data=data, task=task)
         return self._handle_return_type(data=X, return_type=data_type), self._handle_return_type(data=y, return_type=data_type)
 
-    def get_val(self, task: dict, data_type: str = "pd") -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def get_val(self, task: dict, data_type: str = "pd") -> Tuple[Any, Any]:
         """Obtain the validation data for this dataset from the supplied task."""
         indices = [int(i) for i in task["val_idx"] for i in i.split(":")]
         starts, stops = indices[::2], indices[1::2]

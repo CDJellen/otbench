@@ -1,7 +1,8 @@
-numpy
-pandas
+numpy>=1.22
+pandas==1.3.5
 ndbc-api==0.0.1.9.4
-sklearn
-xarray
-netcdf4
-matplotlib
+scikit-learn>=1.0.1
+xarray>=2022.3.0
+netcdf4>=1.6.0
+matplotlib==3.5.3
+requests==2.22.0

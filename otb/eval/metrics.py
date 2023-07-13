@@ -1,9 +1,8 @@
-from typing import Any, Sequence
+from typing import Sequence
 
-from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error, mean_squared_error
+import sklearn.metrics as sk_m
 
-
-__all__ = ["r2_score", "root_mean_square_error", "mean_absolute_error", "mean_absolute_percentage_error", "symetric_mean_absolute_percentage_error"]
+__all__ = ["r2_score", "root_mean_square_error", "mean_absolute_error", "mean_absolute_percentage_error", "symmetric_mean_absolute_percentage_error"]
 
 
 def is_implemented_metric(metric_name: str) -> bool:
@@ -13,25 +12,25 @@ def is_implemented_metric(metric_name: str) -> bool:
 
 def r2_score(y_true: Sequence, y_pred: Sequence) -> float:
     """An alias for `sklearn.metrics.r2_score`."""
-    return r2_score(y_true=y_true, y_pred=y_pred)
+    return sk_m.r2_score(y_true=y_true, y_pred=y_pred)
 
 
 def root_mean_square_error(y_true: Sequence, y_pred: Sequence) -> float:
     """Calculate RMSE from `sklearn.metrics.mean_squared_error`."""
-    return mean_squared_error(y_true=y_true, y_pred=y_pred, squared=False)
+    return sk_m.mean_squared_error(y_true=y_true, y_pred=y_pred, squared=False)
 
 
 def mean_absolute_error(y_true: Sequence, y_pred: Sequence) -> float:
     """An alias for `sklearn.metrics.r2_score`."""
-    return mean_absolute_error(y_true=y_true, y_pred=y_pred)
+    return sk_m.mean_absolute_error(y_true=y_true, y_pred=y_pred)
 
 
 def mean_absolute_percentage_error(y_true: Sequence, y_pred: Sequence) -> float:
     """An alias for `sklearn.metrics.r2_score`."""
-    return mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred)
+    return sk_m.mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred)
 
 
-def symetric_mean_absolute_percentage_error(y_true: Sequence, y_pred: Sequence) -> float:
+def symmetric_mean_absolute_percentage_error(y_true: Sequence, y_pred: Sequence) -> float:
     """Calculate the symmetric mean absolute percentage error"""
     smape = 100/len(y_true) * sum(2 * abs(y_pred - y_true) / (abs(y_true) + abs(y_pred)))
 

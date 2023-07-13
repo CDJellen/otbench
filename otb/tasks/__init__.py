@@ -1,3 +1,3 @@
-from .tasks import Tasks
+from .tasks import TaskFactory
 
-__all__ = ["Tasks"]
+__all__ = ["TaskFactory"]
