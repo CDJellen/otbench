@@ -18,7 +18,7 @@
             },
             "full" : {
                 "Cn2_15m": {
-                    "description": "Regression task for MLO Cn2 data, where the last 12 days are set aside for validation",
+                    "description": "Regression task for MLO Cn2 data, where the last 12 days are set aside for evaluation",
                     "description_long": "This dataset evaluates regression approaches for predicting the extent of optical turbulence, as measured by Cn2 at an elevation of 15m. Optical turbulence on data collected at the Mauna Loa Solar Observatory between 27 July 2006 and 8 August 2006, inclusive, are used to evaluate prediction accuracy under the root-mean square error metric.",
                     "ds_name": "mlo_cn2",
                     "train_idx": ["0:8367"],
@@ -29,6 +29,38 @@
                     "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
                     "target": "Cn2_15m",
                     "remove": ["base_time", "Cn2_6m", "Cn2_15m", "Cn2_25m"]
+                }
+            }
+        },
+        "usna_cn2_lg": {
+            "dropna": {
+                "Cn2_3m": {
+                    "description": "Regression task for USNA Cn2 large data, where the last 1 year is set aside for evaluation",
+                    "description_long": "This dataset evaluates regression approaches for predicting the extent of optical turbulence, as measured by Cn2 at an elevation of 3m. Optical turbulence on data collected at the United States Naval Academy, across the Severn River between Santee Basin and the Waterfront Readiness Center. This dataset contains measurements between 01 January 2020 and 14 July 2022, inclusive. Meterological and Oceanographic measurements are interpolated to the 1-minute frequency of the scintillometer. Rows with any missing measurements are dropped during pre-processing. Prediction accuracy is evaluated  under the root-mean square error metric.",
+                    "ds_name": "usna_cn2_lg",
+                    "train_idx": ["0:46509"],
+                    "test_idx": ["46509:68294"],
+                    "val_idx": ["68294:111811"],
+                    "dropna": true,
+                    "log_transform": true,
+                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "target": "Cn2_3m",
+                    "remove": ["base_time", "Dir_3m", "Cn2_3m"]
+                }
+            },
+            "full" : {
+                "Cn2_3m": {
+                    "description": "Regression task for USNA Cn2 large data, where the last 1 year is set aside for evaluation",
+                    "description_long": "This dataset evaluates regression approaches for predicting the extent of optical turbulence, as measured by Cn2 at an elevation of 3m. Optical turbulence on data collected at the United States Naval Academy, across the Severn River between Santee Basin and the Waterfront Readiness Center. This dataset contains measurements between 01 January 2020 and 14 July 2022, inclusive. Meterological and Oceanographic measurements are interpolated to the 1-minute frequency of the scintillometer. Prediction accuracy is evaluated  under the root-mean square error metric.",
+                    "ds_name": "usna_cn2_lg",
+                    "train_idx": ["0:524340"],
+                    "test_idx": ["524340:788209"],
+                    "val_idx": ["788209:1291225"],
+                    "dropna": false,
+                    "log_transform": true,
+                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "target": "Cn2_3m",
+                    "remove": ["base_time", "Dir_3m", "Cn2_3m"]
                 }
             }
         }
