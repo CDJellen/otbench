@@ -65,6 +65,25 @@
             }
         }
     },
-    "forecasting": {},
-    "interpolation": {}
+    "forecasting": {
+        "mlo_cn2": {
+            "dropna": {
+                "Cn2_15m": {
+                    "description": "Forecasting task for MLO Cn2 data, where the last 12 days are set aside for evaluation",
+                    "description_long": "This dataset evaluates forecasting approaches for predicting the extent of optical turbulence, as measured by Cn2 at an elevation of 15m. Optical turbulence on data collected at the Mauna Loa Solar Observatory between 27 July 2006 and 8 August 2006, inclusive, are used to evaluate prediction accuracy under the symmetric root-mean square error metric over a 12-step forecast horizon.",
+                    "ds_name": "mlo_cn2",
+                    "train_idx": ["0:8367"],
+                    "test_idx": ["8367:10367"],
+                    "val_idx": ["10367:13943"],
+                    "dropna": true,
+                    "log_transform": true,
+                    "eval_metrics": ["symmetric_mean_absolute_percentage_error"],
+                    "window_size": 12,
+                    "forecast_horizon": 12,
+                    "target": "Cn2_15m",
+                    "remove": ["base_time", "Cn2_6m", "Cn2_15m", "Cn2_25m"]
+                }
+            }
+        }
+    }
 }

@@ -7,4 +7,4 @@ ROOT_DIR = os.path.dirname(CONFIG_DIR)
 CACHE_DIR = os.path.join(ROOT_DIR, "cache", "processed")
 DATA_DIR = os.path.join(ROOT_DIR, "data")
 BENCHMARK_FP = os.path.join(ROOT_DIR, "benchmark", "experiments.json")
-RETURN_TYPES = ["pd", "np", "xr", "pt"]
+RETURN_TYPES = ["pd", "np", "xr", "nc"]

@@ -5,8 +5,11 @@ from enum import Enum
 from typing import Any, Callable, List, Union, Tuple
 
 import pandas as pd
+import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
 
-import otb.eval.metrics as eval
+import otb.eval.regression.metrics as regression_eval
+import otb.eval.forecasting.metrics as forecasting_eval
 from otb.dataset import Dataset
 
 
@@ -160,7 +163,7 @@ class RegressionTask(BaseTask):
     def __init__(self, task_type: str, task: dict) -> None:
         super().__init__(task_type=task_type, task=task)
 
-    def evaluate_model(self, predict_call: Callable, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
+    def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
         """Evaluate a model against this task's transformed validation set, default against all metrics."""
         # obtain evaluation data
         X_val, y_val = self.get_val_data(data_type=data_type)
@@ -173,30 +176,79 @@ class RegressionTask(BaseTask):
                 X_val = x_transforms(X_val)
         
         # get predictions
-        y_val_pred = predict_call(X_val)
+        if predict_call_kwargs is not None:
+            y_val_pred = predict_call(X_val, **predict_call_kwargs)
+        else:
+            y_val_pred = predict_call(X_val)
 
         if eval_metric_names is None: eval_metric_names = self.task["eval_metrics"]
         model_metrics = {k: -1 for k in eval_metric_names}
 
         for m in eval_metric_names:
-            val = getattr(eval, m)(y_val, y_val_pred)
+            val = getattr(regression_eval, m)(y_val, y_val_pred)
             model_metrics[m] = val
 
         return model_metrics
 
 class ForecastingTask(BaseTask):
 
-    def __init__(self) -> None:
-        super().__init__()
+    def __init__(self, task_type: str, task: dict) -> None:
+        super().__init__(task_type=task_type, task=task)
+        self.forecast_horizon = self.task["forecast_horizon"]
+        self.window_size = self.task["window_size"]
+
+    def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, window_size: Union[int, None] = None, forecast_horizon: Union[int, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
+        """Evaluate a model against this task's transformed validation set, default against all metrics."""
+        window_size = self.window_size if window_size is None else window_size
+        forecast_horizon = self.forecast_horizon if forecast_horizon is None else forecast_horizon
+
+        # obtain evaluation data
+        X_test, y_test = self.get_test_data(data_type=data_type)
+        X_val, y_val = self.get_val_data(data_type=data_type)
+        assert forecast_horizon < len(future_window_data), f"forecast_size must be less than the length of the evaluation set ({len(X_val)})."
+        assert window_size < len(X_test), f"window_size must be less than the length of the test set ({len(X_test)})."
+        
+        # limit to initial window
+        X_test, y_test = X_test[-window_size:], y_test[-window_size:]
+
+        # apply x_transforms if present
+        if x_transforms is not None:
+            if x_transform_kwargs is not None:
+                X_test = x_transforms(X_test, **x_transform_kwargs)
+                X_val = x_transforms(X_val, **x_transform_kwargs)
+            else:
+                X_test = x_transforms(X_test)
+                X_val = x_transforms(X_val)
+
+        initial_window_data = pd.concat(y_test, X_test, axis=1)
+        future_window_data = pd.concat(y_val, X_val, axis=1)
+        full_window = pd.concat(initial_window_data, future_window_data, axis=0)
+
+        # recursively predict
+        y_val_pred = []
+        y_val = y_val.values.tolist()
+        windows = sliding_window_view(full_window, window_size)
+
+        for i in range(len(y_val)):
+            # update window
+            current_window_data = windows[i]
+            # get predictions
+            if predict_call_kwargs is not None:
+                y_val_pred.append(predict_call(current_window_data, **predict_call_kwargs))
+            else:
+                y_val_pred.append(predict_call(current_window_data))
+            
+        if eval_metric_names is None: eval_metric_names = self.task["eval_metrics"]
+        model_metrics = {k: -1 for k in eval_metric_names}
+
+        for m in eval_metric_names:
+            val, _ = getattr(forecasting_eval, m)(y_val, y_val_pred)  # discard the second return value (the full metric history)
+            model_metrics[m] = val
+
+        return model_metrics
 
 
-class InterpolationTask(BaseTask):
-
-    def __init__(self) -> None:
-        super().__init__()
-
-
-class TaskFactory(object):
+class TaskApi(object):
     """A factory for creating optical turbulence modeling tasks."""
 
     def __init__(self, root_dir: Union[str, None] = None) -> None:
@@ -209,12 +261,15 @@ class TaskFactory(object):
         self.tasks = tasks
         self._build_task_names()
     
-    def get_task(self, task_name: str) -> Union[RegressionTask, ForecastingTask, InterpolationTask]:
+    def get_task(self, task_name: str) -> Union[RegressionTask, ForecastingTask]:
         """Get a task by name."""
         if self._is_supported_task(task_name=task_name):
-            # @TODO update factory pattern
-            return RegressionTask(task_type=TaskTypes.REGRESSION, task=self._get_task(key=task_name))
-        else: raise NotImplementedError
+            if task_name.split(".")[0] == TaskTypes.REGRESSION.value:
+                return RegressionTask(task_type=TaskTypes.REGRESSION, task=self._get_task(key=task_name))
+            elif task_name.split(".")[0] == TaskTypes.FORECASTING.value:
+                return ForecastingTask(task_type=TaskTypes.REGRESSION, task=self._get_task(key=task_name))
+            else: raise NotImplementedError(f"task type {task_name.split('.')[0]} not supported.")
+        else: raise NotImplementedError(f"task {task_name} not supported.")
 
     def list_tasks(self) -> List[str]:
         """List all currently supported tasks."""

@@ -1,3 +1,3 @@
-from .tasks import TaskFactory
+from .tasks import TaskApi
 
-__all__ = ["TaskFactory"]
+__all__ = ["TaskApi"]

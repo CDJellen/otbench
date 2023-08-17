@@ -41,9 +41,9 @@ class Dataset(object):
             else:
                 raise ValueError(f"requested {start_idx}:{end_idx} out of bounds for df with len {len(self._df)}.")
         included = np.concatenate(ranges)
-        return self._df.iloc[included, :]
+        return self._df.iloc[included, :].copy()
     
-    def get_all(self, data_type: str = "pd") -> Any:
+    def get_all(self, data_type: str = "pd", device: str = "") -> Any:
         """Obtain the training data for this dataset from the supplied task."""
         return self._handle_return_type(data=self._df, return_type=data_type)
     
@@ -87,27 +87,28 @@ class Dataset(object):
         return getattr(self, f"_convert_to_{return_type}")(data)
 
     
-    def _convert_to_np(self, data: pd.DataFrame) -> "np.ndarray":
+    def _convert_to_np(self, data: pd.DataFrame) -> np.ndarray:
         """Map the slice of underlying data to np ndarray."""
         nd_arr = data.to_numpy()
         return nd_arr
 
 
-    def _convert_to_pt(self, data: pd.DataFrame) -> "torch.tensor":
-        """Map the slice of underlying data to np ndarray."""
-        pass
-
-    def _convert_to_xr(self, data: pd.DataFrame) -> "xr.dataset":
+    def _convert_to_xr(self, data: pd.DataFrame) -> xr.Dataset:
         """Map the slice of underlying data to xr xarray."""
         ds = data.set_index("time").to_xarray()
         return ds
 
+    def _convert_to_nc(self, data: pd.DataFrame) -> xr.Dataset:
+        """Map the slice of underlying data to netCDF (an alias for xr.DataSet)."""
+        return self._convert_to_xr(data)
 
     def _load_dataset(self) -> None:
         """Load the dataset from cache or disk."""
         if self._name in CACHE:
             return CACHE.get_dataset(self._name)
-        else: return self._load_dataset_from_disk()
+        else:
+            self._load_dataset_from_disk()
+            return CACHE.get_dataset(self._name)
 
 
     def _load_dataset_from_disk(self) -> None:
@@ -129,7 +130,7 @@ class Dataset(object):
             df = pd.read_hdf(fp)
             self._df = df
         # parquet
-        elif file_type == "gzip":
+        elif file_type == "gzip" or file_type == "parquet":
             df = pd.read_parquet(fp)
             self._df = df
         # numpy
