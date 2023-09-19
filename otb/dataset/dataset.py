@@ -27,8 +27,7 @@ class Dataset(object):
         self._root_dir = root_dir
         self._data_dir = data_dir
         self._cache_dir = cache_dir
-        self._df = pd.DataFrame()
-        self._load_dataset()
+        self._df = self._load_dataset()
 
     def get_slice(self, start_indices: Sequence[int], end_indices: Sequence[int]) -> pd.DataFrame:
         """Obtain a slice of the underlying dataset from start and end indices."""
@@ -41,7 +40,7 @@ class Dataset(object):
             else:
                 raise ValueError(f"requested {start_idx}:{end_idx} out of bounds for df with len {len(self._df)}.")
         included = np.concatenate(ranges)
-        return self._df.iloc[included, :].copy()
+        return self._df.iloc[included, :].copy(deep=True)
     
     def get_all(self, data_type: str = "pd", device: str = "") -> Any:
         """Obtain the training data for this dataset from the supplied task."""
@@ -102,16 +101,15 @@ class Dataset(object):
         """Map the slice of underlying data to netCDF (an alias for xr.DataSet)."""
         return self._convert_to_xr(data)
 
-    def _load_dataset(self) -> None:
+    def _load_dataset(self) -> pd.DataFrame:
         """Load the dataset from cache or disk."""
         if self._name in CACHE:
             return CACHE.get_dataset(self._name)
         else:
-            self._load_dataset_from_disk()
-            return CACHE.get_dataset(self._name)
+            return self._load_dataset_from_disk()
 
 
-    def _load_dataset_from_disk(self) -> None:
+    def _load_dataset_from_disk(self) -> pd.DataFrame:
         """Load the dataset from disk."""
         supported_datasets = self._supported_datasets()
         file_name = supported_datasets[self._name]["local_data_path"]
@@ -124,23 +122,23 @@ class Dataset(object):
         if file_type == "nc":
             ds = xr.load_dataset(fp)
             df = ds.to_dataframe()
-            self._df = df
         # h5
         elif file_type == "h5":
             df = pd.read_hdf(fp)
-            self._df = df
         # parquet
         elif file_type == "gzip" or file_type == "parquet":
             df = pd.read_parquet(fp)
-            self._df = df
         # numpy
         elif file_type == "npy":
             nd_arr = np.load(fp)
-            self._df = pd.DataFrame(np.squeeze(nd_arr))
+            df = pd.DataFrame(np.squeeze(nd_arr))
         else: raise NotImplementedError(f"unknown or unsupported file type {fp}.")
 
         # update the cache
-        CACHE.add_dataset(self._name, self._df)
+        CACHE.add_dataset(self._name, df)
+
+        return df
+
 
     def _supported_datasets(self) -> dict:
         """Load the datasets configuration file."""
