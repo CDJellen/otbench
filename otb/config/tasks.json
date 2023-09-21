@@ -77,9 +77,9 @@
                     "val_idx": ["10367:13943"],
                     "dropna": true,
                     "log_transform": true,
-                    "eval_metrics": ["symmetric_mean_absolute_percentage_error"],
-                    "window_size": 12,
-                    "forecast_horizon": 12,
+                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "window_size": 4,
+                    "forecast_horizon": 1,
                     "target": "Cn2_15m",
                     "remove": ["base_time", "Cn2_6m", "Cn2_15m", "Cn2_25m"]
                 }

@@ -197,55 +197,94 @@ class ForecastingTask(BaseTask):
         self.forecast_horizon = self.task["forecast_horizon"]
         self.window_size = self.task["window_size"]
 
-    def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, window_size: Union[int, None] = None, forecast_horizon: Union[int, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
+    def prepare_forecasting_data(self, X: pd.DataFrame, y: Union[pd.DataFrame, pd.Series], window_size: Union[int, None] = None, forecast_horizon: Union[int, None] = None):
+        """Prepare data for forecasting."""
+        window_size = window_size if window_size is not None else self.window_size
+        forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
+
+        X = self._join_target(X, y)
+        X = self._add_lags(X, window_size)
+        y = self._shift_target(y, forecast_horizon)
+        X, y = self._obtain_valid_data(X, y, window_size, forecast_horizon)
+        
+        return X, y
+
+    def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, window_size: Union[int, None] = None, forecast_horizon: Union[int, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, forecast_transforms: Union[Callable, None] = None, forecast_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
         """Evaluate a model against this task's transformed validation set, default against all metrics."""
-        window_size = self.window_size if window_size is None else window_size
-        forecast_horizon = self.forecast_horizon if forecast_horizon is None else forecast_horizon
+        window_size = window_size if window_size is not None else self.window_size
+        forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
 
         # obtain evaluation data
-        X_test, y_test = self.get_test_data(data_type=data_type)
         X_val, y_val = self.get_val_data(data_type=data_type)
-        assert forecast_horizon < len(future_window_data), f"forecast_size must be less than the length of the evaluation set ({len(X_val)})."
-        assert window_size < len(X_test), f"window_size must be less than the length of the test set ({len(X_test)})."
+        assert forecast_horizon + window_size < len(X_val), f"window_size and forecast_horizon must be less than the length of the evaluation set ({len(X_val)})."
         
-        # limit to initial window
-        X_test, y_test = X_test[-window_size:], y_test[-window_size:]
-
         # apply x_transforms if present
         if x_transforms is not None:
             if x_transform_kwargs is not None:
-                X_test = x_transforms(X_test, **x_transform_kwargs)
                 X_val = x_transforms(X_val, **x_transform_kwargs)
             else:
-                X_test = x_transforms(X_test)
-                X_val = x_transforms(X_val)
-
-        initial_window_data = pd.concat(y_test, X_test, axis=1)
-        future_window_data = pd.concat(y_val, X_val, axis=1)
-        full_window = pd.concat(initial_window_data, future_window_data, axis=0)
-
-        # recursively predict
-        y_val_pred = []
-        y_val = y_val.values.tolist()
-        windows = sliding_window_view(full_window, window_size)
-
-        for i in range(len(y_val)):
-            # update window
-            current_window_data = windows[i]
-            # get predictions
-            if predict_call_kwargs is not None:
-                y_val_pred.append(predict_call(current_window_data, **predict_call_kwargs))
+                X_val = x_transforms(X_val)       
+        
+        # apply window and forecasting horizon transforms
+        if forecast_transforms is not None:
+            if forecast_transform_kwargs is not None:
+                y_val = forecast_transforms(y_val, **forecast_transform_kwargs)
             else:
-                y_val_pred.append(predict_call(current_window_data))
-            
+                y_val = forecast_transforms(y_val)
+
+        # obtain forecasting data
+        X_val, y_val = self.prepare_forecasting_data(X_val, y_val, window_size, forecast_horizon)
+
+        # get predictions
+        if predict_call_kwargs is not None:
+            y_val_pred = predict_call(X_val, **predict_call_kwargs)
+        else:
+            y_val_pred = predict_call(X_val)
+
         if eval_metric_names is None: eval_metric_names = self.task["eval_metrics"]
         model_metrics = {k: -1 for k in eval_metric_names}
 
+        #for m in eval_metric_names:
+        #    val, _ = getattr(forecasting_eval, m)(y_val, y_val_pred)  # discard the second return value (the full metric history)
+        #    model_metrics[m] = val
         for m in eval_metric_names:
-            val, _ = getattr(forecasting_eval, m)(y_val, y_val_pred)  # discard the second return value (the full metric history)
+            val = getattr(regression_eval, m)(y_val, y_val_pred)
             model_metrics[m] = val
 
         return model_metrics
+    
+
+    def _join_target(self, X, y):
+        """Include the target in the features."""
+        X = X.join(y)
+        
+        return X
+
+
+    def _add_lags(self, X, window_size):
+        """Lag all feature columns from 1 to lags inclusive."""
+        X = X.assign(**{
+            f'{col} (t-{lag})': X[col].shift(lag)
+            for lag in range(1, window_size + 1)
+            for col in X.columns
+        })
+        
+        return X
+
+
+    def _shift_target(self, y, forecast_horizon):
+        """Shift the target by the forecast horizon."""
+        y = y.shift(-forecast_horizon)
+        
+        return y
+
+
+    def _obtain_valid_data(self, X, y, window_size, forecast_horizon):
+        """Obtain data that is valid for training and evaluation."""
+        X = X[window_size:-1*forecast_horizon]
+        y = y[window_size:-1*forecast_horizon]
+        
+        return X, y
 
 
 class TaskApi(object):
