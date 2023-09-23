@@ -1,23 +1,19 @@
 import os
 import json
+import warnings
 from abc import ABC
 from enum import Enum
-from typing import Any, Callable, List, Union, Tuple
+from typing import Any, Callable, List, Union
 
 import pandas as pd
-import numpy as np
-from numpy.lib.stride_tricks import sliding_window_view
 
-import otb.eval.regression.metrics as regression_eval
-import otb.eval.forecasting.metrics as forecasting_eval
+import otb.eval.metrics as eval_metrics
 from otb.dataset import Dataset
-
 
 
 class TaskTypes(Enum):
     REGRESSION = "regression"
     FORECASTING = "forecasting"
-    INTERPOLATION = "interpolation"
 
 
 class TaskABC(ABC):
@@ -116,7 +112,7 @@ class BaseTask(TaskABC):
 
     def get_target_name(self) -> str:
         """Return the target feature name for this task."""
-        return self.task["target_name"]
+        return self.task["target"]
     
     def get_unavailable_features(self) -> List[str]:
         """Return the names of features which are unavailable for training and inference in this task."""
@@ -185,7 +181,7 @@ class RegressionTask(BaseTask):
         model_metrics = {k: -1 for k in eval_metric_names}
 
         for m in eval_metric_names:
-            val = getattr(regression_eval, m)(y_val, y_val_pred)
+            val = getattr(eval_metrics, m)(y_val, y_val_pred)
             model_metrics[m] = val
 
         return model_metrics
@@ -248,7 +244,7 @@ class ForecastingTask(BaseTask):
         #    val, _ = getattr(forecasting_eval, m)(y_val, y_val_pred)  # discard the second return value (the full metric history)
         #    model_metrics[m] = val
         for m in eval_metric_names:
-            val = getattr(regression_eval, m)(y_val, y_val_pred)
+            val = getattr(eval_metrics, m)(y_val, y_val_pred)
             model_metrics[m] = val
 
         return model_metrics
@@ -263,11 +259,13 @@ class ForecastingTask(BaseTask):
 
     def _add_lags(self, X, window_size):
         """Lag all feature columns from 1 to lags inclusive."""
-        X = X.assign(**{
-            f'{col} (t-{lag})': X[col].shift(lag)
-            for lag in range(1, window_size + 1)
-            for col in X.columns
-        })
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", pd.errors.PerformanceWarning)
+            X = X.assign(**{
+                f'{col} (t-{lag})': X[col].shift(lag)
+                for lag in range(1, window_size + 1)
+                for col in X.columns
+            })
         
         return X
 
@@ -312,7 +310,7 @@ class TaskApi(object):
 
     def list_tasks(self) -> List[str]:
         """List all currently supported tasks."""
-        return self.task_names
+        return list(self.task_names)
 
     def _get_task(self, key: str) -> dict:
         """Traverse a task key, returning bottom-level data."""

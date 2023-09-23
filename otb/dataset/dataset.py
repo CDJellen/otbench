@@ -35,7 +35,7 @@ class Dataset(object):
             raise ValueError(f"malformed {start_indices}, {end_indices}.")
         ranges = []
         for start_idx, end_idx in zip(start_indices, end_indices):
-            if start_idx >= 0 and end_idx < len(self._df) and start_idx < end_idx:
+            if start_idx >= 0 and end_idx <= len(self._df) and start_idx < end_idx:
                 ranges.append(np.arange(start_idx, end_idx))
             else:
                 raise ValueError(f"requested {start_idx}:{end_idx} out of bounds for df with len {len(self._df)}.")

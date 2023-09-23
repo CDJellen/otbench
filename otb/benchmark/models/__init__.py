@@ -1,0 +1,6 @@
+from otb.benchmark.models.macro_meterological import MacroMeterologicalModel
+from otb.benchmark.models.offshore_macro_meterological import OffshoreMacroMeterologicalModel
+from otb.benchmark.models.mean_regression import MeanRegressionModel
+from otb.benchmark.models.mean_forecasting import MeanWindowForecastingModel
+from otb.benchmark.models.linear_forecasting import LinearForecastingModel
+from otb.benchmark.models.air_water_temperature_difference import AWTModel

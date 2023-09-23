@@ -6,3 +6,4 @@ xarray>=2022.3.0
 netcdf4>=1.6.0
 matplotlib==3.5.3
 requests==2.22.0
+astral==2.2
