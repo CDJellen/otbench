@@ -279,24 +279,6 @@
                 "metric_value": 0.009432421525783339,
                 "valid_predictions": 421
             }
-        },
-        "lgbm": {
-            "root_mean_square_error": {
-                "metric_value": 0.16888039580056738,
-                "valid_predictions": 4073
-            },
-            "r2_score": {
-                "metric_value": 0.8665714886554514,
-                "valid_predictions": 4073
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.08753583133425404,
-                "valid_predictions": 4073
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.00621424978647618,
-                "valid_predictions": 4073
-            }
         }
     },
     "regression.mlo_cn2.dropna.Cn2_15m": {
