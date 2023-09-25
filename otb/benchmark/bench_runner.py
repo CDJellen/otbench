@@ -56,22 +56,22 @@ def run_benchmarks(
         obs_lon = task_info["obs_lon"]
         use_log10 = task_info["log_transform"]
 
-        _, y_val = task.get_val_data(data_type="pd")
+        _, y_test = task.get_test_data(data_type="pd")
 
         if type(task) == tasks.RegressionTask:
             models = REGRESSION_MODELS
         elif type(task) == tasks.ForecastingTask:
             models = FORECASTING_MODELS
-            _, y_val = task.prepare_forecasting_data(_, y_val)
+            _, y_test = task.prepare_forecasting_data(_, y_test)
         else:
             raise ValueError(f"unknown task type {type(task)}.")
         
         benchmark_results[task_name] = {}
-        benchmark_results[task_name]["possible_predictions"] = int(y_val.notna().sum().values[0])
+        benchmark_results[task_name]["possible_predictions"] = int(y_test.notna().sum().values[0])
 
         X_train, y_train = task.get_train_data(data_type="pd")
-        X_test, y_test = task.get_test_data(data_type="pd")
-        X, y = pd.concat([X_train, X_test]), pd.concat([y_train, y_test])
+        X_val, y_val = task.get_val_data(data_type="pd")
+        X, y = pd.concat([X_train, X_val]), pd.concat([y_train, y_val])
 
         if "mlo_cn2" in task_name:
             height_of_observation = 15.0
