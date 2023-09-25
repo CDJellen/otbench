@@ -1,6 +1,7 @@
 *ignore.ipynb
 *.pyc
 *.egg-info
+*.pdf
 .venv
 otb/cache/processed/*.pickle
-
+otb/benchmark/experiments.json
