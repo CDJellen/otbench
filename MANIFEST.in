@@ -1,0 +1,5 @@
+exclude conftest.py
+prune tests/
+setup.cfg
+setup.py
+otb\__init__.py
