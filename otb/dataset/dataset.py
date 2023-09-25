@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 
 from otb.config import ROOT_DIR, DATA_DIR, DATASETS_FP, CACHE_DIR, RETURN_TYPES
-from otb import CACHE
+from otb.cache import CACHE
 
 
 class Dataset(object):

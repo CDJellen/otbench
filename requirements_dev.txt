@@ -1,3 +1,2 @@
 lightgbm
 pytest
-torch

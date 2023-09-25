@@ -1,5 +1,6 @@
 *ignore.ipynb
 *.pyc
+*.egg-info
 .venv
 otb/cache/processed/*.pickle
 

@@ -1,1 +1,1 @@
-from otb.plot.timeseries import plot_predictions, plot_forecast
+from otb.plot.timeseries import plot_predictions

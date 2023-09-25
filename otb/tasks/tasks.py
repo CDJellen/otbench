@@ -2,13 +2,15 @@ import os
 import json
 import warnings
 from abc import ABC
+from datetime import datetime
 from enum import Enum
-from typing import Any, Callable, List, Union
+from typing import Any, Callable, List, Tuple, Union
 
 import pandas as pd
 
 import otb.eval.metrics as eval_metrics
 from otb.dataset import Dataset
+from otb.config import BENCHMARK_FP
 
 
 class TaskTypes(Enum):
@@ -18,7 +20,7 @@ class TaskTypes(Enum):
 
 class TaskABC(ABC):
 
-    def get_all_info(self) -> dict:
+    def get_info(self, keys: Union[List[str], None]) -> dict:
         """Returns the full task information dictionary."""
         pass
 
@@ -28,6 +30,14 @@ class TaskABC(ABC):
 
     def get_long_description(self) -> str:
         """Return the description of the task."""
+        pass
+
+    def get_benchmark_info(self, task_name: Union[str, None]) -> dict:
+        """Returns the benchmark information dictionary."""
+        pass
+
+    def top_models(self, n: int = 5, metric: str = "") -> List[str]:
+        """Returns the top n models for this task."""
         pass
 
     def get_transforms(self) -> dict:
@@ -70,22 +80,47 @@ class TaskABC(ABC):
         """Return the underlying validation data for this task."""
         pass
 
-    def evaluate_model(self, predict_call: Callable, x_transforms: Union[Callable, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
+    def evaluate_model(predict_call: Callable, data_type: str, x_transforms: Union[Callable, None], x_transform_kwargs: Union[dict, None], eval_metric_names: Union[List[str], None], return_predictions: bool, include_as_benchmark: bool, model_name: Union[str, None], overwrite: bool) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed validation set, default against all metrics."""
         pass
 
 
 class BaseTask(TaskABC):
     
-    def __init__(self, task_type: str, task: dict) -> None:
+    def __init__(self, task_type: str, task_name: str,  task: dict) -> None:
         super().__init__()
-        self.task_type = task_type,
+        self.task_type = task_type
+        self.task_name = task_name 
         self.task = task
         self._init_dataset_for_task()
+    
+    def get_info(self, keys: Union[List[str], None] = None) -> dict:
+        """Returns the task information dictionary."""
+        task = self.task
+        return {k: task[k] for k in keys} if keys is not None else task
+    
+    def get_benchmark_info(self, task_name: Union[str, None] = None) -> dict:
+        """Returns the benchmark information dictionary."""
+        if os.path.exists(BENCHMARK_FP):
+            with open(BENCHMARK_FP, "r") as f:
+                benchmark_info = json.load(f)
+            if task_name is None: task_name = self.task_name
+            if task_name == "*": return benchmark_info
+            return benchmark_info[task_name]
+        else: raise FileNotFoundError(f"benchmark file {BENCHMARK_FP} not found. Please run `otb benchmark` to generate the benchmark file.")
+    
+    def top_models(self, n: int = 5, metric: str = "") -> List[str]:
+        """Returns the top n models for this task."""
+        benchmark_info = self.get_benchmark_info(task_name=self.task_name)
+        if metric == "":
+            metrics = self.get_metric_names()
+            metric = metrics[0]
+        model_benchmark_info = {k: v for k, v in benchmark_info.items() if k != "possible_predictions" and metric in v}
+        model_benchmark_info_keys = sorted(model_benchmark_info.keys(), key=lambda x: model_benchmark_info[x][metric]["metric_value"])[:n]
+        model_benchmark_info = {k: model_benchmark_info[k] for k in model_benchmark_info_keys}
+        model_benchmark_info["possible_predictions"] = benchmark_info["possible_predictions"]
 
-    def get_all_info(self) -> dict:
-        """Returns the full task information dictionary."""
-        return self.task
+        return model_benchmark_info
 
     def get_description(self) -> str:
         """Return the description of the task."""
@@ -146,50 +181,64 @@ class BaseTask(TaskABC):
         """Return the underlying validation data for this task."""
         return self._ds.get_val(task=self.task, data_type=data_type)
 
-    def evaluate_model(self, predict_call: Callable, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
-        """Evaluate a model against this task's transformed validation set, default against all metrics."""
+    def evaluate_model(self, predict_call: Callable, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None, return_predictions: bool = False, include_as_benchmark: bool = False, model_name: Union[str, None]  = None, overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+        """Evaluate a model against this task's transformed test set, default against all metrics."""
         raise NotImplementedError
 
     def _init_dataset_for_task(self) -> None:
         """Get the underlying dataset for the given task"""
         self._ds = Dataset(name=self.task["ds_name"])
 
+    def _add_experiment_to_benchmarks(self, model_name: str, model_metrics: dict, overwrite: bool) -> None:
+        if model_name is None: raise ValueError(f"model_name must be provided if include_as_benchmark is True.")
+        benchmark_info = self.get_benchmark_info(task_name="*")
+        if not overwrite and model_name in benchmark_info:
+            model_name = f"{model_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        benchmark_info[self.task_name][model_name] = model_metrics
+        with open(BENCHMARK_FP, "w") as f:
+            json.dump(benchmark_info, f, indent=4)
+
+
 class RegressionTask(BaseTask):
 
-    def __init__(self, task_type: str, task: dict) -> None:
-        super().__init__(task_type=task_type, task=task)
+    def __init__(self, task_type: str, task_name: str, task: dict) -> None:
+        super().__init__(task_type=task_type, task_name=task_name, task=task)
 
-    def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
-        """Evaluate a model against this task's transformed validation set, default against all metrics."""
+    def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None, return_predictions: bool = False, include_as_benchmark: bool = False, model_name: Union[str, None]  = None, overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+        """Evaluate a model against this task's transformed test set, default against all metrics."""
         # obtain evaluation data
-        X_val, y_val = self.get_val_data(data_type=data_type)
+        X_test, y_test = self.get_test_data(data_type=data_type)
         
         # apply x_transforms if present
         if x_transforms is not None:
             if x_transform_kwargs is not None:
-                X_val = x_transforms(X_val, **x_transform_kwargs)
+                X_test = x_transforms(X_test, **x_transform_kwargs)
             else:
-                X_val = x_transforms(X_val)
+                X_test = x_transforms(X_test)
         
         # get predictions
         if predict_call_kwargs is not None:
-            y_val_pred = predict_call(X_val, **predict_call_kwargs)
+            y_test_pred = predict_call(X_test, **predict_call_kwargs)
         else:
-            y_val_pred = predict_call(X_val)
+            y_test_pred = predict_call(X_test)
 
         if eval_metric_names is None: eval_metric_names = self.task["eval_metrics"]
         model_metrics = {k: -1 for k in eval_metric_names}
 
         for m in eval_metric_names:
-            val = getattr(eval_metrics, m)(y_val, y_val_pred)
+            val = getattr(eval_metrics, m)(y_test, y_test_pred)
             model_metrics[m] = val
 
+        if include_as_benchmark:
+            self._add_experiment_to_benchmarks(model_name=model_name, model_metrics=model_metrics, overwrite=overwrite)
+        if return_predictions:
+            return model_metrics, y_test_pred
         return model_metrics
 
 class ForecastingTask(BaseTask):
 
-    def __init__(self, task_type: str, task: dict) -> None:
-        super().__init__(task_type=task_type, task=task)
+    def __init__(self, task_type: str, task_name: str, task: dict) -> None:
+        super().__init__(task_type=task_type, task_name=task_name, task=task)
         self.forecast_horizon = self.task["forecast_horizon"]
         self.window_size = self.task["window_size"]
 
@@ -205,48 +254,49 @@ class ForecastingTask(BaseTask):
         
         return X, y
 
-    def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, window_size: Union[int, None] = None, forecast_horizon: Union[int, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, forecast_transforms: Union[Callable, None] = None, forecast_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None) -> dict:
-        """Evaluate a model against this task's transformed validation set, default against all metrics."""
+    def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, window_size: Union[int, None] = None, forecast_horizon: Union[int, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, forecast_transforms: Union[Callable, None] = None, forecast_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None, return_predictions: bool = False, include_as_benchmark: bool = False, model_name: Union[str, None]  = None, overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+        """Evaluate a model against this task's transformed test set, default against all metrics."""
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
 
         # obtain evaluation data
-        X_val, y_val = self.get_val_data(data_type=data_type)
-        assert forecast_horizon + window_size < len(X_val), f"window_size and forecast_horizon must be less than the length of the evaluation set ({len(X_val)})."
+        X_test, y_test = self.get_test_data(data_type=data_type)
+        assert forecast_horizon + window_size < len(X_test), f"window_size and forecast_horizon must be less than the length of the evaluation set ({len(X_test)})."
         
         # apply x_transforms if present
         if x_transforms is not None:
             if x_transform_kwargs is not None:
-                X_val = x_transforms(X_val, **x_transform_kwargs)
+                X_test = x_transforms(X_test, **x_transform_kwargs)
             else:
-                X_val = x_transforms(X_val)       
+                X_test = x_transforms(X_test)       
         
         # apply window and forecasting horizon transforms
         if forecast_transforms is not None:
             if forecast_transform_kwargs is not None:
-                y_val = forecast_transforms(y_val, **forecast_transform_kwargs)
+                y_test = forecast_transforms(y_test, **forecast_transform_kwargs)
             else:
-                y_val = forecast_transforms(y_val)
+                y_test = forecast_transforms(y_test)
 
         # obtain forecasting data
-        X_val, y_val = self.prepare_forecasting_data(X_val, y_val, window_size, forecast_horizon)
+        X_test, y_test = self.prepare_forecasting_data(X_test, y_test, window_size, forecast_horizon)
 
         # get predictions
         if predict_call_kwargs is not None:
-            y_val_pred = predict_call(X_val, **predict_call_kwargs)
+            y_test_pred = predict_call(X_test, **predict_call_kwargs)
         else:
-            y_val_pred = predict_call(X_val)
+            y_test_pred = predict_call(X_test)
 
         if eval_metric_names is None: eval_metric_names = self.task["eval_metrics"]
         model_metrics = {k: -1 for k in eval_metric_names}
 
-        #for m in eval_metric_names:
-        #    val, _ = getattr(forecasting_eval, m)(y_val, y_val_pred)  # discard the second return value (the full metric history)
-        #    model_metrics[m] = val
         for m in eval_metric_names:
-            val = getattr(eval_metrics, m)(y_val, y_val_pred)
+            val = getattr(eval_metrics, m)(y_test, y_test_pred)
             model_metrics[m] = val
 
+        if include_as_benchmark:
+            self._add_experiment_to_benchmarks(model_name=model_name, model_metrics=model_metrics, overwrite=overwrite)
+        if return_predictions:
+            return model_metrics, y_test_pred
         return model_metrics
     
 
@@ -302,9 +352,9 @@ class TaskApi(object):
         """Get a task by name."""
         if self._is_supported_task(task_name=task_name):
             if task_name.split(".")[0] == TaskTypes.REGRESSION.value:
-                return RegressionTask(task_type=TaskTypes.REGRESSION, task=self._get_task(key=task_name))
+                return RegressionTask(task_type=TaskTypes.REGRESSION, task_name=task_name, task=self._get_task(key=task_name))
             elif task_name.split(".")[0] == TaskTypes.FORECASTING.value:
-                return ForecastingTask(task_type=TaskTypes.REGRESSION, task=self._get_task(key=task_name))
+                return ForecastingTask(task_type=TaskTypes.REGRESSION, task_name=task_name, task=self._get_task(key=task_name))
             else: raise NotImplementedError(f"task type {task_name.split('.')[0]} not supported.")
         else: raise NotImplementedError(f"task {task_name} not supported.")
 

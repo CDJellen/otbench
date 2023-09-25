@@ -1,4 +1,5 @@
-from .cache import InMemoryCache
+""" .. include:: ../README.md """
+from otb.tasks import TaskApi
+from otb.benchmark.bench_runner import run_benchmarks
 
-
-CACHE = InMemoryCache()
+__docformat__ = "restructuredtext"

@@ -6,6 +6,7 @@ from typing import Union
 import pandas as pd
 
 from otb.tasks import TaskApi, tasks
+from otb.config import BENCHMARK_FP
 from otb.benchmark.models import (
     MeanRegressionModel,
     MeanWindowForecastingModel,
@@ -42,12 +43,11 @@ def run_benchmarks(
     benchmark_results = {}
 
     for task_name in all_tasks:
-        if "mlo" in task_name or "sm" in task_name: continue
         if verbose: print(f"Running benchmark for {task_name}...")
 
         task = task_api.get_task(task_name)
         target_name = task.get_target_name()
-        task_info = task.get_all_info()
+        task_info = task.get_info()
         
         if verbose: PPRINTER.pprint(task_info)
         
@@ -124,8 +124,7 @@ def run_benchmarks(
             if verbose: PPRINTER.pprint(results)
 
     if write_metrics:
-        if metrics_fp is None:
-            metrics_fp = os.path.join(os.getcwd(), "benchmark_metrics.json")
+        if metrics_fp is None: metrics_fp = BENCHMARK_FP
         with open(metrics_fp, "w") as f:
             f.write(json.dumps(benchmark_results, indent=4))
         if verbose: print(f"Wrote benchmark metrics to {metrics_fp}.")
