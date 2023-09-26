@@ -66,7 +66,7 @@ class InMemoryCache:
     
     def __iter__(self) -> pd.DataFrame:
         i = 0
-        keys = self._cache.keys()
+        keys = list(self._cache.keys())
         while i < len(keys):
             yield self._cache[keys[i]]
 

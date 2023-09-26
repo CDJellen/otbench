@@ -33,4 +33,4 @@ def plot_predictions(y_true: Union[pd.Series, pd.DataFrame], y_pred: Union[pd.Se
 
     # add legend
     plt.legend(loc="best", fontsize=10, frameon=True, framealpha=0.5,)
-    plt.show()
+    plt.show(block=False)

@@ -129,24 +129,6 @@
                 "metric_value": 0.04375820062480316,
                 "valid_predictions": 2274
             }
-        },
-        "test": {
-            "root_mean_square_error": {
-                "metric_value": 0.660886824131012,
-                "valid_predictions": 2449
-            },
-            "r2_score": {
-                "metric_value": -0.0006100082590192457,
-                "valid_predictions": 2449
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.5301250219345093,
-                "valid_predictions": 2449
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.03834306076169014,
-                "valid_predictions": 2449
-            }
         }
     }
 }

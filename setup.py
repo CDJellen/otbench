@@ -8,7 +8,7 @@ setuptools.setup(
     packages=setuptools.find_packages(exclude=['*tests*', '*notebooks*']),
     version='0.23.9.24',
     license='MIT',
-    description='Consistent benchmarking for modeling optical turbulence strength.',
+    description='Consistent benchmarks for evaluating optical turbulence strength models.',
     author='Chris Jellen',
     author_email='cdjellen@gmail.com',
     url='https://github.com/cdjellen/ot-bench',

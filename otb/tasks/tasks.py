@@ -87,11 +87,12 @@ class TaskABC(ABC):
 
 class BaseTask(TaskABC):
     
-    def __init__(self, task_type: str, task_name: str,  task: dict) -> None:
+    def __init__(self, task_type: str, task_name: str,  task: dict, benchmark_fp: str = BENCHMARK_FP) -> None:
         super().__init__()
         self.task_type = task_type
         self.task_name = task_name 
         self.task = task
+        self.benchmark_fp = benchmark_fp
         self._init_dataset_for_task()
     
     def get_info(self, keys: Union[List[str], None] = None) -> dict:
@@ -101,13 +102,13 @@ class BaseTask(TaskABC):
     
     def get_benchmark_info(self, task_name: Union[str, None] = None) -> dict:
         """Returns the benchmark information dictionary."""
-        if os.path.exists(BENCHMARK_FP):
-            with open(BENCHMARK_FP, "r") as f:
+        if os.path.exists(self.benchmark_fp):
+            with open(self.benchmark_fp, "r") as f:
                 benchmark_info = json.load(f)
             if task_name is None: task_name = self.task_name
             if task_name == "*": return benchmark_info
             return benchmark_info[task_name]
-        else: raise FileNotFoundError(f"benchmark file {BENCHMARK_FP} not found. Please run `otb benchmark` to generate the benchmark file.")
+        else: raise FileNotFoundError(f"benchmark file {self.benchmark_fp} not found. Please run `otb benchmark` to generate the benchmark file.")
     
     def top_models(self, n: int = 5, metric: str = "") -> List[str]:
         """Returns the top n models for this task."""
@@ -201,8 +202,8 @@ class BaseTask(TaskABC):
 
 class RegressionTask(BaseTask):
 
-    def __init__(self, task_type: str, task_name: str, task: dict) -> None:
-        super().__init__(task_type=task_type, task_name=task_name, task=task)
+    def __init__(self, task_type: str, task_name: str, task: dict, benchmark_fp: str = BENCHMARK_FP) -> None:
+        super().__init__(task_type=task_type, task_name=task_name, task=task, benchmark_fp=benchmark_fp)
 
     def evaluate_model(self, predict_call: Callable, predict_call_kwargs: Union[dict, None] = None, data_type: str = "pd", x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None, return_predictions: bool = False, include_as_benchmark: bool = False, model_name: Union[str, None]  = None, overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
@@ -237,8 +238,8 @@ class RegressionTask(BaseTask):
 
 class ForecastingTask(BaseTask):
 
-    def __init__(self, task_type: str, task_name: str, task: dict) -> None:
-        super().__init__(task_type=task_type, task_name=task_name, task=task)
+    def __init__(self, task_type: str, task_name: str, task: dict, benchmark_fp: str = BENCHMARK_FP) -> None:
+        super().__init__(task_type=task_type, task_name=task_name, task=task, benchmark_fp=benchmark_fp)
         self.forecast_horizon = self.task["forecast_horizon"]
         self.window_size = self.task["window_size"]
 
@@ -348,13 +349,13 @@ class TaskApi(object):
         self.tasks = tasks
         self._build_task_names()
     
-    def get_task(self, task_name: str) -> Union[RegressionTask, ForecastingTask]:
+    def get_task(self, task_name: str, benchmark_fp: str = BENCHMARK_FP) -> Union[RegressionTask, ForecastingTask]:
         """Get a task by name."""
         if self._is_supported_task(task_name=task_name):
             if task_name.split(".")[0] == TaskTypes.REGRESSION.value:
-                return RegressionTask(task_type=TaskTypes.REGRESSION, task_name=task_name, task=self._get_task(key=task_name))
+                return RegressionTask(task_type=TaskTypes.REGRESSION, task_name=task_name, task=self._get_task(key=task_name), benchmark_fp=benchmark_fp)
             elif task_name.split(".")[0] == TaskTypes.FORECASTING.value:
-                return ForecastingTask(task_type=TaskTypes.REGRESSION, task_name=task_name, task=self._get_task(key=task_name))
+                return ForecastingTask(task_type=TaskTypes.REGRESSION, task_name=task_name, task=self._get_task(key=task_name), benchmark_fp=benchmark_fp)
             else: raise NotImplementedError(f"task type {task_name.split('.')[0]} not supported.")
         else: raise NotImplementedError(f"task {task_name} not supported.")
 

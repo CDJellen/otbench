@@ -49,7 +49,7 @@ class OffshoreMacroMeterologicalModel:
         self.humidity_col_name = humidity_col_name
         self.wind_speed_col_name = wind_speed_col_name
         self.time_col_name = time_col_name
-        self.temporal_hour_col_name = temporal_hour_col_name,
+        self.temporal_hour_col_name = temporal_hour_col_name
         self.temporal_hour_weight_col_name = temporal_hour_weight_col_name
         self.height_of_observation = height_of_observation
         self.enforce_dynamic_range = enforce_dynamic_range
