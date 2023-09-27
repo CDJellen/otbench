@@ -37,7 +37,8 @@ def run_benchmarks(
     write_metrics: bool = True,
     metrics_fp: Union[os.PathLike, str, None] = None
     ) -> dict:
-    
+    """Run benchmarks for all tasks and models."""
+    if metrics_fp is None: metrics_fp = BENCHMARK_FP
     task_api = TaskApi()
     all_tasks = task_api.list_tasks()
     benchmark_results = {}
@@ -45,7 +46,7 @@ def run_benchmarks(
     for task_name in all_tasks:
         if verbose: print(f"Running benchmark for {task_name}...")
 
-        task = task_api.get_task(task_name)
+        task = task_api.get_task(task_name, benchmark_fp=metrics_fp)
         target_name = task.get_target_name()
         task_info = task.get_info()
         
@@ -124,7 +125,6 @@ def run_benchmarks(
             if verbose: PPRINTER.pprint(results)
 
     if write_metrics:
-        if metrics_fp is None: metrics_fp = BENCHMARK_FP
         with open(metrics_fp, "w") as f:
             f.write(json.dumps(benchmark_results, indent=4))
         if verbose: print(f"Wrote benchmark metrics to {metrics_fp}.")
@@ -134,6 +134,3 @@ def run_benchmarks(
     if verbose: print("Done running benchmarks.")
     if verbose: PPRINTER.pprint(benchmark_results)
     return benchmark_results
-
-if __name__ == "__main__":
-    run_benchmarks()

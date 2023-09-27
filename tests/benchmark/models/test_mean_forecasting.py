@@ -1,3 +1,4 @@
+import os
 import json
 
 import pytest
@@ -54,12 +55,23 @@ def test_with_forecasting_evaluation(task_api):
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m", benchmark_fp=TESTS_BENCHMARK_FP)    
     # test model evaluation
     _ = task.evaluate_model(model.predict, return_predictions=True)
+    # test model evaluation with transforms
+    _ = task.evaluate_model(model.predict, return_predictions=True, x_transforms=lambda x: x, x_transform_kwargs={}, forecast_transforms=lambda x: x, predict_call_kwargs={})
     # test model evaluation with as a benchmark
     _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name="test", overwrite=False)
     _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name="test", overwrite=True)
     with pytest.raises(ValueError):
         _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name=None, overwrite=False)
-    
+    # see where it shows up in the benchmark
+    top_models = task.top_models(n=100, metric="")
+    assert isinstance(top_models, dict)
+    # see where it shows up in the r2_score metrics
+    top_models = task.top_models(n=100, metric="r2_score")
+    assert isinstance(top_models, dict)
+    # remove the experiments.json file and then try to get the top models
+    os.remove(TESTS_BENCHMARK_FP)
+    with pytest.raises(FileNotFoundError):
+        top_models = task.top_models(n=100, metric="r2_score")
     # restore experiments.json contents
     with open(TESTS_BENCHMARK_FP, "w") as f:
         json.dump(old_experiments, f, indent=4)

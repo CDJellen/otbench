@@ -20,69 +20,69 @@ class TaskTypes(Enum):
 
 class TaskABC(ABC):
 
-    def get_info(self, keys: Union[List[str], None]) -> dict:
+    def get_info(self, keys: Union[List[str], None] = None) -> dict:
         """Returns the full task information dictionary."""
-        pass
+        raise NotImplementedError
 
     def get_description(self) -> str:
         """Return the description of the task."""
-        pass
+        raise NotImplementedError
 
     def get_long_description(self) -> str:
         """Return the description of the task."""
-        pass
+        raise NotImplementedError
 
     def get_benchmark_info(self, task_name: Union[str, None]) -> dict:
         """Returns the benchmark information dictionary."""
-        pass
+        raise NotImplementedError
 
     def top_models(self, n: int = 5, metric: str = "") -> List[str]:
         """Returns the top n models for this task."""
-        pass
+        raise NotImplementedError
 
     def get_transforms(self) -> dict:
         """Return the description of the transforms applied to the X and y data."""
-        pass
+        raise NotImplementedError
 
     def get_target_name(self) -> str:
         """Return the target feature name for this task."""
-        pass
+        raise NotImplementedError
 
     def get_unavailable_features(self) -> List[str]:
         """Return the names of features which are unavailable for training and inference in this task."""
-        pass
+        raise NotImplementedError
     
     def get_metric_names(self) -> List[str]:
         """Return the target feature name for this task."""
-        pass
+        raise NotImplementedError
 
     def get_dataset(self) -> Dataset:
         """Return the underlying dataset."""
-        pass
+        raise NotImplementedError
 
     def get_df(self) -> pd.DataFrame:
         """Return the underlying pd.DataFrame for this task's dataset."""
-        pass
+        raise NotImplementedError
 
     def get_data(self, data_type: str) -> Any:
         """Return the underlying data."""
-        pass
+        raise NotImplementedError
 
     def get_train_data(self, data_type: str) -> Any:
         """Return the underlying training data for this task."""
-        pass
+        raise NotImplementedError
 
     def get_test_data(self, data_type: str) -> Any:
         """Return the underlying test data for this task."""
-        pass
+        raise NotImplementedError
 
     def get_val_data(self, data_type: str) -> Any:
         """Return the underlying validation data for this task."""
-        pass
+        raise NotImplementedError
 
-    def evaluate_model(predict_call: Callable, data_type: str, x_transforms: Union[Callable, None], x_transform_kwargs: Union[dict, None], eval_metric_names: Union[List[str], None], return_predictions: bool, include_as_benchmark: bool, model_name: Union[str, None], overwrite: bool) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+    def evaluate_model(predict_call: Callable, data_type: str, x_transforms: Union[Callable, None] = None, x_transform_kwargs: Union[dict, None] = None, eval_metric_names: Union[List[str], None] = None, return_predictions: bool = False, include_as_benchmark: bool = False, model_name: Union[str, None] = None, overwrite: bool = False) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed validation set, default against all metrics."""
-        pass
+        raise NotImplementedError
 
 
 class BaseTask(TaskABC):
@@ -196,7 +196,7 @@ class BaseTask(TaskABC):
         if not overwrite and model_name in benchmark_info:
             model_name = f"{model_name}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         benchmark_info[self.task_name][model_name] = model_metrics
-        with open(BENCHMARK_FP, "w") as f:
+        with open(self.benchmark_fp, "w") as f:
             json.dump(benchmark_info, f, indent=4)
 
 

@@ -122,16 +122,6 @@ class Dataset(object):
         if file_type == "nc":
             ds = xr.load_dataset(fp)
             df = ds.to_dataframe()
-        # h5
-        elif file_type == "h5":
-            df = pd.read_hdf(fp)
-        # parquet
-        elif file_type == "gzip" or file_type == "parquet":
-            df = pd.read_parquet(fp)
-        # numpy
-        elif file_type == "npy":
-            nd_arr = np.load(fp)
-            df = pd.DataFrame(np.squeeze(nd_arr))
         else: raise NotImplementedError(f"unknown or unsupported file type {fp}.")
 
         # update the cache

@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from otb.tasks.tasks import RegressionTask, ForecastingTask
+from otb.tasks.tasks import TaskABC, BaseTask, RegressionTask, ForecastingTask
 from tests import TESTS_BENCHMARK_FP
 
 
@@ -178,3 +178,41 @@ def test_is_supported_task(task_api):
     assert task_api._is_supported_task("regression.mlo_cn2.dropna.Cn2_15m")
     assert task_api._is_supported_task("forecasting.mlo_cn2.dropna.Cn2_15m")
     assert not task_api._is_supported_task("not_a_task")
+
+def test_task_abc():
+    """Test the TaskABC."""
+    task = TaskABC()
+    with pytest.raises(NotImplementedError):
+        task.get_info()
+    with pytest.raises(NotImplementedError):
+        task.get_target_name()
+    with pytest.raises(NotImplementedError):
+        task.get_description()
+    with pytest.raises(NotImplementedError):
+        task.get_long_description()
+    with pytest.raises(NotImplementedError):
+        task.get_transforms()
+    with pytest.raises(NotImplementedError):
+        task.get_metric_names()
+    with pytest.raises(NotImplementedError):
+        task.get_unavailable_features()
+    with pytest.raises(NotImplementedError):
+        task.get_dataset()
+    with pytest.raises(NotImplementedError):
+        task.get_df()
+    with pytest.raises(NotImplementedError):
+        task.get_data("foo")
+    with pytest.raises(NotImplementedError):
+        task.get_train_data("foo")
+    with pytest.raises(NotImplementedError):
+        task.get_test_data("foo")
+    with pytest.raises(NotImplementedError):
+        task.get_val_data("foo")
+    with pytest.raises(NotImplementedError):
+        task.evaluate_model(lambda x: x, "foo")
+    with pytest.raises(NotImplementedError):
+        task.get_benchmark_info("foo")
+    with pytest.raises(NotImplementedError):
+        task.top_models()
+    with pytest.raises(NotImplementedError):
+        task.get_metric_names()

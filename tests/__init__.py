@@ -1,7 +1,5 @@
-from os import path
-
-from otb.config import ROOT_DIR
+from pathlib import Path
 
 
-TESTS_DIR = path.abspath(path.dirname(__file__))
-TESTS_BENCHMARK_FP = path.join(TESTS_DIR, "benchmark", "experiments.json")
+TESTS_DIR = Path(__file__).parent
+TESTS_BENCHMARK_FP = TESTS_DIR / "benchmark" / "experiments.json"
