@@ -1,0 +1,1 @@
+NCAR/EOL ISFS Team. 2023. MLO_CN2: NCAR/EOL ISFS 5-minute Surface Meteorology and Flux Products. Version 1.0. null. https://doi.org/10.26023/CQR2-TQJ9-AH10. Accessed 05 May 2023.
