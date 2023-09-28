@@ -170,6 +170,7 @@ If you use `ot-bench` in your research, please cite the package using the follow
     howpublished = {\url{github.com/CDJellen/otbench}},
     year = {2023},
 }
+```
 
 [^1]: https://data.eol.ucar.edu/dataset/160.007
 [^2]: https://papers.nips.cc/paper_files/paper/2017/hash/6449f44a102fde848669bdd9eb6b76fa-Abstract.html
