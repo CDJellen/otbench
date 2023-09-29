@@ -133,9 +133,13 @@ The full set of tasks, along with their complete definition and metadata, is ava
 
 We provide an overview of the process for training a regression model on the [`mlo_cn2`](https://doi.org/10.26023/CQR2-TQJ9-AH10) dataset[^1] using the [`LightGBM`](https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree) [package](https://pypi.org/project/lightgbm/). We develop a Gradient Boosted Regression Tree (GBRT) [model](http://dx.doi.org/10.1364/AO.416680)[^2] for predicting the strength of optical turbulence in [this notebook](/notebooks/regression/mlo_cn2.ipynb).
 
+[![regression.mlo_cn2.dropna.Cn2_15m](/doc/img/mlo_cn2_regression.png)](/notebooks/regression/mlo_cn2.ipynb)
+
 #### Forecasting
 
 We provide a similar overview for the process of developing a forecasting model specific to the full `usna_cn2_sm` forecasting task. Under this task, the next measurement of $C_n^2$ is predicted using the prior 6 observations of $C_n^2$ and the available environmental variables. The example model and forecasting baseline are available in [this notebook](/notebooks/forecasting/usna_cn2_sm.ipynb).
+
+[![forecasting.usna_cn2_sm.full.Cn2_3m](/doc/img/usna_cn2_sm_forecasting.png)](/notebooks/forecasting/usna_cn2_sm.ipynb)
 
 ### Contributing
 
@@ -147,7 +151,7 @@ New datasets can be added by following the instructions in the [data documentati
 
 #### Adding new tasks
 
-New tasks, if they are based on existing datasets, can be added directly to [the task specifications file](/otb/config/tasks.json).  If you would like to add a new task which uses a new dataset, please include the new dataset first or on the same pull request. The existing tasks provide a good template for how to specify a new task. If you have any questions, please reach out to the maintainers.
+New tasks, if they are based on existing datasets, can be added directly to [the task specifications file](/otb/config/tasks.json).  If you would like to add a new task which uses a new dataset, please include the new dataset first or on the same pull request. The existing tasks provide a good template for how to specify a new task. More information is available in the [data documentation](/otb/data/README.md). If you have any questions, please reach out to the maintainers.
 
 We strive to avoid a combinatorial explosion of tasks, and to ensure that the tasks are representative of the broader optical turbulence modeling problem. If you have any questions about whether a new task is appropriate, please reach out to the maintainers.
 
