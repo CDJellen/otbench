@@ -18,14 +18,12 @@ import pandas as pd
 
 class AWTModel:
 
-    def __init__(
-        self,
-        name: str,
-        air_temperature_col_name: str,
-        water_temperature_col_name: str,
-        use_log10: bool = True,
-        **kwargs
-    ):
+    def __init__(self,
+                 name: str,
+                 air_temperature_col_name: str,
+                 water_temperature_col_name: str,
+                 use_log10: bool = True,
+                 **kwargs):
         self.name = name
         self.air_temperature_col_name = air_temperature_col_name
         self.water_temperature_col_name = water_temperature_col_name
@@ -37,17 +35,11 @@ class AWTModel:
 
     def predict(self, X):
         """Predict the log10 of the cn2 value using the air-water temperature difference."""
-        X_ = X.loc[
-            X[self.air_temperature_col_name].notna()
-            & X[self.water_temperature_col_name].notna()
-        ].copy()
-        
+        X_ = X.loc[X[self.air_temperature_col_name].notna() & X[self.water_temperature_col_name].notna()].copy()
+
         awt = X_[self.air_temperature_col_name] - X_[self.water_temperature_col_name]
-        awt_prediction = pd.Series(
-            (2.05 * awt**2 + 2.37 * awt + 1.58) * 1e-16,
-            index=X.index,
-            name=self.name)
-        
+        awt_prediction = pd.Series((2.05 * awt**2 + 2.37 * awt + 1.58) * 1e-16, index=X.index, name=self.name)
+
         if self.use_log10:
             return np.log10(awt_prediction)
         return awt_prediction

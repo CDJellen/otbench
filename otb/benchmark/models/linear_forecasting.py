@@ -5,12 +5,7 @@ import numpy as np
 
 class LinearForecastingModel:
 
-    def __init__(
-        self,
-        name: str,
-        target_name: str,
-        **kwargs
-    ):
+    def __init__(self, name: str, target_name: str, **kwargs):
         self.name = name
         self.target_name = target_name
 

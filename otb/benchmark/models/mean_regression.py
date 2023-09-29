@@ -5,14 +5,10 @@ import numpy as np
 
 class MeanRegressionModel:
 
-    def __init__(
-        self,
-        name: str,
-        **kwargs
-    ):
+    def __init__(self, name: str, **kwargs):
         self.name = name
         self.mean = np.nan
-    
+
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         # maintain the same interface as the other models
         self.mean = np.mean(y)

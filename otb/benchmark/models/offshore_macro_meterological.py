@@ -21,26 +21,25 @@ import pandas as pd
 
 from otb.utils import apply_fried_height_adjustment, add_temporal_hour, add_temporal_hour_weight
 
+
 class OffshoreMacroMeterologicalModel:
 
-    def __init__(
-        self,
-        name: str,
-        timezone: str,
-        obs_lat: float,
-        obs_lon: float,
-        air_temperature_col_name: str,
-        humidity_col_name: str,
-        wind_speed_col_name: str,
-        time_col_name: str,
-        temporal_hour_col_name: str = "temporal_hour",
-        temporal_hour_weight_col_name: str = "temporal_hour_weight",
-        height_of_observation: Union[float, None] = None,
-        enforce_dynamic_range: bool = True,
-        constant_adjustment: bool = True,
-        use_log10: bool = True,
-        **kwargs
-    ):
+    def __init__(self,
+                 name: str,
+                 timezone: str,
+                 obs_lat: float,
+                 obs_lon: float,
+                 air_temperature_col_name: str,
+                 humidity_col_name: str,
+                 wind_speed_col_name: str,
+                 time_col_name: str,
+                 temporal_hour_col_name: str = "temporal_hour",
+                 temporal_hour_weight_col_name: str = "temporal_hour_weight",
+                 height_of_observation: Union[float, None] = None,
+                 enforce_dynamic_range: bool = True,
+                 constant_adjustment: bool = True,
+                 use_log10: bool = True,
+                 **kwargs):
         self.name = name
         self.timezone = timezone
         self.obs_lat = obs_lat
@@ -65,29 +64,21 @@ class OffshoreMacroMeterologicalModel:
 
         # add temporal hour and temporal hour weight
         if self.temporal_hour_col_name not in X.columns:
-            X = add_temporal_hour(
-                X,
-                name=self.name,
-                timezone=self.timezone,
-                obs_lat=self.obs_lat,
-                obs_lon=self.obs_lon,
-                time_col_name=self.time_col_name,
-                temporal_hour_col_name=self.temporal_hour_col_name
-            )
+            X = add_temporal_hour(X,
+                                  name=self.name,
+                                  timezone=self.timezone,
+                                  obs_lat=self.obs_lat,
+                                  obs_lon=self.obs_lon,
+                                  time_col_name=self.time_col_name,
+                                  temporal_hour_col_name=self.temporal_hour_col_name)
         if self.temporal_hour_weight_col_name not in X.columns:
-            X = add_temporal_hour_weight(
-                X,
-                temporal_hour_col_name=self.temporal_hour_col_name,
-                temporal_hour_weight_col_name=self.temporal_hour_weight_col_name
-            )
+            X = add_temporal_hour_weight(X,
+                                         temporal_hour_col_name=self.temporal_hour_col_name,
+                                         temporal_hour_weight_col_name=self.temporal_hour_weight_col_name)
 
-        X_ = X.loc[
-            X[self.air_temperature_col_name].notna()
-            & X[self.humidity_col_name].notna()
-            & X[self.wind_speed_col_name].notna()
-            & X[self.temporal_hour_weight_col_name].notna()
-        ].copy()
-        
+        X_ = X.loc[X[self.air_temperature_col_name].notna() & X[self.humidity_col_name].notna() &
+                   X[self.wind_speed_col_name].notna() & X[self.temporal_hour_weight_col_name].notna()].copy()
+
         T = X_[self.air_temperature_col_name]  # temperature in [C]
         U = X_[self.wind_speed_col_name]  # Wind Speed in [m/s]
         RH = X_[self.humidity_col_name]  # Relative Humidity [%]
@@ -103,27 +94,24 @@ class OffshoreMacroMeterologicalModel:
         u3 = -2.8e-17  # coefficient for wind speed cubed U^3
         c = -7.44e-14  # final coefficient
 
-        omm_prediction = pd.Series(
-            (w * W + t * T + rh * RH + rh2 * (RH * RH) + rh3 *
-            (RH * RH * RH) + u * U + u2 * (U * U) + u3 * (U * U * U) + c),
-            index=X.index,
-            name=self.name)
-        
+        omm_prediction = pd.Series((w * W + t * T + rh * RH + rh2 * (RH * RH) + rh3 * (RH * RH * RH) + u * U + u2 *
+                                    (U * U) + u3 * (U * U * U) + c),
+                                   index=X.index,
+                                   name=self.name)
+
         if self.enforce_dynamic_range:
             X[self.name] = omm_prediction
-            X.loc[((X[self.wind_speed_col_name] > 15) | ((X[self.air_temperature_col_name] < -2) | (X[self.air_temperature_col_name] > 24)) | (X[self.humidity_col_name] < 15)), self.name] = np.nan
+            X.loc[((X[self.wind_speed_col_name] > 15) | ((X[self.air_temperature_col_name] < -2) |
+                                                         (X[self.air_temperature_col_name] > 24)) |
+                   (X[self.humidity_col_name] < 15)), self.name] = np.nan
             omm_prediction = X[self.name].values
-            
+
             X.drop(columns=[self.name], inplace=True)
 
         if len(omm_prediction[~np.isnan(omm_prediction)]) > 0:
-            if self.constant_adjustment & (min(
-                    omm_prediction[~np.isnan(omm_prediction)])
-                                    <= 0):
-                constant_adjustment = min(
-                    omm_prediction[~np.isnan(omm_prediction)]
-                ) * -1
-                
+            if self.constant_adjustment & (min(omm_prediction[~np.isnan(omm_prediction)]) <= 0):
+                constant_adjustment = min(omm_prediction[~np.isnan(omm_prediction)]) * -1
+
                 omm_prediction = (
                     omm_prediction + \
                     constant_adjustment + \
@@ -134,11 +122,9 @@ class OffshoreMacroMeterologicalModel:
 
         # convert from model reference height to height of observation
         if self.height_of_observation is not None:
-            omm_prediction = apply_fried_height_adjustment(
-                cn2=omm_prediction,
-                observed=62.0,
-                desired=self.height_of_observation
-            )
+            omm_prediction = apply_fried_height_adjustment(cn2=omm_prediction,
+                                                           observed=62.0,
+                                                           desired=self.height_of_observation)
 
         if self.use_log10:
             return np.log10(omm_prediction)
