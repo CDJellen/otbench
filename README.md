@@ -89,11 +89,11 @@ pip install -r requirements-dev.txt
 
 ### Usage
 
-The package seeks to balance ease of use with evaluation extensibility across ecosystems. Examples of how to use the package are provided in the [notebooks](/notebooks/) directory.
+The package seeks to balance ease of use with evaluation extensibility across ecosystems. Examples of how to use the package are provided in the [notebooks](./notebooks/) directory.
 
 #### Tasks
 
-A deeper overview of the package structure, the concept of a "Task", and the available tasks is provided in [this notebook](/notebooks/overview.ipynb).
+A deeper overview of the package structure, the concept of a "Task", and the available tasks is provided in [this notebook](./notebooks/overview.ipynb).
 
 The task object, either a `RegressionTask` or a `ForecastingTask`, provides a consistent interface for obtaining the full underlying dataset, specific data slices, evaluating models, and comparing newly-developed models against existing benchmarks. It specifies the dataset, target variable, data splits, evaluation metrics, and operational metadata. The package provides a consistent interface for running models on these tasks, and for comparing the results of different models.
 
@@ -127,37 +127,37 @@ mlo_cn2.evaluate_model(
         )
 ```
 
-The full set of tasks, along with their complete definition and metadata, is available as a [JSON file](/otb/config/tasks.json).
+The full set of tasks, along with their complete definition and metadata, is available as a [JSON file](./otb/config/tasks.json).
 
 #### Regression
 
-We provide an overview of the process for training a regression model on the [`mlo_cn2`](https://doi.org/10.26023/CQR2-TQJ9-AH10) dataset[^1] using the [`LightGBM`](https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree) [package](https://pypi.org/project/lightgbm/). We develop a Gradient Boosted Regression Tree (GBRT) [model](http://dx.doi.org/10.1364/AO.416680)[^2] for predicting the strength of optical turbulence in [this notebook](/notebooks/regression/mlo_cn2.ipynb).
+We provide an overview of the process for training a regression model on the [`mlo_cn2`](https://doi.org/10.26023/CQR2-TQJ9-AH10) dataset[^1] using the [`LightGBM`](https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree) [package](https://pypi.org/project/lightgbm/). We develop a Gradient Boosted Regression Tree (GBRT) [model](http://dx.doi.org/10.1364/AO.416680)[^2] for predicting the strength of optical turbulence in [this notebook](./notebooks/regression/mlo_cn2.ipynb).
 
-[![regression.mlo_cn2.dropna.Cn2_15m](/doc/img/mlo_cn2_regression.png)](/notebooks/regression/mlo_cn2.ipynb)
+[![regression.mlo_cn2.dropna.Cn2_15m](./doc/img/mlo_cn2_regression.png)](./notebooks/regression/mlo_cn2.ipynb)
 
 #### Forecasting
 
-We provide a similar overview for the process of developing a forecasting model specific to the full `usna_cn2_sm` forecasting task. Under this task, the next measurement of $C_n^2$ is predicted using the prior 6 observations of $C_n^2$ and the available environmental variables. The example model and forecasting baseline are available in [this notebook](/notebooks/forecasting/usna_cn2_sm.ipynb).
+We provide a similar overview for the process of developing a forecasting model specific to the full `usna_cn2_sm` forecasting task. Under this task, the next measurement of $C_n^2$ is predicted using the prior 6 observations of $C_n^2$ and the available environmental variables. The example model and forecasting baseline are available in [this notebook](./notebooks/forecasting/usna_cn2_sm.ipynb).
 
-[![forecasting.usna_cn2_sm.full.Cn2_3m](/doc/img/usna_cn2_sm_forecasting.png)](/notebooks/forecasting/usna_cn2_sm.ipynb)
+[![forecasting.usna_cn2_sm.full.Cn2_3m](./doc/img/usna_cn2_sm_forecasting.png)](./notebooks/forecasting/usna_cn2_sm.ipynb)
 
 ### Contributing
 
-All contributions are welcome! We are especially interested in contributions that add new datasets, tasks, and benchmark models. We are also interested in contributions that improve the documentation, add new examples, or improve the codebase. When contributing, please follow the [contributing guidelines](/CONTRIBUTING.md), and ensure that your code passes the tests and linting. If you have any questions, please feel free to open an issue or reach out to the maintainers.
+All contributions are welcome! We are especially interested in contributions that add new datasets, tasks, and benchmark models. We are also interested in contributions that improve the documentation, add new examples, or improve the codebase. When contributing, please follow the [contributing guidelines](./CONTRIBUTING.md), and ensure that your code passes the tests and linting. If you have any questions, please feel free to open an issue or reach out to the maintainers.
 
 #### Adding new datasets
 
-New datasets can be added by following the instructions in the [data documentation](/otb/data/README.md). We strongly prefer datasets to conform to the NetCDF4 format, and to be stored in the `data/` directory. If you have a dataset that you would like to add, but are unable to convert it to NetCDF4, please reach out to the maintainers.
+New datasets can be added by following the instructions in the [data documentation](./otb/data/README.md). We strongly prefer datasets to conform to the NetCDF4 format, and to be stored in the `data/` directory. If you have a dataset that you would like to add, but are unable to convert it to NetCDF4, please reach out to the maintainers.
 
 #### Adding new tasks
 
-New tasks, if they are based on existing datasets, can be added directly to [the task specifications file](/otb/config/tasks.json).  If you would like to add a new task which uses a new dataset, please include the new dataset first or on the same pull request. The existing tasks provide a good template for how to specify a new task. More information is available in the [data documentation](/otb/data/README.md). If you have any questions, please reach out to the maintainers.
+New tasks, if they are based on existing datasets, can be added directly to [the task specifications file](./otb/config/tasks.json).  If you would like to add a new task which uses a new dataset, please include the new dataset first or on the same pull request. The existing tasks provide a good template for how to specify a new task. More information is available in the [data documentation](./otb/data/README.md). If you have any questions, please reach out to the maintainers.
 
 We strive to avoid a combinatorial explosion of tasks, and to ensure that the tasks are representative of the broader optical turbulence modeling problem. If you have any questions about whether a new task is appropriate, please reach out to the maintainers.
 
 #### Adding new benchmark models
 
-The set of benchmark models in the current release of `otbench` are relatively sparse, and serve mostly to guage whether a new model provides any improvement over standard climatology or persistence techniques. Some literature models are also included to asses their performance against new data collected over a diverse set of measurement campaigns. We welcome contributions of new benchmark models, especially those that are designed to be more representative of the broader optical turbulence modeling problem, and which can generate predictions across multiple datasets.
+The set of benchmark models in the current release of `otbench` are relatively sparse, and serve mostly to gauge whether a new model provides any improvement over standard climatology or persistence techniques. Some literature models are also included to asses their performance against new data collected over a diverse set of measurement campaigns. We welcome contributions of new benchmark models, especially those that are designed to be more representative of the broader optical turbulence modeling problem, and which can generate predictions across multiple datasets.
 
 #### Other contributions to the codebase
 
