@@ -432,7 +432,7 @@ class TaskApi(object):
         return d
 
     def _is_supported_task(self, task_name: str) -> bool:
-        """Check whether a task is supported by ot-benchmark."""
+        """Check whether a task is supported by otbench."""
         return task_name in self.task_names
 
     def _build_task_names(self) -> None:

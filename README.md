@@ -36,7 +36,7 @@ Comparing different models can be difficult, especially when the models are trai
 
 ### Installation
 
-You can install `ot-bench` using a Python package manager such as `pip`.
+You can install `otbench` using a Python package manager such as `pip`.
 
 The package is available on PyPi, versioned using the date of release. We will work to ensure compatibility with the last three major versions of Python, but have designed the package to be compatible with Python 3.6 and above.
 
@@ -163,18 +163,22 @@ The set of benchmark models in the current release of `otbench` are relatively s
 
 The set of evaluation metrics and plotting functions is relatively sparse, and we welcome contributions of new metrics and plots. We also welcome contributions that improve the documentation, add new examples, or improve the codebase. If you have any questions, please feel free to open an issue or reach out to the maintainers.
 
-### Citing ot-bench
+### Citing `otbench`
 
-If you use `ot-bench` in your research, please cite the package using the following BibTeX entry:
+If you use `otbench` in your research, please cite the package using the following BibTeX entry:
 
 ```bibtex
 @misc{jellen2023otbench,
     author = {Jellen, Christopher and Nelson, Charles and Burkhardt, John and Brownell, Cody}.
-    title = {ot-bench: Effective Benchmarks for Optical Turbulence Modeling},
+    title = {otbench: Effective Benchmarks for Optical Turbulence Modeling},
     howpublished = {\url{github.com/CDJellen/otbench}},
     year = {2023},
 }
 ```
+
+In addition to the citation reference and any other acknowledgements, please acknowledge NCAR/EOL in your publications with text such as:
+
+>  Data provided by NCAR/EOL under the sponsorship of the National Science Foundation. https://data.eol.ucar.edu/
 
 [^1]: https://data.eol.ucar.edu/dataset/160.007
 [^2]: https://papers.nips.cc/paper_files/paper/2017/hash/6449f44a102fde848669bdd9eb6b76fa-Abstract.html
