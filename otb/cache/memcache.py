@@ -12,7 +12,7 @@ class InMemoryCache:
     def __init__(self, cache_dir: Union[str, os.PathLike, None] = CACHE_DIR) -> None:
         self._cache = dict()
         self._cache_dir = cache_dir
-    
+
     def add_dataset(self, name: str, dataset: pd.DataFrame) -> None:
         """Adds a new dataset to the cache, persisting to disk if needed."""
         self._cache[name] = dataset
@@ -50,10 +50,10 @@ class InMemoryCache:
 
     def _cache_dataset(self, key) -> None:
         """Save a dataset from memory to disk."""
-        if key not in self._cache: raise KeyError(f"no dataset named {key}.")
+        if key not in self._cache:
+            raise KeyError(f"no dataset named {key}.")
         df = self._cache[key]
         df.to_pickle(os.path.join(self._cache_dir, f"{key}.pickle"))
-
 
     def _load_dataset(self, key) -> None:
         """Load a dataset from disk to memory"""
@@ -63,7 +63,7 @@ class InMemoryCache:
         except Exception as e:  # @TODO narrow scope
             print(f"failed to load dataset with key '{key}' from cache at {self._cache_dir} with error {e}.")
             return
-    
+
     def __iter__(self) -> pd.DataFrame:
         i = 0
         keys = list(self._cache.keys())
@@ -76,7 +76,8 @@ class InMemoryCache:
     def __getitem__(self, key) -> Union[pd.DataFrame, None]:
         if key in self._cache:
             return self._cache[key]
-        else: return None
+        else:
+            return None
 
     def __contains__(self, key) -> bool:
         return True if key in self._cache else False
