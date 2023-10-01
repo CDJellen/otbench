@@ -32,7 +32,7 @@ def run_benchmarks(verbose: bool = True,
     if metrics_fp is None:
         metrics_fp = BENCHMARK_FP
     task_api = TaskApi()
-    all_tasks = task_api.list_tasks()
+    all_tasks = sorted(task_api.list_tasks())
     benchmark_results = {}
 
     for task_name in all_tasks:
