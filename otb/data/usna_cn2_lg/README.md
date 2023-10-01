@@ -1,8 +1,8 @@
-## United States Naval Academy Scintillometer field campaign (`usna_cn2_sm`)
+## United States Naval Academy Scintillometer field campaign (`usna_cn2_lg`)
 
 ### Summary
 
-Scintillometer, meterological, and oceanographic data from the United States Naval Academy between June 2021 and August 2021, inclusive. The dataset includes Cn2 as measured by a ScinTec BLS450 Scintillometer, humidity and solar radiation from a co-located Davis Vantage Pro2 weather station, and air and water characteristics from a co-located NOAA Coastal Observation Station (8575512).
+Scintillometer, meterological, and oceanographic data from the United States Naval Academy between 2020 and July 2022. The dataset includes Cn2 as measured by a ScinTec BLS450 Scintillometer, meterological data from a co-located Davis Vantage Pro2 weather station, and oceanographic data from a nearby National Data Buoy Center buoy (TPLM2).
 
 ### Versions
 
@@ -19,9 +19,9 @@ Scintillometer, meterological, and oceanographic data from the United States Nav
 ```
 
 ```bibtex
-@misc{jellen2023usnacn2sm,
+@misc{jellen2023usnacn2lg,
     author = {Jellen, Christopher and Nelson, Charles and Burkhardt, John and Brownell, Cody}.
-    title = {USNA {$C_n^2$} Small Dataset},
+    title = {USNA {$C_n^2$} Large Dataset},
     howpublished = {\url{github.com/CDJellen/otbench}},
     year = {2023},
 }
@@ -35,7 +35,7 @@ In addition to the citation reference and any other acknowledgements, please ack
 
 ### Additional information
 
- * Frequency: 6 minute
+ * Frequency: 1 minute
  * Language: English
 
 ### Categories
@@ -44,7 +44,7 @@ In addition to the citation reference and any other acknowledgements, please ack
 
 ### Platforms
 
- * NOAA Coastal Observation Station 8575512
+ * National Data Buoy Center station TPLM2
 
 ### Instruments
 
@@ -53,8 +53,8 @@ In addition to the citation reference and any other acknowledgements, please ack
 
 ### Temporal coverage
 
- * Begin datetime: 2021-06-01 00:00:00
- * End datetime: 2021-09-01 00:00:00
+ * Begin datetime: 2020-01-01 00:00:00
+ * End datetime: 2022-07-14 00:00:00
 
 ### Spatial coverage
 

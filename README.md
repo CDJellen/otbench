@@ -176,9 +176,15 @@ If you use `otbench` in your research, please cite the package using the followi
 }
 ```
 
-In addition to the citation reference and any other acknowledgements, please acknowledge NCAR/EOL in your publications with text such as:
+In addition to the citation reference and any other acknowledgements:
+
+Please acknowledge NCAR/EOL in your publications with text such as:
 
 >  Data provided by NCAR/EOL under the sponsorship of the National Science Foundation. https://data.eol.ucar.edu/
+
+Please acknowledge ONR and DE-JTO in your publications with text such as:
+
+>  Data provided by the United States Naval Academy under the sponsorship of the Office of Naval Research and the Directed Energy Joint Technology Office.
 
 [^1]: https://data.eol.ucar.edu/dataset/160.007
 [^2]: https://papers.nips.cc/paper_files/paper/2017/hash/6449f44a102fde848669bdd9eb6b76fa-Abstract.html
