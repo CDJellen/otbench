@@ -1,154 +1,4 @@
 {
-    "regression.usna_cn2_lg.full.Cn2_3m": {
-        "possible_predictions": 488306,
-        "mean_regression": {
-            "root_mean_square_error": {
-                "metric_value": 0.631974388051484,
-                "valid_predictions": 488306
-            },
-            "r2_score": {
-                "metric_value": -0.0015868153265194973,
-                "valid_predictions": 488306
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.5077191414738433,
-                "valid_predictions": 488306
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.03602417000111926,
-                "valid_predictions": 488306
-            }
-        },
-        "air_water_temperature_model": {
-            "root_mean_square_error": {
-                "metric_value": 1.0461998343461816,
-                "valid_predictions": 458687
-            },
-            "r2_score": {
-                "metric_value": -1.7895686434323945,
-                "valid_predictions": 458687
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.8923641485012126,
-                "valid_predictions": 458687
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.06381948039758084,
-                "valid_predictions": 458687
-            }
-        },
-        "macro_meterological": {
-            "root_mean_square_error": {
-                "metric_value": 1.217037352229368,
-                "valid_predictions": 312367
-            },
-            "r2_score": {
-                "metric_value": -2.7504153724657994,
-                "valid_predictions": 312367
-            },
-            "mean_absolute_error": {
-                "metric_value": 1.0450167561248713,
-                "valid_predictions": 312367
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.07206253156620035,
-                "valid_predictions": 312367
-            }
-        },
-        "offshore_macro_meterological": {
-            "root_mean_square_error": {
-                "metric_value": 0.6748188087597109,
-                "valid_predictions": 317350
-            },
-            "r2_score": {
-                "metric_value": -0.18580295710108707,
-                "valid_predictions": 317350
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.5331112261717813,
-                "valid_predictions": 317350
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.03743351848080913,
-                "valid_predictions": 317350
-            }
-        }
-    },
-    "regression.usna_cn2_sm.full.Cn2_3m": {
-        "possible_predictions": 4080,
-        "mean_regression": {
-            "root_mean_square_error": {
-                "metric_value": 0.4801184955506507,
-                "valid_predictions": 4080
-            },
-            "r2_score": {
-                "metric_value": -0.07645010465305124,
-                "valid_predictions": 4080
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.38179556303007695,
-                "valid_predictions": 4080
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.02698506147467595,
-                "valid_predictions": 4080
-            }
-        },
-        "air_water_temperature_model": {
-            "root_mean_square_error": {
-                "metric_value": 0.9096191919328067,
-                "valid_predictions": 4080
-            },
-            "r2_score": {
-                "metric_value": -2.863814437832751,
-                "valid_predictions": 4080
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.7884504234946442,
-                "valid_predictions": 4080
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.056049126816720744,
-                "valid_predictions": 4080
-            }
-        },
-        "macro_meterological": {
-            "root_mean_square_error": {
-                "metric_value": 0.8638771705816506,
-                "valid_predictions": 3653
-            },
-            "r2_score": {
-                "metric_value": -2.5085090260228906,
-                "valid_predictions": 3653
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.6849410787984583,
-                "valid_predictions": 3653
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.04725185126821087,
-                "valid_predictions": 3653
-            }
-        },
-        "offshore_macro_meterological": {
-            "root_mean_square_error": {
-                "metric_value": 0.17819538474607394,
-                "valid_predictions": 421
-            },
-            "r2_score": {
-                "metric_value": -0.2901433400280673,
-                "valid_predictions": 421
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.12555099442355777,
-                "valid_predictions": 421
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.009207724213973945,
-                "valid_predictions": 421
-            }
-        }
-    },
     "forecasting.mlo_cn2.dropna.Cn2_15m": {
         "possible_predictions": 2444,
         "mean_window_forecasting": {
@@ -410,6 +260,156 @@
             "mean_absolute_percentage_error": {
                 "metric_value": 0.04375820062480316,
                 "valid_predictions": 2274
+            }
+        }
+    },
+    "regression.usna_cn2_lg.full.Cn2_3m": {
+        "possible_predictions": 488306,
+        "mean_regression": {
+            "root_mean_square_error": {
+                "metric_value": 0.631974388051484,
+                "valid_predictions": 488306
+            },
+            "r2_score": {
+                "metric_value": -0.0015868153265194973,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5077191414738433,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.03602417000111926,
+                "valid_predictions": 488306
+            }
+        },
+        "air_water_temperature_model": {
+            "root_mean_square_error": {
+                "metric_value": 1.0461998343461816,
+                "valid_predictions": 458687
+            },
+            "r2_score": {
+                "metric_value": -1.7895686434323945,
+                "valid_predictions": 458687
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.8923641485012126,
+                "valid_predictions": 458687
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.06381948039758084,
+                "valid_predictions": 458687
+            }
+        },
+        "macro_meterological": {
+            "root_mean_square_error": {
+                "metric_value": 1.217037352229368,
+                "valid_predictions": 312367
+            },
+            "r2_score": {
+                "metric_value": -2.7504153724657994,
+                "valid_predictions": 312367
+            },
+            "mean_absolute_error": {
+                "metric_value": 1.0450167561248713,
+                "valid_predictions": 312367
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.07206253156620035,
+                "valid_predictions": 312367
+            }
+        },
+        "offshore_macro_meterological": {
+            "root_mean_square_error": {
+                "metric_value": 0.6748188087597109,
+                "valid_predictions": 317350
+            },
+            "r2_score": {
+                "metric_value": -0.18580295710108707,
+                "valid_predictions": 317350
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5331112261717813,
+                "valid_predictions": 317350
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.03743351848080913,
+                "valid_predictions": 317350
+            }
+        }
+    },
+    "regression.usna_cn2_sm.full.Cn2_3m": {
+        "possible_predictions": 4080,
+        "mean_regression": {
+            "root_mean_square_error": {
+                "metric_value": 0.4801184955506507,
+                "valid_predictions": 4080
+            },
+            "r2_score": {
+                "metric_value": -0.07645010465305124,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.38179556303007695,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.02698506147467595,
+                "valid_predictions": 4080
+            }
+        },
+        "air_water_temperature_model": {
+            "root_mean_square_error": {
+                "metric_value": 0.9096191919328067,
+                "valid_predictions": 4080
+            },
+            "r2_score": {
+                "metric_value": -2.863814437832751,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.7884504234946442,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.056049126816720744,
+                "valid_predictions": 4080
+            }
+        },
+        "macro_meterological": {
+            "root_mean_square_error": {
+                "metric_value": 0.8638771705816506,
+                "valid_predictions": 3653
+            },
+            "r2_score": {
+                "metric_value": -2.5085090260228906,
+                "valid_predictions": 3653
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.6849410787984583,
+                "valid_predictions": 3653
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.04725185126821087,
+                "valid_predictions": 3653
+            }
+        },
+        "offshore_macro_meterological": {
+            "root_mean_square_error": {
+                "metric_value": 0.17819538474607394,
+                "valid_predictions": 421
+            },
+            "r2_score": {
+                "metric_value": -0.2901433400280673,
+                "valid_predictions": 421
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.12555099442355777,
+                "valid_predictions": 421
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.009207724213973945,
+                "valid_predictions": 421
             }
         }
     }
