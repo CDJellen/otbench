@@ -60,7 +60,7 @@ def run_benchmarks(verbose: bool = True,
         X, y = pd.concat([X_train, X_val]), pd.concat([y_train, y_val])
 
         if "mlo_cn2" in task_name:
-            target_name = "Cn2_3m"
+            target_name = "Cn2_15m"
             height_of_observation = 15.0
             air_temperature_col_name = "T_2m"
             water_temperature_col_name = ""
@@ -83,7 +83,7 @@ def run_benchmarks(verbose: bool = True,
             raise ValueError(f"benchmarks not configured for task {task_name}.")
 
         for model_name, model in models.items():
-            if "water" in model_name and "mlo_cn2" in task_name:
+            if "AWT" in model_name and "mlo_cn2" in task_name:
                 continue
             if verbose:
                 print(f"Running benchmark for {model_name}...")

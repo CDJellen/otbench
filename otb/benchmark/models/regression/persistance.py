@@ -13,7 +13,7 @@ class PersistanceRegressionModel(BaseRegressionModel):
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         # maintain the same interface as the other models
-        self.mean = np.mean(y)
+        self.mean = np.nanmean(y)
 
     def predict(self, X: 'pd.DataFrame'):
         # predict the mean for each entry in X

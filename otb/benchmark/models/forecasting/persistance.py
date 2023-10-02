@@ -24,8 +24,7 @@ class PersistanceForecastingModel(BaseForecastingModel):
         # develop a prediction for each row in X
         preds = []
         for i in range(len(X)):
-            # fit a line to the lagged values
-            pred = np.mean(X.iloc[i, :].values)
+            pred = np.nanmean(X.iloc[i, :].values)
             preds.append(pred)
 
         return np.array(preds)

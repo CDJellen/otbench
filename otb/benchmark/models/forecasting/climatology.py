@@ -16,26 +16,28 @@ class ClimatologyForecastingModel(BaseForecastingModel):
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         # maintain the same interface as the other models
-        if isinstance(y, np.ndarray):
-            y = pd.Series(y, name=self.target_name)
-        data = X.join(y)
+        X = X[[c for c in X.columns if c.startswith(self.target_name)]]
 
         # compute the mean for each interval in X across all days
-        if isinstance(data.index, pd.DatetimeIndex):
-            times = data.index.time
-        else:
-            times = data[self.time_col_name]
-        times = np.unique(times)
-        for t in times:
-            self.means[t] = data.loc[data.index.time == t][self.target_name].mean()
-
-    def predict(self, X: 'pd.DataFrame'):
-        # predict the mean for each entry in X
         if isinstance(X.index, pd.DatetimeIndex):
             times = X.index.time
         else:
             times = X[self.time_col_name]
+            times = times.apply(lambda x: pd.to_datetime(x).time())
+        times = np.unique(times)
+        for t in times:
+            self.means[t] = np.nanmean(X.loc[X.index.time == t].values)
+
+    def predict(self, X: 'pd.DataFrame'):
+        # predict the mean for each entry in X
+        if isinstance(X.index, pd.DatetimeIndex):
+            times = X.index
+        else:
+            times = X[self.time_col_name]
+            times = times.apply(lambda x: pd.to_datetime(x))
         # apply the forecast horizon to each time
-        timedelta = times[1] - times[0]
-        times = [pd.Timestamp(t) + timedelta for t in times]
-        return np.array([self.means[t.time] for t in times])
+        time_step = X.index[1] - X.index[0]
+        timedelta = pd.Timedelta(seconds=self.forecast_horizon * time_step.total_seconds())
+        # add the timedelta to each time
+        times = [(t + timedelta).time() for t in times]
+        return np.array([self.means[t] for t in times])
