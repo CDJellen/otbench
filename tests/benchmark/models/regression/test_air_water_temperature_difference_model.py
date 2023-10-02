@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.air_water_temperature_difference import AWTModel
+from otb.benchmark.models.regression.air_water_temperature_difference import AWTModel
 
 
 def test_awt_model():
@@ -18,6 +18,7 @@ def test_awt_model():
     # create the model
     model = AWTModel(
         name="AWT",
+        target_name="Cn2_15m",
         air_temperature_col_name="T_10m",
         water_temperature_col_name="T_0m",
         use_log10=False
@@ -42,6 +43,7 @@ def test_awt_model():
     # create the model with log10
     model = AWTModel(
         name="AWT",
+        target_name="Cn2_15m",
         air_temperature_col_name="T_10m",
         water_temperature_col_name="T_0m",
         use_log10=True

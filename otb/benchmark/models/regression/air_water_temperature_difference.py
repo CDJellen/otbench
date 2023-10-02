@@ -15,16 +15,19 @@ Air-Water Temperature Difference Model from:
 import numpy as np
 import pandas as pd
 
+from otb.benchmark.models.regression.base_model import BaseRegressionModel
 
-class AWTModel:
+
+class AWTModel(BaseRegressionModel):
 
     def __init__(self,
                  name: str,
+                 target_name: str,
                  air_temperature_col_name: str,
                  water_temperature_col_name: str,
                  use_log10: bool = True,
                  **kwargs):
-        self.name = name
+        super().__init__(name, target_name, **kwargs)
         self.air_temperature_col_name = air_temperature_col_name
         self.water_temperature_col_name = water_temperature_col_name
         self.use_log10 = use_log10

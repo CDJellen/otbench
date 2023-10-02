@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.linear_forecasting import LinearForecastingModel
+from otb.benchmark.models.forecasting.linear import LinearForecastingModel
 
 
 @pytest.mark.slow
@@ -25,6 +25,8 @@ def test_linear_forecasting_model(task_api):
     model = LinearForecastingModel(
         name="linear_forecasting",
         target_name="Cn2_15m",
+        window_size=task.window_size,
+        forecast_horizon=task.forecast_horizon,
         )
     # check the model name
     assert model.name == "linear_forecasting"

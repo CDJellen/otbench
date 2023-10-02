@@ -2,12 +2,12 @@ from typing import Union
 
 import numpy as np
 
+from otb.benchmark.models.forecasting.base_model import BaseForecastingModel
 
-class LinearForecastingModel:
+class LinearForecastingModel(BaseForecastingModel):
 
-    def __init__(self, name: str, target_name: str, **kwargs):
-        self.name = name
-        self.target_name = target_name
+    def __init__(self, name: str, target_name: str, window_size: int, forecast_horizon: int, **kwargs):
+        super().__init__(name, target_name, window_size, forecast_horizon, **kwargs)
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         # maintain the same interface as the other models

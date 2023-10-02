@@ -19,13 +19,15 @@ from typing import Union
 import numpy as np
 import pandas as pd
 
+from otb.benchmark.models.regression.base_model import BaseRegressionModel
 from otb.utils import apply_fried_height_adjustment, add_temporal_hour, add_temporal_hour_weight
 
 
-class MacroMeterologicalModel:
+class MacroMeterologicalModel(BaseRegressionModel):
 
     def __init__(self,
                  name: str,
+                 target_name: str,
                  timezone: str,
                  obs_lat: float,
                  obs_lon: float,
@@ -40,7 +42,7 @@ class MacroMeterologicalModel:
                  constant_adjustment: bool = True,
                  use_log10: bool = True,
                  **kwargs):
-        self.name = name
+        super().__init__(name, target_name, **kwargs)
         self.timezone = timezone
         self.obs_lat = obs_lat
         self.obs_lon = obs_lon

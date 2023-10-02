@@ -7,21 +7,12 @@ import pandas as pd
 
 from otb.tasks import TaskApi, tasks
 from otb.config import BENCHMARK_FP
-from otb.benchmark.models import (MeanRegressionModel, MeanWindowForecastingModel, LinearForecastingModel, AWTModel,
-                                  MacroMeterologicalModel, OffshoreMacroMeterologicalModel)
+import otb.benchmark.models.regression as regression_models
+import otb.benchmark.models.forecasting as forecasting_models
 
-REGRESSION_MODELS = {
-    "mean_regression": MeanRegressionModel,
-    "air_water_temperature_model": AWTModel,
-    "macro_meterological": MacroMeterologicalModel,
-    "offshore_macro_meterological": OffshoreMacroMeterologicalModel
-}
-FORECASTING_MODELS = {
-    "mean_window_forecasting": MeanWindowForecastingModel,
-    "linear_forecasting": LinearForecastingModel,
-    "macro_meterological": MacroMeterologicalModel,
-    "offshore_macro_meterological": OffshoreMacroMeterologicalModel
-}
+
+REGRESSION_MODELS = {n: getattr(regression_models, n) for n in regression_models.__all__}
+FORECASTING_MODELS = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
 PPRINTER = pprint.PrettyPrinter(indent=4, width=120, compact=True)
 
 
@@ -69,6 +60,7 @@ def run_benchmarks(verbose: bool = True,
         X, y = pd.concat([X_train, X_val]), pd.concat([y_train, y_val])
 
         if "mlo_cn2" in task_name:
+            target_name = "Cn2_3m"
             height_of_observation = 15.0
             air_temperature_col_name = "T_2m"
             water_temperature_col_name = ""
@@ -76,6 +68,7 @@ def run_benchmarks(verbose: bool = True,
             wind_speed_col_name = "Spd_10m"
             time_col_name = "time"
         elif "usna" in task_name:
+            target_name = "Cn2_3m"
             if "sm" in task_name:
                 air_temperature_col_name = "T_5m"
                 wind_speed_col_name = "Spd_10m"
@@ -109,6 +102,10 @@ def run_benchmarks(verbose: bool = True,
                                 enforce_dynamic_range=True,
                                 constant_adjustment=True,
                                 use_log10=use_log10)
+            # if forecast model, add forecast horizon and window size
+            if "forecasting" in task_name:
+                model_kwargs["forecast_horizon"] = task.forecast_horizon
+                model_kwargs["window_size"] = task.window_size
 
             mdl = model(**model_kwargs)
             mdl.train(X, y)

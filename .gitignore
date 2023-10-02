@@ -7,3 +7,4 @@
 .coverage
 coverage.xml
 otb/cache/processed/*.pickle
+doc/

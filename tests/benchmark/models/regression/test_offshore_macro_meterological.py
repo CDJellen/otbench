@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.offshore_macro_meterological import OffshoreMacroMeterologicalModel
+from otb.benchmark.models.regression.offshore_macro_meterological import OffshoreMacroMeterologicalModel
 
 
 @pytest.mark.slow
@@ -25,6 +25,7 @@ def test_offshore_macro_meterological_model():
     # create the model
     model = OffshoreMacroMeterologicalModel(
         name="offshore_macro_meterological",
+        target_name="Cn2_15m",
         timezone="UTC",
         obs_lat=0.0,
         obs_lon=0.0,
@@ -61,6 +62,7 @@ def test_offshore_macro_meterological_model():
     # create the model with log10
     model = OffshoreMacroMeterologicalModel(
         name="offshore_macro_meterological",
+        target_name="Cn2_15m",
         timezone="UTC",
         obs_lat=0.0,
         obs_lon=0.0,

@@ -2,11 +2,13 @@ from typing import Union
 
 import numpy as np
 
+from otb.benchmark.models.regression.base_model import BaseRegressionModel
 
-class MeanRegressionModel:
 
-    def __init__(self, name: str, **kwargs):
-        self.name = name
+class PersistanceRegressionModel(BaseRegressionModel):
+
+    def __init__(self, name: str, target_name: str, **kwargs):
+        super().__init__(name, target_name, **kwargs)
         self.mean = np.nan
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
