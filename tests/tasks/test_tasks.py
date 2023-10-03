@@ -168,9 +168,11 @@ def test_tasks(task_api):
     with pytest.raises(NotImplementedError):
         task = task_api.get_task("not_a_task")
 
+
 def test_list_tasks(task_api):
     """Test listing all tasks."""
     assert isinstance(task_api.list_tasks(), list)
+
 
 @pytest.mark.private
 def test_is_supported_task(task_api):
@@ -178,6 +180,7 @@ def test_is_supported_task(task_api):
     assert task_api._is_supported_task("regression.mlo_cn2.dropna.Cn2_15m")
     assert task_api._is_supported_task("forecasting.mlo_cn2.dropna.Cn2_15m")
     assert not task_api._is_supported_task("not_a_task")
+
 
 def test_task_abc():
     """Test the TaskABC."""

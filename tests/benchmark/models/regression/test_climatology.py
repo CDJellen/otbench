@@ -14,15 +14,9 @@ def test_climatology_forecasting_model(task_api):
     X = pd.DataFrame({
         "T_10m": [10 for _ in range(periods)],
         "T_0m": [10 for _ in range(periods)],
-        },
-        index=index
-    )
-    y = pd.DataFrame({
-        "Cn2_15m": [1.58e-16 for _ in range(periods)]
-        },
-        index=index
-    )
-    
+    }, index=index)
+    y = pd.DataFrame({"Cn2_15m": [1.58e-16 for _ in range(periods)]}, index=index)
+
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")
 
@@ -32,7 +26,7 @@ def test_climatology_forecasting_model(task_api):
         target_name="Cn2_15m",
         window_size=task.window_size,
         forecast_horizon=task.forecast_horizon,
-        )
+    )
     # check the model name
     assert model.name == "climatology_regression"
 

@@ -8,6 +8,7 @@ def config():
     """Return a function that yields a pointer to the config."""
     yield otb_config
 
+
 def test_config(config):
     """Test the attributes of the config."""
     assert isinstance(config.CACHE_DIR, str)

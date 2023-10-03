@@ -11,18 +11,14 @@ def test_awt_model():
         "T_10m": [10, 20, 30, 40, 50],
         "T_0m": [10, 20, 30, 40, 50],
     })
-    y = pd.DataFrame({
-        "Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16]
-    })
-    
+    y = pd.DataFrame({"Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16]})
+
     # create the model
-    model = AWTModel(
-        name="AWT",
-        target_name="Cn2_15m",
-        air_temperature_col_name="T_10m",
-        water_temperature_col_name="T_0m",
-        use_log10=False
-    )
+    model = AWTModel(name="AWT",
+                     target_name="Cn2_15m",
+                     air_temperature_col_name="T_10m",
+                     water_temperature_col_name="T_0m",
+                     use_log10=False)
     # check the model name
     assert model.name == "AWT"
     # check the model columns
@@ -39,15 +35,13 @@ def test_awt_model():
     assert isinstance(predictions, pd.Series)
     assert len(predictions) == len(y[2:])
     assert np.allclose(predictions, y[2:].values.ravel())
-    
+
     # create the model with log10
-    model = AWTModel(
-        name="AWT",
-        target_name="Cn2_15m",
-        air_temperature_col_name="T_10m",
-        water_temperature_col_name="T_0m",
-        use_log10=True
-    )
+    model = AWTModel(name="AWT",
+                     target_name="Cn2_15m",
+                     air_temperature_col_name="T_10m",
+                     water_temperature_col_name="T_0m",
+                     use_log10=True)
     # check the model parameters
     assert model.use_log10 == True
 

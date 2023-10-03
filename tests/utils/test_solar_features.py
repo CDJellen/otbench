@@ -6,16 +6,14 @@ from otb.utils import add_temporal_hour, add_temporal_hour_weight
 
 @pytest.fixture(scope='module')
 def sample_data():
-    df = pd.DataFrame(
-        {
-            "time": pd.date_range("2020-01-01", "2020-01-02", freq="1H"),
-            "air_temperature": 10,
-            "humidity": 0.5,
-            "wind_speed": 10,
-            "temporal_hour": 0,
-            "temporal_hour_weight": 0,
-        }
-    )
+    df = pd.DataFrame({
+        "time": pd.date_range("2020-01-01", "2020-01-02", freq="1H"),
+        "air_temperature": 10,
+        "humidity": 0.5,
+        "wind_speed": 10,
+        "temporal_hour": 0,
+        "temporal_hour_weight": 0,
+    })
 
     yield df
 

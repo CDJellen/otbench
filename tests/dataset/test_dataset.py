@@ -10,9 +10,7 @@ from otb.dataset import Dataset
 @pytest.fixture
 def dataset():
     """Yield a Dataset instance."""
-    ds = Dataset(
-        name="mlo_cn2",
-    )
+    ds = Dataset(name="mlo_cn2",)
     yield ds
 
 
@@ -43,10 +41,12 @@ def test_get_slice(dataset):
     with pytest.raises(ValueError):
         dataset.get_slice(start_indices, end_indices)
 
+
 def test_get_all(dataset):
     """Test the get_all method."""
     df = dataset.get_all()
     assert isinstance(df, pd.DataFrame)
+
 
 def test_get_train(dataset, task):
     """Test the get_train method."""
@@ -56,6 +56,7 @@ def test_get_train(dataset, task):
     assert len(y) == 10
     assert "Spd_10m" not in X.columns
 
+
 def test_get_test(dataset, task):
     """Test the get_test method."""
     X, y = dataset.get_test(task=task)
@@ -64,6 +65,7 @@ def test_get_test(dataset, task):
     assert len(y) == 10
     assert "Spd_10m" not in X.columns
 
+
 def test_get_val(dataset, task):
     """Test the get_val method."""
     X, y = dataset.get_val(task=task)
@@ -71,6 +73,7 @@ def test_get_val(dataset, task):
     assert len(X) == 10
     assert len(y) == 10
     assert "Spd_10m" not in X.columns
+
 
 def test_handle_return_type(dataset):
     """Test the _handle_return_type method."""
@@ -90,4 +93,3 @@ def test_handle_return_type(dataset):
 
     with pytest.raises(NotImplementedError):
         dataset._handle_return_type(df, "foo")
-    

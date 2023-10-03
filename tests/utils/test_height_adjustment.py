@@ -21,6 +21,7 @@ def test_apply_fried_height_adjustment(sample_data):
     with pytest.raises(ValueError):
         apply_fried_height_adjustment(cn2, -1, 0)
 
+
 def test_apply_oermann_height_adjustment(sample_data):
     """Test applying the Fried height adjustment."""
     cn2 = sample_data.copy()
@@ -31,4 +32,3 @@ def test_apply_oermann_height_adjustment(sample_data):
         apply_oermann_height_adjustment(cn2, 0, 0)
     with pytest.raises(ValueError):
         apply_oermann_height_adjustment(cn2, -1, 0)
-    

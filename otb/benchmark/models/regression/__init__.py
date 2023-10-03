@@ -4,11 +4,7 @@ from otb.benchmark.models.regression.macro_meterological import MacroMeterologic
 from otb.benchmark.models.regression.offshore_macro_meterological import OffshoreMacroMeterologicalModel
 from otb.benchmark.models.regression.climatology import ClimatologyRegressionModel
 
-
 __all__ = [
-    "AWTModel",
-    "PersistanceRegressionModel",
-    "MacroMeterologicalModel",
-    "OffshoreMacroMeterologicalModel",
+    "AWTModel", "PersistanceRegressionModel", "MacroMeterologicalModel", "OffshoreMacroMeterologicalModel",
     "ClimatologyRegressionModel"
 ]

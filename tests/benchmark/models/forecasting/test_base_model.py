@@ -13,7 +13,7 @@ def test_base_model():
         target_name="Cn2_15m",
         window_size=4,
         forecast_horizon=1,
-        )
+    )
     # check the model name
     assert model.name == "base"
     assert model.target_name == "Cn2_15m"

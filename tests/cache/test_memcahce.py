@@ -76,6 +76,7 @@ def test_load_dataset(in_memory_cache, capfd):
     assert f"failed to load dataset with key 'not_in_cache'" in out
     remove_from_cache(name='test')
 
+
 def test_iter(in_memory_cache):
     """Test iterating over the cache."""
     in_memory_cache.add_dataset(name='test', dataset=pd.DataFrame())
@@ -83,12 +84,14 @@ def test_iter(in_memory_cache):
     assert isinstance(df, pd.DataFrame)
     remove_from_cache(name='test')
 
+
 def test_contains(in_memory_cache):
     """Test checking if a dataset is in the cache."""
     in_memory_cache.add_dataset(name='test', dataset=pd.DataFrame())
     assert in_memory_cache.__contains__(key='test')
     assert not in_memory_cache.__contains__(key='not_in_cache')
     remove_from_cache(name='test')
+
 
 def test_len(in_memory_cache):
     """Test checking the length of the cache."""
@@ -110,4 +113,3 @@ def remove_from_cache(name: str) -> None:
     for fp in os.listdir(CACHE_DIR):
         if name in str(fp):
             os.remove(os.path.join(CACHE_DIR, fp))
-

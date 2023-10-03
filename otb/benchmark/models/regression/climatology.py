@@ -31,9 +31,9 @@ class ClimatologyRegressionModel(BaseRegressionModel):
         # predict the mean for each entry in X
         times = X.index
         times = pd.to_datetime(times).time
-        
+
         preds = []
-        
+
         for time in times:
             if time in self.means and not np.isnan(self.means[time]):
                 preds.append(self.means[time])

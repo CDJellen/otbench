@@ -13,10 +13,8 @@ def test_linear_forecasting_model(task_api):
         "T_10m": [10 for _ in range(50)],
         "T_0m": [10 for _ in range(50)],
     })
-    y = pd.DataFrame({
-        "Cn2_15m": [1.58e-16 for _ in range(50)]
-    })
-    
+    y = pd.DataFrame({"Cn2_15m": [1.58e-16 for _ in range(50)]})
+
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")
     X, y = task.prepare_forecasting_data(X, y)
@@ -27,7 +25,7 @@ def test_linear_forecasting_model(task_api):
         target_name="Cn2_15m",
         window_size=task.window_size,
         forecast_horizon=task.forecast_horizon,
-        )
+    )
     # check the model name
     assert model.name == "linear_forecasting"
 

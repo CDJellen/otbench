@@ -17,10 +17,8 @@ def test_persistance_window_forecasting_model(task_api):
         "T_10m": [10 for _ in range(50)],
         "T_0m": [10 for _ in range(50)],
     })
-    y = pd.DataFrame({
-        "Cn2_15m": [1.58e-16 for _ in range(50)]
-    })
-    
+    y = pd.DataFrame({"Cn2_15m": [1.58e-16 for _ in range(50)]})
+
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m", benchmark_fp=TESTS_BENCHMARK_FP)
     X, y = task.prepare_forecasting_data(X, y)
@@ -31,7 +29,7 @@ def test_persistance_window_forecasting_model(task_api):
         target_name="Cn2_15m",
         window_size=task.window_size,
         forecast_horizon=task.forecast_horizon,
-        )
+    )
     # check the model name
     assert model.name == "persistance_forecasting"
 
@@ -43,29 +41,47 @@ def test_persistance_window_forecasting_model(task_api):
     assert len(predictions) == len(y)
     assert np.allclose(predictions, y.values.ravel())
 
+
 @pytest.mark.slow
 def test_with_forecasting_evaluation(task_api):
-    """Test the PersistanceForecastingModel with model evaluation."""    
+    """Test the PersistanceForecastingModel with model evaluation."""
     model = PersistanceForecastingModel(
         name="persistance_forecasting",
         target_name="Cn2_15m",
         window_size=6,
         forecast_horizon=1,
-        )
+    )
     # save current experiments.json contents
     with open(TESTS_BENCHMARK_FP, "r") as f:
         old_experiments = json.load(f)
 
-    task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m", benchmark_fp=TESTS_BENCHMARK_FP)    
+    task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m", benchmark_fp=TESTS_BENCHMARK_FP)
     # test model evaluation
     _ = task.evaluate_model(model.predict, return_predictions=True)
     # test model evaluation with transforms
-    _ = task.evaluate_model(model.predict, return_predictions=True, x_transforms=lambda x: x, x_transform_kwargs={}, forecast_transforms=lambda x: x, predict_call_kwargs={})
+    _ = task.evaluate_model(model.predict,
+                            return_predictions=True,
+                            x_transforms=lambda x: x,
+                            x_transform_kwargs={},
+                            forecast_transforms=lambda x: x,
+                            predict_call_kwargs={})
     # test model evaluation with as a benchmark
-    _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name="test", overwrite=False)
-    _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name="test", overwrite=True)
+    _ = task.evaluate_model(model.predict,
+                            return_predictions=True,
+                            include_as_benchmark=True,
+                            model_name="test",
+                            overwrite=False)
+    _ = task.evaluate_model(model.predict,
+                            return_predictions=True,
+                            include_as_benchmark=True,
+                            model_name="test",
+                            overwrite=True)
     with pytest.raises(ValueError):
-        _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name=None, overwrite=False)
+        _ = task.evaluate_model(model.predict,
+                                return_predictions=True,
+                                include_as_benchmark=True,
+                                model_name=None,
+                                overwrite=False)
     # see where it shows up in the benchmark
     top_models = task.top_models(n=100, metric="")
     assert isinstance(top_models, dict)

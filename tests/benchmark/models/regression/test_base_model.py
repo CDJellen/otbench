@@ -11,7 +11,7 @@ def test_base_model():
     model = BaseRegressionModel(
         name="base",
         target_name="Cn2_15m",
-        )
+    )
     # check the model name
     assert model.name == "base"
     assert model.target_name == "Cn2_15m"

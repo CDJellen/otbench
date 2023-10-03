@@ -16,15 +16,13 @@ def test_persistance_regression_model():
         "T_10m": [10, 20, 30, 40, 50],
         "T_0m": [10, 20, 30, 40, 50],
     })
-    y = pd.DataFrame({
-        "Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16]
-    })
-    
+    y = pd.DataFrame({"Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16]})
+
     # create the model
     model = PersistanceRegressionModel(
         name="persistance_regression",
         target_name="Cn2_15m",
-        )
+    )
     # check the model name
     assert model.name == "persistance_regression"
 
@@ -39,29 +37,45 @@ def test_persistance_regression_model():
 
 @pytest.mark.slow
 def test_with_regression_evaluation(task_api):
-    """Test the PersistanceForecastingModel with model evaluation."""    
+    """Test the PersistanceForecastingModel with model evaluation."""
     model = PersistanceRegressionModel(
         name="persistance_regression",
         target_name="Cn2_15m",
-        )
+    )
     # save current experiments.json contents
     with open(TESTS_BENCHMARK_FP, "r") as f:
         old_experiments = json.load(f)
 
-    task = task_api.get_task("regression.mlo_cn2.dropna.Cn2_15m", benchmark_fp=TESTS_BENCHMARK_FP)    
+    task = task_api.get_task("regression.mlo_cn2.dropna.Cn2_15m", benchmark_fp=TESTS_BENCHMARK_FP)
     # get train data
     X_train, y_train = task.get_train_data()
     # train the model
-    model.train(X_train, y_train)    
+    model.train(X_train, y_train)
     # test model evaluation
     _ = task.evaluate_model(model.predict, return_predictions=True)
     # test model evaluation with transforms
-    _ = task.evaluate_model(model.predict, return_predictions=True, x_transforms=lambda x: x, x_transform_kwargs={}, predict_call_kwargs={})
+    _ = task.evaluate_model(model.predict,
+                            return_predictions=True,
+                            x_transforms=lambda x: x,
+                            x_transform_kwargs={},
+                            predict_call_kwargs={})
     # test model evaluation with as a benchmark
-    _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name="test", overwrite=False)
-    _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name="test", overwrite=True)
+    _ = task.evaluate_model(model.predict,
+                            return_predictions=True,
+                            include_as_benchmark=True,
+                            model_name="test",
+                            overwrite=False)
+    _ = task.evaluate_model(model.predict,
+                            return_predictions=True,
+                            include_as_benchmark=True,
+                            model_name="test",
+                            overwrite=True)
     with pytest.raises(ValueError):
-        _ = task.evaluate_model(model.predict, return_predictions=True, include_as_benchmark=True, model_name=None, overwrite=False)
+        _ = task.evaluate_model(model.predict,
+                                return_predictions=True,
+                                include_as_benchmark=True,
+                                model_name=None,
+                                overwrite=False)
     # see where it shows up in the benchmark
     top_models = task.top_models(n=100, metric="")
     assert isinstance(top_models, dict)

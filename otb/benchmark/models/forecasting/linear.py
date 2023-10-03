@@ -4,6 +4,7 @@ import numpy as np
 
 from otb.benchmark.models.forecasting.base_model import BaseForecastingModel
 
+
 class LinearForecastingModel(BaseForecastingModel):
 
     def __init__(self, name: str, target_name: str, window_size: int, forecast_horizon: int, **kwargs):

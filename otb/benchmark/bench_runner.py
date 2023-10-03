@@ -10,7 +10,6 @@ from otb.config import BENCHMARK_FP
 import otb.benchmark.models.regression as regression_models
 import otb.benchmark.models.forecasting as forecasting_models
 
-
 REGRESSION_MODELS = {n: getattr(regression_models, n) for n in regression_models.__all__}
 FORECASTING_MODELS = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
 PPRINTER = pprint.PrettyPrinter(indent=4, width=120, compact=True)
@@ -106,7 +105,7 @@ def run_benchmarks(verbose: bool = True,
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
-                
+
             mdl = model(**model_kwargs)
             mdl.train(X, y)
 
