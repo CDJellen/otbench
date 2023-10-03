@@ -13,29 +13,30 @@ class ClimatologyRegressionModel(BaseRegressionModel):
         super().__init__(name, target_name, **kwargs)
         self.time_col_name = time_col_name if time_col_name is not None else None
         self.means = {}
+        self.global_mean = np.nan
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         # maintain the same interface as the other models
         if isinstance(y, np.ndarray):
-            y = pd.Series(y, name=self.target_name)
-        data = X.join(y)
-
+            y = pd.Series(y, name=self.target_name, index=X.index)
+        self.global_mean = np.nanmean(y.values.flatten())
         # compute the mean for each interval in X across all days
-        if isinstance(data.index, pd.DatetimeIndex):
-            times = data.index
-        else:
-            times = data[self.time_col_name]
-        times = times.apply(lambda x: pd.to_datetime(x).time())
-        # get unique times from datetimes
-        times = np.unique(times)
-        for t in times:
-            self.means[t] = np.nanmean(data.loc[data.index.time == t][self.target_name].values)
+        y["time_of_day"] = y.index.time
+        y_means = y.groupby("time_of_day").mean()
+        # iterate through the rows in X_means
+        for i in range(len(y_means)):
+            self.means[y_means.index[i]] = np.nanmean(y_means.iloc[i, :].values)
 
     def predict(self, X: 'pd.DataFrame'):
         # predict the mean for each entry in X
-        if isinstance(X.index, pd.DatetimeIndex):
-            times = X.index.time
-        else:
-            times = X[self.time_col_name]
-            times = times.apply(lambda x: pd.to_datetime(x).time())
-        return np.array([self.means[t] for t in times])
+        times = X.index
+        times = pd.to_datetime(times).time
+        
+        preds = []
+        
+        for time in times:
+            if time in self.means and not np.isnan(self.means[time]):
+                preds.append(self.means[time])
+            else:
+                preds.append(self.global_mean)
+        return np.array(preds)

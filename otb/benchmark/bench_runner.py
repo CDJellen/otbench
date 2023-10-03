@@ -58,9 +58,10 @@ def run_benchmarks(verbose: bool = True,
         X_train, y_train = task.get_train_data(data_type="pd")
         X_val, y_val = task.get_val_data(data_type="pd")
         X, y = pd.concat([X_train, X_val]), pd.concat([y_train, y_val])
+        if type(task) == tasks.ForecastingTask:
+            X, y = task.prepare_forecasting_data(X, y)
 
         if "mlo_cn2" in task_name:
-            target_name = "Cn2_15m"
             height_of_observation = 15.0
             air_temperature_col_name = "T_2m"
             water_temperature_col_name = ""
@@ -68,7 +69,6 @@ def run_benchmarks(verbose: bool = True,
             wind_speed_col_name = "Spd_10m"
             time_col_name = "time"
         elif "usna" in task_name:
-            target_name = "Cn2_3m"
             if "sm" in task_name:
                 air_temperature_col_name = "T_5m"
                 wind_speed_col_name = "Spd_10m"
@@ -106,7 +106,7 @@ def run_benchmarks(verbose: bool = True,
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
-
+                
             mdl = model(**model_kwargs)
             mdl.train(X, y)
 
