@@ -26,6 +26,8 @@ def run_benchmarks(verbose: bool = True,
     benchmark_results = {}
 
     for task_name in all_tasks:
+        #if task_name != "regression.mlo_cn2.dropna.Cn2_15m":
+        #    continue
         if verbose:
             print(f"Running benchmark for {task_name}...")
 
@@ -82,6 +84,7 @@ def run_benchmarks(verbose: bool = True,
             raise ValueError(f"benchmarks not configured for task {task_name}.")
 
         for model_name, model in models.items():
+            #if model_name != "RandomForestRegressionModel":
             if "AWT" in model_name and "mlo_cn2" in task_name:
                 continue
             if verbose:
@@ -107,7 +110,7 @@ def run_benchmarks(verbose: bool = True,
                 model_kwargs["window_size"] = task.window_size
 
             mdl = model(**model_kwargs)
-            mdl.train(X, y)
+            mdl.train(X.copy(deep=True), y.copy(deep=True))  # copy to avoid modifying original data
 
             results = task.evaluate_model(predict_call=mdl.predict, x_transforms=None, x_transform_kwargs=None)
             benchmark_results[task_name][model_name] = results

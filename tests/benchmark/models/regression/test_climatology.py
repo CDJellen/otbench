@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.regression.climatology import ClimatologyRegressionModel
+from otb.benchmark.models.regression.minute_climatology import MinuteClimatologyRegressionModel
 
 
 @pytest.mark.slow
@@ -21,7 +21,7 @@ def test_climatology_forecasting_model(task_api):
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")
 
     # create the model
-    model = ClimatologyRegressionModel(
+    model = MinuteClimatologyRegressionModel(
         name="climatology_regression",
         target_name="Cn2_15m",
         window_size=task.window_size,

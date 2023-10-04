@@ -24,6 +24,7 @@ from otb.utils import apply_fried_height_adjustment, add_temporal_hour, add_temp
 
 
 class MacroMeterologicalModel(BaseRegressionModel):
+    """A model which predicts the Cn2 value using macro-meteorological parameters."""
 
     def __init__(self,
                  name: str,
@@ -58,7 +59,7 @@ class MacroMeterologicalModel(BaseRegressionModel):
         self.use_log10 = use_log10
 
     def train(self, X: pd.DataFrame, y: Union[pd.DataFrame, pd.Series, np.ndarray]):
-        # maintain the same interface as the other models
+        """Maintain the same interface as the other models."""
         pass
 
     def predict(self, X: pd.DataFrame):

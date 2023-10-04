@@ -33,7 +33,7 @@ class AWTModel(BaseRegressionModel):
         self.use_log10 = use_log10
 
     def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
-        # maintain the same interface as the other models
+        """Maintain the same interface as the other models."""
         pass
 
     def predict(self, X):
