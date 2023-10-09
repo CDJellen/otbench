@@ -2,10 +2,10 @@
 *.pyc
 *.egg-info
 *.pdf
+*.ipynb
 .pytest_cache
 .venv
 .coverage
-.ipynb
 coverage.xml
 otb/cache/processed/*.pickle
 doc/
