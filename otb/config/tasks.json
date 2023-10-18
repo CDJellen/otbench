@@ -30,7 +30,7 @@
                     "train_idx": ["0:8367"],
                     "val_idx": ["8367:10367"],
                     "test_idx": ["10367:13943"],
-                    "dropna": true,
+                    "dropna": false,
                     "log_transform": true,
                     "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
                     "target": "Cn2_15m",

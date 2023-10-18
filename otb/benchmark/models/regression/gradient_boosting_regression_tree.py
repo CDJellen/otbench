@@ -7,8 +7,8 @@ import lightgbm as lgb
 from otb.benchmark.models.regression.base_model import BaseRegressionModel
 
 
-class RandomForestRegressionModel(BaseRegressionModel):
-    """A model that uses a random forest regressor to predict the target."""
+class GradientBoostingRegressionModel(BaseRegressionModel):
+    """A model that uses a gradient boosting regression tree to predict the target."""
 
     def __init__(self, name: str, target_name: str, time_col_name: Union[str, None] = None, **kwargs):
         super().__init__(name, target_name, **kwargs)
