@@ -5,12 +5,12 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.regression.persistance import PersistanceRegressionModel
+from otb.benchmark.models.regression.persistence import PersistenceRegressionModel
 from tests import TESTS_BENCHMARK_FP
 
 
-def test_persistance_regression_model():
-    """Test the PersistanceRegressionModel."""
+def test_persistence_regression_model():
+    """Test the PersistenceRegressionModel."""
     # create a DataFrame
     X = pd.DataFrame({
         "T_10m": [10, 20, 30, 40, 50],
@@ -19,12 +19,12 @@ def test_persistance_regression_model():
     y = pd.DataFrame({"Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16]})
 
     # create the model
-    model = PersistanceRegressionModel(
-        name="persistance_regression",
+    model = PersistenceRegressionModel(
+        name="persistence_regression",
         target_name="Cn2_15m",
     )
     # check the model name
-    assert model.name == "persistance_regression"
+    assert model.name == "persistence_regression"
 
     # train the model
     model.train(X[0:2], y[0:2])
@@ -37,9 +37,9 @@ def test_persistance_regression_model():
 
 @pytest.mark.slow
 def test_with_regression_evaluation(task_api):
-    """Test the PersistanceForecastingModel with model evaluation."""
-    model = PersistanceRegressionModel(
-        name="persistance_regression",
+    """Test the PersistenceForecastingModel with model evaluation."""
+    model = PersistenceRegressionModel(
+        name="persistence_regression",
         target_name="Cn2_15m",
     )
     # save current experiments.json contents

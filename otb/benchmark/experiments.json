@@ -37,7 +37,7 @@
                 "valid_predictions": 2431
             }
         },
-        "PersistanceForecastingModel": {
+        "PersistenceForecastingModel": {
             "root_mean_square_error": {
                 "metric_value": 1.2277367115020752,
                 "valid_predictions": 2431
@@ -130,7 +130,7 @@
                 "valid_predictions": 4073
             }
         },
-        "PersistanceForecastingModel": {
+        "PersistenceForecastingModel": {
             "root_mean_square_error": {
                 "metric_value": 1.5013733623189507,
                 "valid_predictions": 4073
@@ -223,7 +223,7 @@
                 "valid_predictions": 2274
             }
         },
-        "PersistanceRegressionModel": {
+        "PersistenceRegressionModel": {
             "root_mean_square_error": {
                 "metric_value": 1.2090872526168823,
                 "valid_predictions": 2449
@@ -334,7 +334,7 @@
                 "valid_predictions": 2641
             }
         },
-        "PersistanceRegressionModel": {
+        "PersistenceRegressionModel": {
             "root_mean_square_error": {
                 "metric_value": 1.2207112312316895,
                 "valid_predictions": 2816
@@ -463,7 +463,7 @@
                 "valid_predictions": 317350
             }
         },
-        "PersistanceRegressionModel": {
+        "PersistenceRegressionModel": {
             "root_mean_square_error": {
                 "metric_value": 1.2083104592404925,
                 "valid_predictions": 488306
@@ -610,7 +610,7 @@
                 "valid_predictions": 421
             }
         },
-        "PersistanceRegressionModel": {
+        "PersistenceRegressionModel": {
             "root_mean_square_error": {
                 "metric_value": 0.757756119953163,
                 "valid_predictions": 4080

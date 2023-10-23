@@ -5,13 +5,13 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.forecasting.persistance import PersistanceForecastingModel
+from otb.benchmark.models.forecasting.persistence import PersistenceForecastingModel
 from tests import TESTS_BENCHMARK_FP
 
 
 @pytest.mark.slow
-def test_persistance_window_forecasting_model(task_api):
-    """Test the PersistanceForecastingModel."""
+def test_persistence_window_forecasting_model(task_api):
+    """Test the PersistenceForecastingModel."""
     # create a DataFrame with the required columns
     X = pd.DataFrame({
         "T_10m": [10 for _ in range(50)],
@@ -24,14 +24,14 @@ def test_persistance_window_forecasting_model(task_api):
     X, y = task.prepare_forecasting_data(X, y)
 
     # create the model
-    model = PersistanceForecastingModel(
-        name="persistance_forecasting",
+    model = PersistenceForecastingModel(
+        name="persistence_forecasting",
         target_name="Cn2_15m",
         window_size=task.window_size,
         forecast_horizon=task.forecast_horizon,
     )
     # check the model name
-    assert model.name == "persistance_forecasting"
+    assert model.name == "persistence_forecasting"
 
     # train the model (this model doesn't actually train)
     model.train(X, y)
@@ -44,9 +44,9 @@ def test_persistance_window_forecasting_model(task_api):
 
 @pytest.mark.slow
 def test_with_forecasting_evaluation(task_api):
-    """Test the PersistanceForecastingModel with model evaluation."""
-    model = PersistanceForecastingModel(
-        name="persistance_forecasting",
+    """Test the PersistenceForecastingModel with model evaluation."""
+    model = PersistenceForecastingModel(
+        name="persistence_forecasting",
         target_name="Cn2_15m",
         window_size=6,
         forecast_horizon=1,
