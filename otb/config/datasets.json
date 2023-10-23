@@ -1,0 +1,17 @@
+{
+    "mlo_cn2": {
+        "local_data_path": "mlo_cn2.nc",
+        "citation_path": "citation.md",
+        "remove_data_path": "https://data.eol.ucar.edu/cgi-bin/codiac/fgr_form/id=160.007"
+    },
+    "usna_cn2_lg": {
+        "local_data_path": "usna_cn2_lg.nc",
+        "citation_path": "citation.md",
+        "remove_data_path": "google.drive"
+    },
+    "usna_cn2_sm": {
+        "local_data_path": "usna_cn2_sm.nc",
+        "citation_path": "citation.md",
+        "remove_data_path": "google.drive"
+    }
+}

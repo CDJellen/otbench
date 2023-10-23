@@ -1,0 +1,11 @@
+*ignore.ipynb
+*.pyc
+*.egg-info
+*.pdf
+*.ipynb
+.pytest_cache
+.venv
+.coverage
+coverage.xml
+otb/cache/processed/*.pickle
+doc/
