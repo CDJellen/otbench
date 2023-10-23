@@ -17,6 +17,6 @@ class PersistenceForecastingModel(BaseForecastingModel):
 
     def predict(self, X: 'pd.DataFrame'):
         persistence = X[self.target_name].values[0]
-        
+
         # develop a prediction for each row in X
         return np.array([persistence for i in range(len(X))])

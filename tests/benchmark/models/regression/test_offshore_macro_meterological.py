@@ -22,18 +22,18 @@ def test_offshore_macro_meteorological_model():
 
     # create the model
     model = OffshoreMacroMeteorologicalModel(name="offshore_macro_meteorological",
-                                            target_name="Cn2_15m",
-                                            timezone="UTC",
-                                            obs_lat=0.0,
-                                            obs_lon=0.0,
-                                            air_temperature_col_name="T_2m",
-                                            wind_speed_col_name="Spd_10m",
-                                            humidity_col_name="RH_2m",
-                                            time_col_name="time",
-                                            temporal_hour_col_name="temporal_hour",
-                                            temporal_hour_weight_col_name="temporal_hour_weight",
-                                            height_of_observation=15.0,
-                                            use_log10=False)
+                                             target_name="Cn2_15m",
+                                             timezone="UTC",
+                                             obs_lat=0.0,
+                                             obs_lon=0.0,
+                                             air_temperature_col_name="T_2m",
+                                             wind_speed_col_name="Spd_10m",
+                                             humidity_col_name="RH_2m",
+                                             time_col_name="time",
+                                             temporal_hour_col_name="temporal_hour",
+                                             temporal_hour_weight_col_name="temporal_hour_weight",
+                                             height_of_observation=15.0,
+                                             use_log10=False)
     # check the model name
     assert model.name == "offshore_macro_meteorological"
     # check the model columns
@@ -57,18 +57,18 @@ def test_offshore_macro_meteorological_model():
 
     # create the model with log10
     model = OffshoreMacroMeteorologicalModel(name="offshore_macro_meteorological",
-                                            target_name="Cn2_15m",
-                                            timezone="UTC",
-                                            obs_lat=0.0,
-                                            obs_lon=0.0,
-                                            air_temperature_col_name="T_2m",
-                                            wind_speed_col_name="Spd_10m",
-                                            humidity_col_name="RH_2m",
-                                            time_col_name="time",
-                                            temporal_hour_col_name="temporal_hour",
-                                            temporal_hour_weight_col_name="temporal_hour_weight",
-                                            height_of_observation=15.0,
-                                            use_log10=True)
+                                             target_name="Cn2_15m",
+                                             timezone="UTC",
+                                             obs_lat=0.0,
+                                             obs_lon=0.0,
+                                             air_temperature_col_name="T_2m",
+                                             wind_speed_col_name="Spd_10m",
+                                             humidity_col_name="RH_2m",
+                                             time_col_name="time",
+                                             temporal_hour_col_name="temporal_hour",
+                                             temporal_hour_weight_col_name="temporal_hour_weight",
+                                             height_of_observation=15.0,
+                                             use_log10=True)
     # check the model parameters
     assert model.use_log10 == True
 

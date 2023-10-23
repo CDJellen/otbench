@@ -6,7 +6,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
 setuptools.setup(
     name='otb',
     packages=setuptools.find_packages(exclude=['*tests*', '*notebooks*']),
-    version='0.23.10.17',
+    version='0.23.10.23',
     license='MIT',
     description='Consistent benchmarks for evaluating optical turbulence strength models.',
     author='Chris Jellen',

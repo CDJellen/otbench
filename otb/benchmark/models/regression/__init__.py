@@ -7,8 +7,8 @@ from otb.benchmark.models.regression.climatology import ClimatologyRegressionMod
 from otb.benchmark.models.regression.hybrid_awt import HybridAWTRegressionModel
 from otb.benchmark.models.regression.gradient_boosting_regression_tree import GradientBoostingRegressionModel
 
-
 __all__ = [
-    "AWTModel",  "MacroMeteorologicalModel", "OffshoreMacroMeteorologicalModel",
-    "PersistenceRegressionModel", "MinuteClimatologyRegressionModel", "ClimatologyRegressionModel", "HybridAWTRegressionModel", "GradientBoostingRegressionModel"
+    "AWTModel", "MacroMeteorologicalModel", "OffshoreMacroMeteorologicalModel", "PersistenceRegressionModel",
+    "MinuteClimatologyRegressionModel", "ClimatologyRegressionModel", "HybridAWTRegressionModel",
+    "GradientBoostingRegressionModel"
 ]

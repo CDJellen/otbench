@@ -5,5 +5,7 @@ from otb.benchmark.models.forecasting.minute_climatology import MinuteClimatolog
 from otb.benchmark.models.forecasting.climatology import ClimatologyForecastingModel
 from otb.benchmark.models.forecasting.random_forest import RandomForestForecastingModel
 
-
-__all__ = ["LinearForecastingModel", "MeanWindowForecastingModel", "PersistenceForecastingModel", "MinuteClimatologyForecastingModel", "ClimatologyForecastingModel"]
+__all__ = [
+    "LinearForecastingModel", "MeanWindowForecastingModel", "PersistenceForecastingModel",
+    "MinuteClimatologyForecastingModel", "ClimatologyForecastingModel"
+]
