@@ -2,7 +2,7 @@
 
 ### Summary
 
-Scintillometer, meterological, and oceanographic data from the United States Naval Academy between 2020 and July 2022. The dataset includes Cn2 as measured by a ScinTec BLS450 Scintillometer, meterological data from a co-located Davis Vantage Pro2 weather station, and oceanographic data from a nearby National Data Buoy Center buoy (TPLM2).
+Scintillometer, meteorological, and oceanographic data from the United States Naval Academy between 2020 and July 2022. The dataset includes Cn2 as measured by a ScinTec BLS450 Scintillometer, meteorological data from a co-located Davis Vantage Pro2 weather station, and oceanographic data from a nearby National Data Buoy Center buoy (TPLM2).
 
 ### Versions
 

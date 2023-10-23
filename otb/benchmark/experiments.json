@@ -187,7 +187,7 @@
     },
     "regression.mlo_cn2.dropna.Cn2_15m": {
         "possible_predictions": 2449,
-        "MacroMeterologicalModel": {
+        "MacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.7138353117427121,
                 "valid_predictions": 813
@@ -205,7 +205,7 @@
                 "valid_predictions": 813
             }
         },
-        "OffshoreMacroMeterologicalModel": {
+        "OffshoreMacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.8157009064248446,
                 "valid_predictions": 2274
@@ -298,7 +298,7 @@
     },
     "regression.mlo_cn2.full.Cn2_15m": {
         "possible_predictions": 2816,
-        "MacroMeterologicalModel": {
+        "MacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.6200457025149092,
                 "valid_predictions": 862
@@ -316,7 +316,7 @@
                 "valid_predictions": 862
             }
         },
-        "OffshoreMacroMeterologicalModel": {
+        "OffshoreMacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.8302753265342115,
                 "valid_predictions": 2641
@@ -427,7 +427,7 @@
                 "valid_predictions": 458687
             }
         },
-        "MacroMeterologicalModel": {
+        "MacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 1.217037352229368,
                 "valid_predictions": 312367
@@ -445,7 +445,7 @@
                 "valid_predictions": 312367
             }
         },
-        "OffshoreMacroMeterologicalModel": {
+        "OffshoreMacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.6748188087597109,
                 "valid_predictions": 317350
@@ -574,7 +574,7 @@
                 "valid_predictions": 4080
             }
         },
-        "MacroMeterologicalModel": {
+        "MacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.8638771705816506,
                 "valid_predictions": 3653
@@ -592,7 +592,7 @@
                 "valid_predictions": 3653
             }
         },
-        "OffshoreMacroMeterologicalModel": {
+        "OffshoreMacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.17819538474607394,
                 "valid_predictions": 421

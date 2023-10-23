@@ -3,12 +3,12 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.regression.offshore_macro_meterological import OffshoreMacroMeterologicalModel
+from otb.benchmark.models.regression.offshore_macro_meteorological import OffshoreMacroMeteorologicalModel
 
 
 @pytest.mark.slow
-def test_offshore_macro_meterological_model():
-    """Test the OffshoreMacroMeterologicalModel."""
+def test_offshore_macro_meteorological_model():
+    """Test the OffshoreMacroMeteorologicalModel."""
     # create a DataFrame with the required columns
     X = pd.DataFrame({
         "T_2m": [20 for _ in range(10)],
@@ -21,7 +21,7 @@ def test_offshore_macro_meterological_model():
     y = pd.DataFrame({"Cn2_15m": [3.61619967e-16 for _ in range(10)]})
 
     # create the model
-    model = OffshoreMacroMeterologicalModel(name="offshore_macro_meterological",
+    model = OffshoreMacroMeteorologicalModel(name="offshore_macro_meteorological",
                                             target_name="Cn2_15m",
                                             timezone="UTC",
                                             obs_lat=0.0,
@@ -35,7 +35,7 @@ def test_offshore_macro_meterological_model():
                                             height_of_observation=15.0,
                                             use_log10=False)
     # check the model name
-    assert model.name == "offshore_macro_meterological"
+    assert model.name == "offshore_macro_meteorological"
     # check the model columns
     assert model.air_temperature_col_name == "T_2m"
     assert model.wind_speed_col_name == "Spd_10m"
@@ -56,7 +56,7 @@ def test_offshore_macro_meterological_model():
     assert np.allclose(predictions, y.values.ravel())
 
     # create the model with log10
-    model = OffshoreMacroMeterologicalModel(name="offshore_macro_meterological",
+    model = OffshoreMacroMeteorologicalModel(name="offshore_macro_meteorological",
                                             target_name="Cn2_15m",
                                             timezone="UTC",
                                             obs_lat=0.0,

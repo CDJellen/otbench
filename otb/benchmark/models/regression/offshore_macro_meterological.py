@@ -22,7 +22,7 @@ from otb.benchmark.models.regression.base_model import BaseRegressionModel
 from otb.utils import apply_fried_height_adjustment, add_temporal_hour, add_temporal_hour_weight
 
 
-class OffshoreMacroMeterologicalModel(BaseRegressionModel):
+class OffshoreMacroMeteorologicalModel(BaseRegressionModel):
     """A model which predicts the Cn2 value using macro-meteorological parameters, tuned for offshore cases."""
 
     def __init__(self,

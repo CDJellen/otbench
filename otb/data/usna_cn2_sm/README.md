@@ -2,7 +2,7 @@
 
 ### Summary
 
-Scintillometer, meterological, and oceanographic data from the United States Naval Academy between June 2021 and August 2021, inclusive. The dataset includes Cn2 as measured by a ScinTec BLS450 Scintillometer, humidity and solar radiation from a co-located Davis Vantage Pro2 weather station, and air and water characteristics from a co-located NOAA Coastal Observation Station (8575512).
+Scintillometer, meteorological, and oceanographic data from the United States Naval Academy between June 2021 and August 2021, inclusive. The dataset includes Cn2 as measured by a ScinTec BLS450 Scintillometer, humidity and solar radiation from a co-located Davis Vantage Pro2 weather station, and air and water characteristics from a co-located NOAA Coastal Observation Station (8575512).
 
 ### Versions
 

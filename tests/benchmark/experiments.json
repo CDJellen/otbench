@@ -37,7 +37,7 @@
                 "valid_predictions": 2444
             }
         },
-        "macro_meterological": {
+        "macro_meteorological": {
             "root_mean_square_error": {
                 "metric_value": 0.7114374938363093,
                 "valid_predictions": 809
@@ -55,7 +55,7 @@
                 "valid_predictions": 809
             }
         },
-        "offshore_macro_meterological": {
+        "offshore_macro_meteorological": {
             "root_mean_square_error": {
                 "metric_value": 0.8156299828336213,
                 "valid_predictions": 2269
@@ -94,7 +94,7 @@
                 "valid_predictions": 2449
             }
         },
-        "macro_meterological": {
+        "macro_meteorological": {
             "root_mean_square_error": {
                 "metric_value": 0.7138353117427121,
                 "valid_predictions": 813
@@ -112,7 +112,7 @@
                 "valid_predictions": 813
             }
         },
-        "offshore_macro_meterological": {
+        "offshore_macro_meteorological": {
             "root_mean_square_error": {
                 "metric_value": 0.8157009064248446,
                 "valid_predictions": 2274
