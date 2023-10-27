@@ -4,7 +4,7 @@ with open('README.md', 'r', encoding='utf-8') as f:
     long_description = f.read()
 
 setuptools.setup(
-    name='otb',
+    name='otbench',
     packages=setuptools.find_packages(exclude=['*tests*', '*notebooks*']),
     version='0.23.10.26',
     license='MIT',
@@ -15,7 +15,7 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type='text/markdown',
     download_url='https://github.com/cdjellen/otbench/tarball/main',
-    keywords=['optics', 'turbulence', 'benchmark', 'otb', 'python3'],
+    keywords=['optics', 'turbulence', 'benchmark', 'python3'],
     install_requires=['astral', 'pandas', 'requests', 'scikit-learn', 'xarray'],
     classifiers=[
         'Development Status :: 5 - Production/Stable',
