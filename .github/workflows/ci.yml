@@ -1,4 +1,4 @@
-name: NDBC API CI
+name: otbench ci
 on:
   push:
     branches:

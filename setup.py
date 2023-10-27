@@ -6,15 +6,15 @@ with open('README.md', 'r', encoding='utf-8') as f:
 setuptools.setup(
     name='otb',
     packages=setuptools.find_packages(exclude=['*tests*', '*notebooks*']),
-    version='0.23.10.23',
+    version='0.23.10.26',
     license='MIT',
     description='Consistent benchmarks for evaluating optical turbulence strength models.',
     author='Chris Jellen',
     author_email='cdjellen@gmail.com',
-    url='https://github.com/cdjellen/ot-bench',
+    url='https://github.com/cdjellen/otbench',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    download_url='https://github.com/cdjellen/ot-bench/tarball/main',
+    download_url='https://github.com/cdjellen/otbench/tarball/main',
     keywords=['optics', 'turbulence', 'benchmark', 'otb', 'python3'],
     install_requires=['astral', 'pandas', 'requests', 'scikit-learn', 'xarray'],
     classifiers=[
