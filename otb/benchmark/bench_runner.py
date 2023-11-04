@@ -103,7 +103,9 @@ def run_benchmarks(verbose: bool = True,
                                 height_of_observation=height_of_observation,
                                 enforce_dynamic_range=True,
                                 constant_adjustment=True,
-                                use_log10=use_log10)
+                                use_log10=use_log10,
+                                input_size=len(X.columns),
+                                )
             # if forecast model, add forecast horizon and window size
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
