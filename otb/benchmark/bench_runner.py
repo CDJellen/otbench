@@ -10,15 +10,31 @@ from otb.config import BENCHMARK_FP
 import otb.benchmark.models.regression as regression_models
 import otb.benchmark.models.forecasting as forecasting_models
 
-REGRESSION_MODELS = {n: getattr(regression_models, n) for n in regression_models.__all__}
-FORECASTING_MODELS = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
 PPRINTER = pprint.PrettyPrinter(indent=4, width=120, compact=True)
 
 
 def run_benchmarks(verbose: bool = True,
+                   inlcude_pytorch_models: bool = True,
                    write_metrics: bool = True,
-                   metrics_fp: Union[os.PathLike, str, None] = None) -> dict:
+                   metrics_fp: Union[os.PathLike, str, None] = None,
+                   n_epoch_override: Union[int, None] = None) -> dict:
     """Run benchmarks for all tasks and models."""
+    reg_models = {n: getattr(regression_models, n) for n in regression_models.__all__}
+    fcn_models = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
+    if inlcude_pytorch_models:
+        try:
+            import otb.benchmark.models.regression.pytorch as pt_regression_models
+            import otb.benchmark.models.forecasting.pytorch as pt_forecasting_models
+
+            pytorch_regression_models = {n: getattr(pt_regression_models, n) for n in pt_regression_models.__all__}
+            pytorch_forecasting_models = {n: getattr(pt_forecasting_models, n) for n in pt_forecasting_models.__all__}
+
+            reg_models = {**reg_models, **pytorch_regression_models}
+            fcn_models = {**fcn_models, **pytorch_forecasting_models}
+
+        except ImportError as e:
+            print(f"failed to import dependency with error {e}.\n skipping PyTorch models.")
+
     if metrics_fp is None:
         metrics_fp = BENCHMARK_FP
     task_api = TaskApi()
@@ -46,9 +62,9 @@ def run_benchmarks(verbose: bool = True,
         _, y_test = task.get_test_data(data_type="pd")
 
         if type(task) == tasks.RegressionTask:
-            models = REGRESSION_MODELS
+            models = reg_models
         elif type(task) == tasks.ForecastingTask:
-            models = FORECASTING_MODELS
+            models = fcn_models
             _, y_test = task.prepare_forecasting_data(_, y_test)
         else:
             raise ValueError(f"unknown task type {type(task)}.")
@@ -90,26 +106,30 @@ def run_benchmarks(verbose: bool = True,
             if verbose:
                 print(f"Running benchmark for {model_name}...")
 
-            model_kwargs = dict(name=model_name,
-                                target_name=target_name,
-                                timezone=obs_timezone,
-                                obs_lat=obs_lat,
-                                obs_lon=obs_lon,
-                                air_temperature_col_name=air_temperature_col_name,
-                                water_temperature_col_name=water_temperature_col_name,
-                                humidity_col_name=humidity_col_name,
-                                wind_speed_col_name=wind_speed_col_name,
-                                time_col_name=time_col_name,
-                                height_of_observation=height_of_observation,
-                                enforce_dynamic_range=True,
-                                constant_adjustment=True,
-                                use_log10=use_log10,
-                                input_size=len(X.columns),
-                                )
+            model_kwargs = dict(
+                name=model_name,
+                target_name=target_name,
+                timezone=obs_timezone,
+                obs_lat=obs_lat,
+                obs_lon=obs_lon,
+                air_temperature_col_name=air_temperature_col_name,
+                water_temperature_col_name=water_temperature_col_name,
+                humidity_col_name=humidity_col_name,
+                wind_speed_col_name=wind_speed_col_name,
+                time_col_name=time_col_name,
+                height_of_observation=height_of_observation,
+                enforce_dynamic_range=True,
+                constant_adjustment=True,
+                use_log10=use_log10,
+                input_size=len(X.columns),
+            )
             # if forecast model, add forecast horizon and window size
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
+            # adjust num epochs if provided
+            if n_epoch_override:
+                model_kwargs["n_epoch"] = n_epoch_override
 
             mdl = model(**model_kwargs)
             mdl.train(X.copy(deep=True), y.copy(deep=True))  # copy to avoid modifying original data

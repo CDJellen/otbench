@@ -6,10 +6,9 @@ from otb.benchmark.models.regression.minute_climatology import MinuteClimatology
 from otb.benchmark.models.regression.climatology import ClimatologyRegressionModel
 from otb.benchmark.models.regression.hybrid_awt import HybridAWTRegressionModel
 from otb.benchmark.models.regression.gradient_boosting_regression_tree import GradientBoostingRegressionModel
-from otb.benchmark.models.regression.recurrent_neural_network import RNNModel
 
 __all__ = [
     "AWTModel", "MacroMeteorologicalModel", "OffshoreMacroMeteorologicalModel", "PersistenceRegressionModel",
     "MinuteClimatologyRegressionModel", "ClimatologyRegressionModel", "HybridAWTRegressionModel",
-    "GradientBoostingRegressionModel", "RNNModel"
+    "GradientBoostingRegressionModel"
 ]
