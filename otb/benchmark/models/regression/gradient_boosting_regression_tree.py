@@ -13,6 +13,7 @@ class GradientBoostingRegressionModel(BaseRegressionModel):
     def __init__(self, name: str, target_name: str, time_col_name: Union[str, None] = None, **kwargs):
         super().__init__(name, target_name, **kwargs)
         self.time_col_name = time_col_name if time_col_name is not None else None
+        kwargs["verbose"] = -1
         self._lgb_mdl = lgb.LGBMRegressor(**kwargs)
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):

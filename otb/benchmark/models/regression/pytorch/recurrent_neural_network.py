@@ -71,10 +71,10 @@ class RNNModel(BasePyTorchRegressionModel):
                 self.optimizer.zero_grad()
                 outputs = self.model(X.float())
                 loss = self.criterion(outputs, y.float())
-                if self.verbose and (i % (self.n_epochs // 10) == 0):
-                    print(f"at epoch {i}. loss: {loss}")
                 loss.backward()
                 self.optimizer.step()
+            if self.verbose and (i % (self.n_epochs // 10) == 0):
+                print(f"at epoch {i}. loss: {loss}")
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
