@@ -121,6 +121,7 @@ def run_benchmarks(verbose: bool = True,
                 enforce_dynamic_range=True,
                 constant_adjustment=True,
                 use_log10=use_log10,
+                verbose=verbose,
                 input_size=len(X.columns),
             )
             # if forecast model, add forecast horizon and window size

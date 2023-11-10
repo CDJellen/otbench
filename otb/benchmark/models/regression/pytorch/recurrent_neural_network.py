@@ -1,5 +1,3 @@
-from typing import Union
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -42,15 +40,15 @@ class RNNModel(BasePyTorchRegressionModel):
                  random_state: int = 2020,
                  verbose: bool = False,
                  **kwargs):
-        self.name = name
-        self.verbose = verbose
-        self.batch_size = batch_size
-        self.random_state = random_state
-        self.n_epochs = n_epochs
-        self.criterion = criterion
-        self._optimizer_callable = optimizer
-        self.learning_rate = learning_rate
+        super().__init__(name=name, batch_size=batch_size, n_epochs=n_epochs,
+                         learning_rate=learning_rate, criterion=criterion,
+                         optimizer=optimizer, random_state=random_state, verbose=verbose)
+        self.input_size = input_size
         self.obs_window_size = obs_window_size
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.num_classes = num_classes
+        
         # create and set the model
         model = RNN(input_size, hidden_size, num_layers, num_classes)
         self.set_model(model=model, normalize_data=True,
@@ -71,10 +69,10 @@ class RNNModel(BasePyTorchRegressionModel):
                 self.optimizer.zero_grad()
                 outputs = self.model(X.float())
                 loss = self.criterion(outputs, y.float())
-                if self.verbose and (i % (self.n_epochs // 10) == 0):
-                    print(f"at epoch {i}. loss: {loss}")
                 loss.backward()
                 self.optimizer.step()
+            if self.verbose and (i % (self.n_epochs // 10) == 0):
+                print(f"at epoch {i}. loss: {loss}")
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""

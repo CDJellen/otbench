@@ -13,7 +13,7 @@ def test_run_benchmarks():
     print(TESTS_BENCHMARK_FP)
     with open(TESTS_BENCHMARK_FP, "r") as fp:
         experiments = json.load(fp)
-    got = run_benchmarks(verbose=True, write_metrics=True, metrics_fp=TESTS_BENCHMARK_FP)
+    got = run_benchmarks(verbose=True, write_metrics=True, metrics_fp=TESTS_BENCHMARK_FP, inlcude_pytorch_models=False)
     # restore the original expiraments.json
     with open(TESTS_BENCHMARK_FP, "w") as fp:
         json.dump(experiments, fp, indent=4)

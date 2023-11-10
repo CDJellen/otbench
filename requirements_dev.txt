@@ -2,4 +2,5 @@ coveralls
 lightgbm
 pytest
 pytest-cov
+torch
 yapf

@@ -12,6 +12,7 @@ class RandomForestForecastingModel(BaseForecastingModel):
 
     def __init__(self, name: str, target_name: str, window_size: int, forecast_horizon: int, **kwargs):
         super().__init__(name, target_name, window_size, forecast_horizon, **kwargs)
+        kwargs["verbose"] = -1
         self._lgb_mdl = lgb.LGBMRegressor(**kwargs)
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):

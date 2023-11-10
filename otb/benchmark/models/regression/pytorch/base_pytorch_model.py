@@ -45,7 +45,7 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         self.model = model
         if self.verbose:
             print(f"model: {model}.")
-        self.normlaize_data = normalize_data
+        self.normalize_data = normalize_data
         if self.verbose:
             if self.normalize_data:
                 print("will normalize data before training")
@@ -82,9 +82,9 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
                                   mode: str = "val") -> None:
         """Use the data supplied to create train or validation DataLoaders."""
         if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
-            if self.normlaize_data:
+            if self.normalize_data:
                 if mode == "train":
-                    X, y = self._normlaize_data(X=X, y=y)
+                    X, y = self._normalize_data(X=X, y=y)
                 else:
                     X, y = self._apply_normalization(X=X, y=y)
             else:
@@ -103,7 +103,7 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
             dataloader = self._create_dataloader(X=X, y=y, batch_size=1, shuffle=False)
             self.val_dataloader = dataloader
 
-    def _normlaize_data(self, X: 'pd.DataFrame', y: 'pd.DataFrame') -> Tuple[np.ndarray, np.ndarray]:
+    def _normalize_data(self, X: 'pd.DataFrame', y: 'pd.DataFrame') -> Tuple[np.ndarray, np.ndarray]:
         """Normalize the data before training."""
         if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
             # map X and y to numpy arrays
