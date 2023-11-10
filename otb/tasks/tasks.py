@@ -128,6 +128,8 @@ class BaseTask(TaskABC):
         benchmark_info = self.get_benchmark_info(task_name=self.task_name)
         if metric == "":
             metrics = self.get_metric_names()
+            if len(metrics) < 1:
+                raise ValueError(f"task {self.task_name} has no metrics defined.")
             metric = metrics[0]
         model_benchmark_info = {k: v for k, v in benchmark_info.items() if k != "possible_predictions" and metric in v}
         model_benchmark_info_keys = sorted(model_benchmark_info.keys(),
