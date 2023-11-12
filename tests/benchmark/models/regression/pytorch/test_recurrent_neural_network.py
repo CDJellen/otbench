@@ -21,8 +21,9 @@ def test_rnn_model():
 
     model = RNNModel(
         name="rnn_model",
-        input_size=len(X.columns),
-        obs_window_size=1,
+        target_name="Cn2_15m",
+        input_size=len(X.columns),  # single row
+        window_size=0,  # single row
         hidden_size=32,
         num_layers=1,
         num_classes=1,

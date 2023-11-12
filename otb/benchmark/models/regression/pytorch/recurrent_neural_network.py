@@ -27,8 +27,9 @@ class RNNModel(BasePyTorchRegressionModel):
 
     def __init__(self,
                  name: str,
+                 target_name: str,
                  input_size: int,
-                 obs_window_size: int = 1,
+                 window_size: int = 0,  # default to single row
                  hidden_size: int = 512,
                  num_layers: int = 2,
                  num_classes: int = 1,
@@ -40,11 +41,10 @@ class RNNModel(BasePyTorchRegressionModel):
                  random_state: int = 2020,
                  verbose: bool = False,
                  **kwargs):
-        super().__init__(name=name, batch_size=batch_size, n_epochs=n_epochs,
+        super().__init__(name=name, target_name=target_name, window_size=window_size, batch_size=batch_size, n_epochs=n_epochs,
                          learning_rate=learning_rate, criterion=criterion,
                          optimizer=optimizer, random_state=random_state, verbose=verbose)
         self.input_size = input_size
-        self.obs_window_size = obs_window_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.num_classes = num_classes
@@ -56,7 +56,7 @@ class RNNModel(BasePyTorchRegressionModel):
 
     def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
         # maintain the same interface as the other models
-        n_features = len(X.columns)
+        n_features = len(X.columns) // (1 + self.window_size)
         if self.verbose:
             print(f"training data contains {n_features} features.")
         # set train dataloader
@@ -65,7 +65,6 @@ class RNNModel(BasePyTorchRegressionModel):
         torch.manual_seed(self.random_state)
         for i in range(self.n_epochs):
             for _, (X, y) in enumerate(self.train_dataloader):
-                X = X.reshape(-1, self.obs_window_size, n_features)  # correct for shape
                 self.optimizer.zero_grad()
                 outputs = self.model(X.float())
                 loss = self.criterion(outputs, y.float())
@@ -76,7 +75,7 @@ class RNNModel(BasePyTorchRegressionModel):
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
-        n_features = len(X.columns)
+        n_features = len(X.columns) // (1 + self.window_size)
         if self.verbose:
             print(f"validation data contains {n_features} features.")
         y = X.iloc[:, [0]]
@@ -85,7 +84,6 @@ class RNNModel(BasePyTorchRegressionModel):
         pred = []
         with torch.no_grad():
             for _, (X, _) in enumerate(self.val_dataloader):
-                X = X.reshape(-1, self.obs_window_size, n_features)
                 y_pred = self.model(X.float())
                 # we have already set the model's `normalize_data` to `True`
                 y_pred = y_pred * self.y_std + self.y_mean

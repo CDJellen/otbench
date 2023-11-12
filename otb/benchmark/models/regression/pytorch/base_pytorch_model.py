@@ -16,6 +16,8 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
     def __init__(
         self,
         name: str,
+        target_name: str,
+        window_size: int = 0,  # default to single row
         batch_size: int = 32,
         n_epochs: int = 500,
         learning_rate: float = 0.025,
@@ -24,7 +26,8 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         random_state: int = 2020,
         verbose: bool = False,
     ):
-        self.name = name
+        super().__init__(name=name, target_name=target_name)
+        self.window_size = window_size
         self.batch_size = batch_size
         self.random_state = random_state
         self.n_epochs = n_epochs
@@ -83,16 +86,20 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
                                   mode: str = "val") -> None:
         """Use the data supplied to create train or validation DataLoaders."""
         if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
+            # reshape to apply window size
+            n_features = len(X.columns) // (1 + self.window_size)
+            X = X.to_numpy()
+            y = y.to_numpy()
+            X = X.reshape(-1, (1 + self.window_size), n_features)
+
             if self.normalize_data:
                 if mode == "train":
                     X, y = self._normalize_data(X=X, y=y)
                 else:
                     X, y = self._apply_normalization(X=X, y=y)
-            else:
-                X, y = X.to_numpy(), y.to_numpy()
         else:
             if not isinstance(X, np.ndarray) and isinstance(y, np.ndarray):
-                raise ValueError("X and y must be both be pd.DataFrame objectrs or np.ndarray objects.")
+                raise ValueError("X and y must be both be pd.DataFrame objects or np.ndarray objects.")
         X, y = self._map_to_tensor(X, y)
         if mode == "train":
             dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=True)
@@ -106,16 +113,11 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
 
     def _normalize_data(self, X: 'pd.DataFrame', y: 'pd.DataFrame') -> Tuple[np.ndarray, np.ndarray]:
         """Normalize the data before training."""
-        if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
-            # map X and y to numpy arrays
-            X = X.to_numpy()
-            y = y.to_numpy()
-
         # normalize the training data
-        X_mean = np.nanmean(X, axis=0)
-        X_std = np.nanstd(X, axis=0) + sys.float_info.epsilon
-        y_mean = np.nanmean(y, axis=0)
-        y_std = np.nanstd(y, axis=0) + sys.float_info.epsilon
+        X_mean = np.nanmean(X, axis=(0, 1))
+        X_std = np.nanstd(X, axis=(0, 1)) + sys.float_info.epsilon
+        y_mean = np.nanmean(y, axis=(0, 1))
+        y_std = np.nanstd(y, axis=(0, 1)) + sys.float_info.epsilon
 
         # save the mean and std
         self.X_mean = X_mean
@@ -128,11 +130,6 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
     def _apply_normalization(self, X: Union['pd.DataFrame', np.ndarray],
                              y: Union['pd.DataFrame', np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
         """Apply normalization learned during training for test or validation."""
-        if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
-            # map X and y to numpy arrays
-            X = X.to_numpy()
-            y = y.to_numpy()
-
         # replace missing values with the mean of that column
         X[np.isnan(X)] = np.take(self.X_mean, np.where(np.isnan(X))[1])
         y[np.isnan(y)] = np.take(self.y_mean, np.where(np.isnan(y))[1])

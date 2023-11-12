@@ -7,5 +7,5 @@ from otb.benchmark.models.forecasting.random_forest import RandomForestForecasti
 
 __all__ = [
     "LinearForecastingModel", "MeanWindowForecastingModel", "PersistenceForecastingModel",
-    "MinuteClimatologyForecastingModel", "ClimatologyForecastingModel"
+    "MinuteClimatologyForecastingModel", "ClimatologyForecastingModel", "RandomForestForecastingModel"
 ]

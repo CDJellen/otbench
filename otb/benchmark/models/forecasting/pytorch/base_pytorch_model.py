@@ -99,7 +99,7 @@ class BasePyTorcForecastingModel(BaseForecastingModel):
                     X, y = self._apply_normalization(X=X, y=y)
         else:
             if not isinstance(X, np.ndarray) and isinstance(y, np.ndarray):
-                raise ValueError("X and y must be both be pd.DataFrame objectrs or np.ndarray objects.")
+                raise ValueError("X and y must be both be pd.DataFrame objects or np.ndarray objects.")
         X, y = self._map_to_tensor(X, y)
         if mode == "train":
             dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=True)
