@@ -12,7 +12,6 @@ class BaseForecastingModel:
                  target_name: str,
                  window_size: int,
                  forecast_horizon: int,
-                 time_col_name: Union[str, None] = None,
                  **kwargs):
         self.name = name
         self.target_name = target_name

@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from otb.benchmark.models.regression.pytorch.base_pytorch_model import BasePyTorchRegressionModel
+from otb.benchmark.models.forecasting.pytorch.base_pytorch_model import BasePyTorcForecastingModel
 
 
 class RNN(nn.Module):
@@ -22,14 +22,15 @@ class RNN(nn.Module):
         return out
 
 
-class RNNModel(BasePyTorchRegressionModel):
+class RNNModel(BasePyTorcForecastingModel):
     """A basic PyTorch RNN model."""
 
     def __init__(self,
                  name: str,
+                 window_size: int,
+                 forecast_horizon: int,
                  target_name: str,
                  input_size: int,
-                 window_size: int = 0,  # default to single row
                  hidden_size: int = 512,
                  num_layers: int = 2,
                  num_classes: int = 1,
@@ -41,7 +42,7 @@ class RNNModel(BasePyTorchRegressionModel):
                  random_state: int = 2020,
                  verbose: bool = False,
                  **kwargs):
-        super().__init__(name=name, target_name=target_name, window_size=window_size, batch_size=batch_size, n_epochs=n_epochs,
+        super().__init__(name=name, window_size=window_size, forecast_horizon=forecast_horizon, target_name=target_name, batch_size=batch_size, n_epochs=n_epochs,
                          learning_rate=learning_rate, criterion=criterion,
                          optimizer=optimizer, random_state=random_state, verbose=verbose)
         self.input_size = input_size
@@ -75,7 +76,7 @@ class RNNModel(BasePyTorchRegressionModel):
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
-        n_features = len(X.columns) // (1 + self.window_size)
+        n_features = len(X.columns) //  (1 + self.window_size)
         if self.verbose:
             print(f"validation data contains {n_features} features.")
         y = X.iloc[:, [0]]

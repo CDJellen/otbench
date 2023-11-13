@@ -1,38 +1,47 @@
+from typing import Tuple, Union
+
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.functional as F
 import torch.optim as optim
 
 from otb.benchmark.models.regression.pytorch.base_pytorch_model import BasePyTorchRegressionModel
 
 
-class RNN(nn.Module):
+class CNN(nn.Module):
 
-    def __init__(self, input_size, hidden_size, num_layers, num_classes):
-        super(RNN, self).__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, num_classes)
+    def __init__(self, num_features: int, in_channels: int=1, out_channels: int=1, kernel_size: Union[Tuple[int, int], int]=1, stride: Union[Tuple[int, int], int]=1, padding: Union[Tuple[int, int], int, str]="valid", bias: bool = True):
+        super(CNN, self).__init__()
+        self.num_features = num_features
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+
+        assert kernel_size < num_features, "kernel size must be less than the number of features"
+
+        self.cnn = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, bias=bias)
+        self.fc = nn.Linear((num_features - kernel_size + 1), 1)
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).requires_grad_()
-        out, _ = self.rnn(x, h0.detach())
-        out = self.fc(out[:, -1, :])
+        out = self.cnn(x)
+        out = self.fc(out)
         return out
 
 
-class RNNModel(BasePyTorchRegressionModel):
-    """A basic PyTorch RNN model."""
+class CNNModel(BasePyTorchRegressionModel):
+    """A basic PyTorch CNN model."""
 
     def __init__(self,
                  name: str,
                  target_name: str,
-                 input_size: int,
-                 window_size: int = 0,  # default to single row
-                 hidden_size: int = 512,
-                 num_layers: int = 2,
-                 num_classes: int = 1,
+                 num_features: int,
+                 window_size: int = 0,
+                 in_channels: int=1,
+                 out_channels: int=1,
+                 kernel_size: Union[Tuple[int, int], int]=1,
+                 stride: Union[Tuple[int, int], int]=1,
+                 padding: Union[Tuple[int, int], int, str]="valid",
+                 bias: bool = True,
                  batch_size: int = 32,
                  n_epochs: int = 500,
                  learning_rate: float = 0.025,
@@ -44,13 +53,16 @@ class RNNModel(BasePyTorchRegressionModel):
         super().__init__(name=name, target_name=target_name, window_size=window_size, batch_size=batch_size, n_epochs=n_epochs,
                          learning_rate=learning_rate, criterion=criterion,
                          optimizer=optimizer, random_state=random_state, verbose=verbose)
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.num_classes = num_classes
+        self.num_features = num_features
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.bias = bias
         
         # create and set the model
-        model = RNN(input_size, hidden_size, num_layers, num_classes)
+        model = CNN(num_features, in_channels, out_channels, kernel_size, stride, padding, bias)
         self.set_model(model=model, normalize_data=True,
                        set_optimizer_callable_params=True)  # apply model params to SGD
 
@@ -75,7 +87,7 @@ class RNNModel(BasePyTorchRegressionModel):
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
-        n_features = len(X.columns) // (1 + self.window_size)
+        n_features = len(X.columns) //  (1 + self.window_size)
         if self.verbose:
             print(f"validation data contains {n_features} features.")
         y = X.iloc[:, [0]]

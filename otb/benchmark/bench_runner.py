@@ -128,6 +128,8 @@ def run_benchmarks(verbose: bool = True,
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
+                model_kwargs["input_size"] = len(X.columns) // (1 + task.window_size)
+
             # adjust num epochs if provided
             if n_epoch_override:
                 model_kwargs["n_epoch"] = n_epoch_override

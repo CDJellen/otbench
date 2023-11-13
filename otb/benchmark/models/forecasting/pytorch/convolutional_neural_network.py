@@ -1,38 +1,45 @@
+from typing import Tuple, Union
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from otb.benchmark.models.regression.pytorch.base_pytorch_model import BasePyTorchRegressionModel
+from otb.benchmark.models.forecasting.pytorch.base_pytorch_model import BasePyTorcForecastingModel
 
 
-class RNN(nn.Module):
+class CNN(nn.Module):
 
-    def __init__(self, input_size, hidden_size, num_layers, num_classes):
-        super(RNN, self).__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, num_classes)
+    def __init__(self, in_channels: int=1, out_channels: int=1, kernel_size: Union[Tuple[int, int], int]=1, stride: Union[Tuple[int, int], int]=1, padding: Union[Tuple[int, int], int, str]="valid", bias: bool = True, nonlinearity: bool = True):
+        super(CNN, self).__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.nonlinearity = nonlinearity
+        self.cnn = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, bias=bias)
+        self.relu = nn.ReLU()
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).requires_grad_()
-        out, _ = self.rnn(x, h0.detach())
-        out = self.fc(out[:, -1, :])
+        out = self.cnn(x)
+        if self.nonlinearity:
+            out = self.relu(out)
         return out
 
 
-class RNNModel(BasePyTorchRegressionModel):
-    """A basic PyTorch RNN model."""
+class CNNModel(BasePyTorcForecastingModel):
+    """A basic PyTorch CNN model."""
 
     def __init__(self,
                  name: str,
+                 window_size: int,
+                 forecast_horizon: int,
                  target_name: str,
-                 input_size: int,
-                 window_size: int = 0,  # default to single row
-                 hidden_size: int = 512,
-                 num_layers: int = 2,
-                 num_classes: int = 1,
+                 in_channels: int=1,
+                 out_channels: int=1,
+                 kernel_size: Union[Tuple[int, int], int]=1,
+                 stride: Union[Tuple[int, int], int]=1,
+                 padding: Union[Tuple[int, int], int, str]="valid",
+                 bias: bool = True,
+                 nonlinearity: bool = True,
                  batch_size: int = 32,
                  n_epochs: int = 500,
                  learning_rate: float = 0.025,
@@ -41,16 +48,19 @@ class RNNModel(BasePyTorchRegressionModel):
                  random_state: int = 2020,
                  verbose: bool = False,
                  **kwargs):
-        super().__init__(name=name, target_name=target_name, window_size=window_size, batch_size=batch_size, n_epochs=n_epochs,
+        super().__init__(name=name, window_size=window_size, forecast_horizon=forecast_horizon, target_name=target_name, batch_size=batch_size, n_epochs=n_epochs,
                          learning_rate=learning_rate, criterion=criterion,
                          optimizer=optimizer, random_state=random_state, verbose=verbose)
-        self.input_size = input_size
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.num_classes = num_classes
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.kernel_size = kernel_size
+        self.stride = stride
+        self.padding = padding
+        self.bias = bias
+        self.nonlinearity = nonlinearity
         
         # create and set the model
-        model = RNN(input_size, hidden_size, num_layers, num_classes)
+        model = CNN(in_channels, out_channels, kernel_size, stride, padding, bias, nonlinearity)
         self.set_model(model=model, normalize_data=True,
                        set_optimizer_callable_params=True)  # apply model params to SGD
 
@@ -75,7 +85,7 @@ class RNNModel(BasePyTorchRegressionModel):
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
-        n_features = len(X.columns) // (1 + self.window_size)
+        n_features = len(X.columns) //  (1 + self.window_size)
         if self.verbose:
             print(f"validation data contains {n_features} features.")
         y = X.iloc[:, [0]]

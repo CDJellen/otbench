@@ -1,1 +1,3 @@
-__all__ = []
+from otb.benchmark.models.forecasting.pytorch.recurrent_neural_network import RNNModel
+
+__all__ = ["RNNModel"]

@@ -7,17 +7,18 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from otb.benchmark.models.regression.base_model import BaseRegressionModel
+from otb.benchmark.models.forecasting.base_model import BaseForecastingModel
 
 
-class BasePyTorchRegressionModel(BaseRegressionModel):
+class BasePyTorcForecastingModel(BaseForecastingModel):
     """A the base class for PyTorch models."""
 
     def __init__(
         self,
         name: str,
         target_name: str,
-        window_size: int = 0,  # default to single row
+        window_size: int,
+        forecast_horizon: int,
         batch_size: int = 32,
         n_epochs: int = 500,
         learning_rate: float = 0.025,
@@ -26,8 +27,7 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         random_state: int = 2020,
         verbose: bool = False,
     ):
-        super().__init__(name=name, target_name=target_name)
-        self.window_size = window_size
+        super().__init__(name=name, target_name=target_name, window_size=window_size, forecast_horizon=forecast_horizon)
         self.batch_size = batch_size
         self.random_state = random_state
         self.n_epochs = n_epochs
