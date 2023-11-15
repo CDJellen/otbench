@@ -23,8 +23,8 @@ def test_cnn_model(task_api):
     })
     y = pd.DataFrame({"Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16] * bs})
 
-    X_train, X_test = X[0:40*bs], X[40*bs:]
-    y_train, y_test = y[0:40*bs], y[40*bs:]
+    X_train, X_test = X[0:4*bs], X[4*bs:]
+    y_train, y_test = y[0:4*bs], y[4*bs:]
 
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")
@@ -79,8 +79,8 @@ def test_cnn_model_kernel_size_1(task_api):
     })
     y = pd.DataFrame({"Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16] * bs})
 
-    X_train, X_test = X[0:40*bs], X[40*bs:]
-    y_train, y_test = y[0:40*bs], y[40*bs:]
+    X_train, X_test = X[0:4*bs], X[4*bs:]
+    y_train, y_test = y[0:4*bs], y[4*bs:]
 
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")

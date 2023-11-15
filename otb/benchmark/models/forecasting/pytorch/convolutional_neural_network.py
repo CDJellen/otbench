@@ -19,7 +19,7 @@ class CNN(nn.Module):
         if input_size <= 0: raise AssertionError("input size must be greater than 0")
         if kernel_size > input_size: raise AssertionError("kernel size must be less than the number of features")
 
-        self.cnn = nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=bias)
+        self.cnn = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, bias=bias)
         self.fc = nn.Linear((input_size - kernel_size + 1), 1)
 
     def forward(self, x):
