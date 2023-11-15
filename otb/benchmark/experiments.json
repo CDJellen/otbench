@@ -90,6 +90,42 @@
                 "metric_value": 0.038164172321558,
                 "valid_predictions": 2431
             }
+        },
+        "RandomForestForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4114189861819781,
+                "valid_predictions": 2431
+            },
+            "r2_score": {
+                "metric_value": 0.6089033398622277,
+                "valid_predictions": 2431
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.30184009884903806,
+                "valid_predictions": 2431
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.021864150926737345,
+                "valid_predictions": 2431
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5454270839691162,
+                "valid_predictions": 2431
+            },
+            "r2_score": {
+                "metric_value": 0.31263271878349264,
+                "valid_predictions": 2431
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.4079537093639374,
+                "valid_predictions": 2431
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.029569530859589577,
+                "valid_predictions": 2431
+            }
         }
     },
     "forecasting.usna_cn2_sm.full.Cn2_3m": {
@@ -181,6 +217,42 @@
             },
             "mean_absolute_percentage_error": {
                 "metric_value": 0.026940450393957146,
+                "valid_predictions": 4073
+            }
+        },
+        "RandomForestForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.15498499411649153,
+                "valid_predictions": 4073
+            },
+            "r2_score": {
+                "metric_value": 0.8876250616037604,
+                "valid_predictions": 4073
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.08038749961875308,
+                "valid_predictions": 4073
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.0057036874195515175,
+                "valid_predictions": 4073
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1820542216947567,
+                "valid_predictions": 4073
+            },
+            "r2_score": {
+                "metric_value": 0.8449428943455315,
+                "valid_predictions": 4073
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.10829607583476397,
+                "valid_predictions": 4073
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.007656862348700272,
                 "valid_predictions": 4073
             }
         }
@@ -297,19 +369,19 @@
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.36175283789634705,
+                "metric_value": 0.3358548879623413,
                 "valid_predictions": 2449
             },
             "r2_score": {
-                "metric_value": 0.7001980549965683,
+                "metric_value": 0.7415872022561101,
                 "valid_predictions": 2449
             },
             "mean_absolute_error": {
-                "metric_value": 0.23706944286823273,
+                "metric_value": 0.21252451837062836,
                 "valid_predictions": 2449
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.016904138028621674,
+                "metric_value": 0.015167005360126495,
                 "valid_predictions": 2449
             }
         }
@@ -573,29 +645,29 @@
         },
         "GradientBoostingRegressionModel": {
             "root_mean_square_error": {
-                "metric_value": 1.339690763205474,
+                "metric_value": 1.3394975579298778,
                 "valid_predictions": 488306
             },
             "r2_score": {
-                "metric_value": -3.500893833211829,
+                "metric_value": -3.4995957221068545,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
-                "metric_value": 0.6834703860374763,
+                "metric_value": 0.6834588957129395,
                 "valid_predictions": 488306
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.04818399154178206,
+                "metric_value": 0.04818302454207459,
                 "valid_predictions": 488306
             }
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.5617936580157341,
+                "metric_value": 0.5617936580157342,
                 "valid_predictions": 488306
             },
             "r2_score": {
-                "metric_value": 0.2085138725114256,
+                "metric_value": 0.20851387251142528,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
@@ -603,7 +675,7 @@
                 "valid_predictions": 488306
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.029653160663770304,
+                "metric_value": 0.02965316066377031,
                 "valid_predictions": 488306
             }
         }
@@ -756,15 +828,15 @@
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.3728512476822503,
+                "metric_value": 0.3728512476822504,
                 "valid_predictions": 4080
             },
             "r2_score": {
-                "metric_value": 0.35081536456424445,
+                "metric_value": 0.3508153645642442,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {
-                "metric_value": 0.2815356496844989,
+                "metric_value": 0.28153564968449896,
                 "valid_predictions": 4080
             },
             "mean_absolute_percentage_error": {

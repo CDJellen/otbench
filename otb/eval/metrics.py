@@ -51,11 +51,9 @@ def _get_valid_indices(y_true: Sequence, y_pred: Sequence) -> Tuple[Sequence, Se
     y_true = y_true.to_numpy().squeeze()
 
     # ensure we have numpy arrays in y_pred
-    if isinstance(y_true, pd.DataFrame):
-        y_pred = y_pred.values
-    elif isinstance(y_true, pd.Series):
-        y_pred = y_pred.values
+    if isinstance(y_pred, pd.DataFrame):
+        y_pred = y_pred.to_numpy().squeeze()
     else:
-        y_pred = np.array(y_pred)
+        y_pred = np.array(y_pred).squeeze()
 
     return y_true[~np.isnan(y_true) & ~np.isnan(y_pred)], y_pred[~np.isnan(y_true) & ~np.isnan(y_pred)]

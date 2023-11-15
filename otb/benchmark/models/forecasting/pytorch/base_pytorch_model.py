@@ -87,10 +87,10 @@ class BasePyTorcForecastingModel(BaseForecastingModel):
         """Use the data supplied to create train or validation DataLoaders."""
         if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
             # reshape to apply window size
-            n_features = len(X.columns) // (1 + self.window_size)
+            n_features = len(X.columns) // self.window_size
             X = X.to_numpy()
             y = y.to_numpy()
-            X = X.reshape(-1, (1 + self.window_size), n_features)
+            X = X.reshape(-1, self.window_size, n_features)
 
             if self.normalize_data:
                 if mode == "train":

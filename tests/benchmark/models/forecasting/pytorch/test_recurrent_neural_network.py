@@ -5,14 +5,12 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 
-from otb.tasks import TaskApi
 from otb.benchmark.models.forecasting.pytorch.recurrent_neural_network import RNNModel
 
 
 @pytest.mark.slow
-def test_rnn_model():
+def test_rnn_model(task_api):
     """Test the RNNModel."""
-    task_api = TaskApi()
     # create a DataFrame with sample columns
     bs = 32
     # create a DataFrame with the required columns
@@ -59,5 +57,3 @@ def test_rnn_model():
     assert (isinstance(predictions, pd.Series) or isinstance(predictions, np.ndarray))
     assert len(predictions) == len(y_test)
     assert np.allclose(predictions, y_test.values.ravel())
-
-test_rnn_model()

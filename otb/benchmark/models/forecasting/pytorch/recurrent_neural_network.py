@@ -12,6 +12,9 @@ class RNN(nn.Module):
         super(RNN, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
+
+        if input_size <= 0: raise AssertionError("input size must be greater than 0")
+
         self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
 
@@ -57,7 +60,7 @@ class RNNModel(BasePyTorcForecastingModel):
 
     def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
         # maintain the same interface as the other models
-        n_features = len(X.columns) // (1 + self.window_size)
+        n_features = len(X.columns) // self.window_size
         if self.verbose:
             print(f"training data contains {n_features} features.")
         # set train dataloader
@@ -71,12 +74,12 @@ class RNNModel(BasePyTorcForecastingModel):
                 loss = self.criterion(outputs, y.float())
                 loss.backward()
                 self.optimizer.step()
-            if self.verbose and (i % (self.n_epochs // 10) == 0):
+            if self.verbose and self.n_epochs >= 10 and (i % (self.n_epochs // 10) == 0):
                 print(f"at epoch {i}. loss: {loss}")
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
-        n_features = len(X.columns) //  (1 + self.window_size)
+        n_features = len(X.columns) // self.window_size
         if self.verbose:
             print(f"validation data contains {n_features} features.")
         y = X.iloc[:, [0]]

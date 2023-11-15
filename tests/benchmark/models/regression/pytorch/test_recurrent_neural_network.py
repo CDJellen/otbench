@@ -23,7 +23,7 @@ def test_rnn_model():
         name="rnn_model",
         target_name="Cn2_15m",
         input_size=len(X.columns),  # single row
-        window_size=0,  # single row
+        window_size=1,  # single row
         hidden_size=32,
         num_layers=1,
         num_classes=1,
