@@ -291,11 +291,12 @@ class ForecastingTask(BaseTask):
         """Prepare data for forecasting."""
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
-
+        
         X = self._join_target(X, y)
-        X = self._add_lags(X, window_size)
+        if window_size > 1:
+            X = self._add_lags(X, (window_size - 1))
         y = self._shift_target(y, forecast_horizon)
-        X, y = self._obtain_valid_data(X, y, window_size, forecast_horizon)
+        X, y = self._obtain_valid_data(X, y, (window_size - 1), forecast_horizon)
 
         return X, y
 
@@ -378,14 +379,16 @@ class ForecastingTask(BaseTask):
 
     def _shift_target(self, y, forecast_horizon):
         """Shift the target by the forecast horizon."""
-        y = y.shift(-forecast_horizon)
+        if forecast_horizon > 0:
+            y = y.shift(-forecast_horizon)
 
         return y
 
     def _obtain_valid_data(self, X, y, window_size, forecast_horizon):
         """Obtain data that is valid for training and evaluation."""
-        X = X[window_size:-1 * forecast_horizon]
-        y = y[window_size:-1 * forecast_horizon]
+        if forecast_horizon > 0:
+            X = X[window_size:-1 * forecast_horizon]
+            y = y[window_size:-1 * forecast_horizon]
 
         return X, y
 

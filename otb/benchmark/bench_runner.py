@@ -1,7 +1,7 @@
 import os
 import json
 import pprint
-from typing import Union
+from typing import List, Union
 
 import pandas as pd
 
@@ -13,21 +13,40 @@ import otb.benchmark.models.forecasting as forecasting_models
 PPRINTER = pprint.PrettyPrinter(indent=4, width=120, compact=True)
 
 
-def run_benchmarks(verbose: bool = True,
-                   inlcude_pytorch_models: bool = True,
+def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
+                   benchmark_regression_models: Union[List[str], str, None] = None,
+                     benchmark_forecasting_models: Union[List[str], str, None] = None,
+                   verbose: bool = True,
+                   include_pytorch_models: bool = True,
                    write_metrics: bool = True,
                    metrics_fp: Union[os.PathLike, str, None] = None,
-                   n_epoch_override: Union[int, None] = None) -> dict:
+                   n_epochs_override: Union[int, None] = None) -> dict:
     """Run benchmarks for all tasks and models."""
-    reg_models = {n: getattr(regression_models, n) for n in regression_models.__all__}
-    fcn_models = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
-    if inlcude_pytorch_models:
+    if benchmark_regression_models is None:
+        reg_models = {n: getattr(regression_models, n) for n in regression_models.__all__}
+    else:
+        if type(benchmark_regression_models) == str:
+            benchmark_regression_models = [benchmark_regression_models]
+        reg_models = {n: getattr(regression_models, n) for n in benchmark_regression_models if n in regression_models.__all__}
+    if benchmark_forecasting_models is None:
+        fcn_models = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
+    else:
+        if type(benchmark_forecasting_models) == str:
+            benchmark_forecasting_models = [benchmark_forecasting_models]
+        fcn_models = {n: getattr(forecasting_models, n) for n in benchmark_forecasting_models if n in forecasting_models.__all__}
+    if include_pytorch_models:
         try:
             import otb.benchmark.models.regression.pytorch as pt_regression_models
             import otb.benchmark.models.forecasting.pytorch as pt_forecasting_models
 
-            pytorch_regression_models = {n: getattr(pt_regression_models, n) for n in pt_regression_models.__all__}
-            pytorch_forecasting_models = {n: getattr(pt_forecasting_models, n) for n in pt_forecasting_models.__all__}
+            if benchmark_regression_models is None:
+                pytorch_regression_models = {n: getattr(pt_regression_models, n) for n in pt_regression_models.__all__}
+            else:
+                pytorch_regression_models = {n: getattr(pt_regression_models, n) for n in benchmark_regression_models if n in pt_regression_models.__all__}
+            if benchmark_forecasting_models is None:
+                pytorch_forecasting_models = {n: getattr(pt_forecasting_models, n) for n in pt_forecasting_models.__all__}
+            else:
+                pytorch_forecasting_models = {n: getattr(pt_forecasting_models, n) for n in benchmark_forecasting_models if n in pt_forecasting_models.__all__}
 
             reg_models = {**reg_models, **pytorch_regression_models}
             fcn_models = {**fcn_models, **pytorch_forecasting_models}
@@ -38,12 +57,13 @@ def run_benchmarks(verbose: bool = True,
     if metrics_fp is None:
         metrics_fp = BENCHMARK_FP
     task_api = TaskApi()
-    all_tasks = sorted(task_api.list_tasks())
+    if benchmark_tasks is None:
+        benchmark_tasks = sorted(task_api.list_tasks())
+    elif type(benchmark_tasks) == str:
+        benchmark_tasks = [benchmark_tasks]
     benchmark_results = {}
 
-    for task_name in all_tasks:
-        #if task_name != "regression.mlo_cn2.dropna.Cn2_15m":
-        #    continue
+    for task_name in benchmark_tasks:
         if verbose:
             print(f"Running benchmark for {task_name}...")
 
@@ -128,11 +148,11 @@ def run_benchmarks(verbose: bool = True,
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
-                model_kwargs["input_size"] = len(X.columns) // (1 + task.window_size)
+                model_kwargs["input_size"] = len(X.columns) // task.window_size
 
             # adjust num epochs if provided
-            if n_epoch_override:
-                model_kwargs["n_epoch"] = n_epoch_override
+            if n_epochs_override is not None:
+                model_kwargs["n_epochs"] = n_epochs_override
 
             mdl = model(**model_kwargs)
             mdl.train(X.copy(deep=True), y.copy(deep=True))  # copy to avoid modifying original data
@@ -157,4 +177,5 @@ def run_benchmarks(verbose: bool = True,
         print("Done running benchmarks.")
     if verbose:
         PPRINTER.pprint(benchmark_results)
+
     return benchmark_results

@@ -10,18 +10,21 @@ from otb.benchmark.models.forecasting.pytorch.base_pytorch_model import BasePyTo
 
 class CNN(nn.Module):
 
-    def __init__(self, in_channels: int=1, out_channels: int=1, kernel_size: Union[Tuple[int, int], int]=1, stride: Union[Tuple[int, int], int]=1, padding: Union[Tuple[int, int], int, str]="valid", bias: bool = True, nonlinearity: bool = True):
+    def __init__(self, input_size: int, in_channels: int=1, out_channels: int=1, kernel_size: Union[Tuple[int, int], int]=1, stride: Union[Tuple[int, int], int]=1, padding: Union[Tuple[int, int], int, str]="valid", bias: bool = True):
         super(CNN, self).__init__()
+        self.input_size = input_size
         self.in_channels = in_channels
         self.out_channels = out_channels
-        self.nonlinearity = nonlinearity
+
+        if input_size <= 0: raise AssertionError("input size must be greater than 0")
+        if kernel_size > input_size: raise AssertionError("kernel size must be less than the number of features")
+
         self.cnn = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, bias=bias)
-        self.relu = nn.ReLU()
+        self.fc = nn.Linear((input_size - kernel_size + 1), 1)
 
     def forward(self, x):
         out = self.cnn(x)
-        if self.nonlinearity:
-            out = self.relu(out)
+        out = self.fc(out)
         return out
 
 
@@ -33,13 +36,13 @@ class CNNModel(BasePyTorcForecastingModel):
                  window_size: int,
                  forecast_horizon: int,
                  target_name: str,
+                 input_size: int,
                  in_channels: int=1,
                  out_channels: int=1,
                  kernel_size: Union[Tuple[int, int], int]=1,
                  stride: Union[Tuple[int, int], int]=1,
                  padding: Union[Tuple[int, int], int, str]="valid",
                  bias: bool = True,
-                 nonlinearity: bool = True,
                  batch_size: int = 32,
                  n_epochs: int = 500,
                  learning_rate: float = 0.025,
@@ -57,16 +60,15 @@ class CNNModel(BasePyTorcForecastingModel):
         self.stride = stride
         self.padding = padding
         self.bias = bias
-        self.nonlinearity = nonlinearity
         
         # create and set the model
-        model = CNN(in_channels, out_channels, kernel_size, stride, padding, bias, nonlinearity)
+        model = CNN(input_size, in_channels, out_channels, kernel_size, stride, padding, bias)
         self.set_model(model=model, normalize_data=True,
                        set_optimizer_callable_params=True)  # apply model params to SGD
 
     def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
         # maintain the same interface as the other models
-        n_features = len(X.columns) // (1 + self.window_size)
+        n_features = len(X.columns) // self.window_size
         if self.verbose:
             print(f"training data contains {n_features} features.")
         # set train dataloader
@@ -80,12 +82,12 @@ class CNNModel(BasePyTorcForecastingModel):
                 loss = self.criterion(outputs, y.float())
                 loss.backward()
                 self.optimizer.step()
-            if self.verbose and (i % (self.n_epochs // 10) == 0):
+            if self.verbose and self.n_epochs >= 10 and (i % (self.n_epochs // 10) == 0):
                 print(f"at epoch {i}. loss: {loss}")
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
-        n_features = len(X.columns) //  (1 + self.window_size)
+        n_features = len(X.columns) // self.window_size
         if self.verbose:
             print(f"validation data contains {n_features} features.")
         y = X.iloc[:, [0]]
