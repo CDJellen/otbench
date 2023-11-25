@@ -9,3 +9,7 @@
 coverage.xml
 otbench/cache/processed/*.pickle
 doc/
+!notebooks/overview.ipynb
+!notebooks/forecasting/*.ipynb
+!notebooks/regression/*.ipynb
+!notebooks/pytorch/*.ipynb
