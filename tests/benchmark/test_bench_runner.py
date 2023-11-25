@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from otb.benchmark.bench_runner import run_benchmarks
+from otbench.benchmark.bench_runner import run_benchmarks
 from tests import TESTS_BENCHMARK_FP
 
 

@@ -5,7 +5,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 
-from otb.benchmark.models.forecasting.pytorch.recurrent_neural_network import RNNModel
+from otbench.benchmark.models.forecasting.pytorch.recurrent_neural_network import RNNModel
 
 
 @pytest.mark.slow

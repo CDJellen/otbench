@@ -5,7 +5,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 
-from otb.benchmark.models.forecasting.pytorch.convolutional_neural_network import CNNModel
+from otbench.benchmark.models.forecasting.pytorch.convolutional_neural_network import CNNModel
 
 
 @pytest.mark.slow
@@ -169,5 +169,5 @@ def test_cnn_model_fail_assertion():
             verbose=True,
         )
 
-from otb.tasks import TaskApi
+from otbench.tasks import TaskApi
 test_cnn_model(TaskApi())

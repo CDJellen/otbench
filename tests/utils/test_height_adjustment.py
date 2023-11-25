@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from otb.utils import apply_fried_height_adjustment, apply_oermann_height_adjustment
+from otbench.utils import apply_fried_height_adjustment, apply_oermann_height_adjustment
 
 
 @pytest.fixture(scope='module')

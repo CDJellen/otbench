@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.forecasting.linear import LinearForecastingModel
+from otbench.benchmark.models.forecasting.linear import LinearForecastingModel
 
 
 @pytest.mark.slow

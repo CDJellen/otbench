@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.regression.offshore_macro_meteorological import OffshoreMacroMeteorologicalModel
+from otbench.benchmark.models.regression.offshore_macro_meteorological import OffshoreMacroMeteorologicalModel
 
 
 @pytest.mark.slow

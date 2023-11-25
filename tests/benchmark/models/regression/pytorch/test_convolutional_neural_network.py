@@ -5,7 +5,7 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 
-from otb.benchmark.models.regression.pytorch.convolutional_neural_network import CNNModel
+from otbench.benchmark.models.regression.pytorch.convolutional_neural_network import CNNModel
 
 
 @pytest.mark.slow
