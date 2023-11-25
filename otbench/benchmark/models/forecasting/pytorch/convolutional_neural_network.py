@@ -29,10 +29,12 @@ class CNN(nn.Module):
             raise AssertionError("kernel size must be less than the number of features")
 
         self.cnn = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, bias=bias)
+        self.relu = nn.ReLU(inplace=True)
         self.fc = nn.Linear((input_size - kernel_size + 1), 1)
 
     def forward(self, x):
         out = self.cnn(x)
+        out = self.relu(out)
         out = self.fc(out)
         return out
 
@@ -57,6 +59,7 @@ class CNNModel(BasePyTorchForecastingModel):
                  learning_rate: float = 0.025,
                  criterion: 'torch.nn.modules.loss' = nn.MSELoss(),
                  optimizer: 'torch.optim' = optim.SGD,
+                 normalize_data: bool = True,
                  random_state: int = 2020,
                  verbose: bool = False,
                  **kwargs):
@@ -80,7 +83,7 @@ class CNNModel(BasePyTorchForecastingModel):
 
         # create and set the model
         model = CNN(input_size, in_channels, out_channels, kernel_size, stride, padding, bias)
-        self.set_model(model=model, normalize_data=True,
+        self.set_model(model=model, normalize_data=normalize_data,
                        set_optimizer_callable_params=True)  # apply model params to SGD
 
     def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
@@ -114,8 +117,8 @@ class CNNModel(BasePyTorchForecastingModel):
         with torch.no_grad():
             for _, (X, _) in enumerate(self.val_dataloader):
                 y_pred = self.model(X.float())
-                # we have already set the model's `normalize_data` to `True`
-                y_pred = y_pred * self.y_std + self.y_mean
+                if self.normalize_data:
+                    y_pred = y_pred * self.y_std + self.y_mean
                 y_pred = y_pred.numpy()
 
                 # add the prediction value to the list

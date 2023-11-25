@@ -64,11 +64,11 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="train")
 
-    def set_test_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray]) -> None:
+    def set_test_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="test")
 
-    def set_validation_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray]) -> None:
+    def set_validation_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="val")
 
@@ -85,6 +85,13 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
                                   y: Union[pd.DataFrame, np.ndarray],
                                   mode: str = "val") -> None:
         """Use the data supplied to create train or validation DataLoaders."""
+        if y is None and isinstance(X, pd.DataFrame):
+            y = X.iloc[:, [0]]
+        elif y is None and isinstance(X, np.ndarray):
+            y = X[:, [0]]
+        elif y is None:
+            raise ValueError("y must be supplied if X is not a pd.DataFrame  or np.ndarray object.")
+
         if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
             # reshape to apply window size
             n_features = len(X.columns) // self.window_size
