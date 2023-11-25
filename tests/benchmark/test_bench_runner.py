@@ -13,7 +13,12 @@ def test_run_benchmark_single():
     print(TESTS_BENCHMARK_FP)
     with open(TESTS_BENCHMARK_FP, "r") as fp:
         experiments = json.load(fp)
-    got = run_benchmarks(benchmark_tasks="regression.mlo_cn2.dropna.Cn2_15m", verbose=True, write_metrics=True, metrics_fp=TESTS_BENCHMARK_FP, include_pytorch_models=True, n_epochs_override=10)
+    got = run_benchmarks(benchmark_tasks="regression.mlo_cn2.dropna.Cn2_15m",
+                         verbose=True,
+                         write_metrics=True,
+                         metrics_fp=TESTS_BENCHMARK_FP,
+                         include_pytorch_models=True,
+                         n_epochs_override=10)
     # restore the original expiraments.json
     with open(TESTS_BENCHMARK_FP, "w") as fp:
         json.dump(experiments, fp, indent=4)
@@ -23,7 +28,10 @@ def test_run_benchmark_single():
 @pytest.mark.slow
 def test_run_benchmarks():
     """Test running benchmarks."""
-    got = run_benchmarks(benchmark_tasks=["regression.mlo_cn2.dropna.Cn2_15m", "regression.mlo_cn2.full.Cn2_15m"], verbose=True, write_metrics=False, include_pytorch_models=False)
+    got = run_benchmarks(benchmark_tasks=["regression.mlo_cn2.dropna.Cn2_15m", "regression.mlo_cn2.full.Cn2_15m"],
+                         verbose=True,
+                         write_metrics=False,
+                         include_pytorch_models=False)
 
     assert isinstance(got, dict)
     assert len(got) == 2
@@ -34,13 +42,24 @@ def test_run_benchmarks():
 @pytest.mark.slow
 def test_run_benchmarks_all_single_model():
     """Test running benchmarks."""
-    got = run_benchmarks(benchmark_tasks=None, verbose=True, benchmark_regression_models="PersistenceRegressionModel", benchmark_forecasting_models="PersistenceForecastingModel", write_metrics=False, include_pytorch_models=True)
+    got = run_benchmarks(benchmark_tasks=None,
+                         verbose=True,
+                         benchmark_regression_models="PersistenceRegressionModel",
+                         benchmark_forecasting_models="PersistenceForecastingModel",
+                         write_metrics=False,
+                         include_pytorch_models=True)
 
     assert isinstance(got, dict)
+
 
 @pytest.mark.slow
 def test_run_benchmarks_all_multiple_models():
     """Test running benchmarks."""
-    got = run_benchmarks(benchmark_tasks=None, verbose=True, benchmark_regression_models=["PersistenceRegressionModel"], benchmark_forecasting_models=["PersistenceForecastingModel"], write_metrics=False, include_pytorch_models=True)
+    got = run_benchmarks(benchmark_tasks=None,
+                         verbose=True,
+                         benchmark_regression_models=["PersistenceRegressionModel"],
+                         benchmark_forecasting_models=["PersistenceForecastingModel"],
+                         write_metrics=False,
+                         include_pytorch_models=True)
 
     assert isinstance(got, dict)

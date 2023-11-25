@@ -291,7 +291,7 @@ class ForecastingTask(BaseTask):
         """Prepare data for forecasting."""
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
-        
+
         X = self._join_target(X, y)
         if window_size > 1:
             X = self._add_lags(X, (window_size - 1))

@@ -29,9 +29,9 @@ def test_rnn_model():
         num_classes=1,
         batch_size=bs,
         n_epochs=50,
-        criterion = nn.MSELoss(),
+        criterion=nn.MSELoss(),
         learning_rate=0.025,
-        optimizer = optim.SGD,
+        optimizer=optim.SGD,
         verbose=False,
     )
 
@@ -39,10 +39,10 @@ def test_rnn_model():
     assert model.name == "rnn_model"
 
     # train the model
-    model.train(X[0:4*bs], y[0:4*bs])
+    model.train(X[0:4 * bs], y[0:4 * bs])
     # predict
-    predictions = model.predict(X[4*bs:])
+    predictions = model.predict(X[4 * bs:])
     # check the predictions
     assert (isinstance(predictions, pd.Series) or isinstance(predictions, np.ndarray))
-    assert len(predictions) == len(y[4*bs:])
-    assert np.allclose(predictions, y[4*bs:].values.ravel())
+    assert len(predictions) == len(y[4 * bs:])
+    assert np.allclose(predictions, y[4 * bs:].values.ravel())

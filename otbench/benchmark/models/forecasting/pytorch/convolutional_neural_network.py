@@ -10,14 +10,23 @@ from otbench.benchmark.models.forecasting.pytorch.base_pytorch_model import Base
 
 class CNN(nn.Module):
 
-    def __init__(self, input_size: int, in_channels: int=1, out_channels: int=1, kernel_size: Union[Tuple[int, int], int]=1, stride: Union[Tuple[int, int], int]=1, padding: Union[Tuple[int, int], int, str]="valid", bias: bool = True):
+    def __init__(self,
+                 input_size: int,
+                 in_channels: int = 1,
+                 out_channels: int = 1,
+                 kernel_size: Union[Tuple[int, int], int] = 1,
+                 stride: Union[Tuple[int, int], int] = 1,
+                 padding: Union[Tuple[int, int], int, str] = "valid",
+                 bias: bool = True):
         super(CNN, self).__init__()
         self.input_size = input_size
         self.in_channels = in_channels
         self.out_channels = out_channels
 
-        if input_size <= 0: raise AssertionError("input size must be greater than 0")
-        if kernel_size > input_size: raise AssertionError("kernel size must be less than the number of features")
+        if input_size <= 0:
+            raise AssertionError("input size must be greater than 0")
+        if kernel_size > input_size:
+            raise AssertionError("kernel size must be less than the number of features")
 
         self.cnn = nn.Conv1d(in_channels, out_channels, kernel_size, stride, padding, bias=bias)
         self.fc = nn.Linear((input_size - kernel_size + 1), 1)
@@ -37,11 +46,11 @@ class CNNModel(BasePyTorchForecastingModel):
                  forecast_horizon: int,
                  target_name: str,
                  input_size: int,
-                 in_channels: int=1,
-                 out_channels: int=1,
-                 kernel_size: Union[Tuple[int, int], int]=1,
-                 stride: Union[Tuple[int, int], int]=1,
-                 padding: Union[Tuple[int, int], int, str]="valid",
+                 in_channels: int = 1,
+                 out_channels: int = 1,
+                 kernel_size: Union[Tuple[int, int], int] = 1,
+                 stride: Union[Tuple[int, int], int] = 1,
+                 padding: Union[Tuple[int, int], int, str] = "valid",
                  bias: bool = True,
                  batch_size: int = 32,
                  n_epochs: int = 500,
@@ -51,16 +60,24 @@ class CNNModel(BasePyTorchForecastingModel):
                  random_state: int = 2020,
                  verbose: bool = False,
                  **kwargs):
-        super().__init__(name=name, window_size=window_size, forecast_horizon=forecast_horizon, target_name=target_name, batch_size=batch_size, n_epochs=n_epochs,
-                         learning_rate=learning_rate, criterion=criterion,
-                         optimizer=optimizer, random_state=random_state, verbose=verbose)
+        super().__init__(name=name,
+                         window_size=window_size,
+                         forecast_horizon=forecast_horizon,
+                         target_name=target_name,
+                         batch_size=batch_size,
+                         n_epochs=n_epochs,
+                         learning_rate=learning_rate,
+                         criterion=criterion,
+                         optimizer=optimizer,
+                         random_state=random_state,
+                         verbose=verbose)
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.stride = stride
         self.padding = padding
         self.bias = bias
-        
+
         # create and set the model
         model = CNN(input_size, in_channels, out_channels, kernel_size, stride, padding, bias)
         self.set_model(model=model, normalize_data=True,

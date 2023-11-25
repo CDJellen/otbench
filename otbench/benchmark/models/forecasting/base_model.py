@@ -7,12 +7,7 @@ import numpy as np
 class BaseForecastingModel:
     """A model that predicts the mean value of the target variable for a given time."""
 
-    def __init__(self,
-                 name: str,
-                 target_name: str,
-                 window_size: int,
-                 forecast_horizon: int,
-                 **kwargs):
+    def __init__(self, name: str, target_name: str, window_size: int, forecast_horizon: int, **kwargs):
         self.name = name
         self.target_name = target_name
         self.window_size = window_size

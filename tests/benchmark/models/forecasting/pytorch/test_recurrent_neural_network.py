@@ -20,8 +20,8 @@ def test_rnn_model(task_api):
     })
     y = pd.DataFrame({"Cn2_15m": [1.58e-16 for _ in range(50 * bs)]})
 
-    X_train, X_test = X[0:40*bs], X[40*bs:]
-    y_train, y_test = y[0:40*bs], y[40*bs:]
+    X_train, X_test = X[0:40 * bs], X[40 * bs:]
+    y_train, y_test = y[0:40 * bs], y[40 * bs:]
 
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")
@@ -40,9 +40,9 @@ def test_rnn_model(task_api):
         num_classes=1,
         batch_size=bs,
         n_epochs=50,
-        criterion = nn.MSELoss(),
+        criterion=nn.MSELoss(),
         learning_rate=0.025,
-        optimizer = optim.SGD,
+        optimizer=optim.SGD,
         verbose=True,
     )
 

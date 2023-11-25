@@ -35,9 +35,9 @@ def test_cnn_model():
         bias=False,
         batch_size=bs,
         n_epochs=50,
-        criterion = nn.MSELoss(),
+        criterion=nn.MSELoss(),
         learning_rate=0.025,
-        optimizer = optim.SGD,
+        optimizer=optim.SGD,
         verbose=True,
     )
 
@@ -45,13 +45,13 @@ def test_cnn_model():
     assert model.name == "cnn_model"
 
     # train the model
-    model.train(X[0:4*bs], y[0:4*bs])
+    model.train(X[0:4 * bs], y[0:4 * bs])
     # predict
-    predictions = model.predict(X[4*bs:])
+    predictions = model.predict(X[4 * bs:])
     # check the predictions
     assert (isinstance(predictions, pd.Series) or isinstance(predictions, np.ndarray))
-    assert len(predictions) == len(y[4*bs:])
-    assert np.allclose(predictions, y[4*bs:].values.ravel())
+    assert len(predictions) == len(y[4 * bs:])
+    assert np.allclose(predictions, y[4 * bs:].values.ravel())
 
 
 @pytest.mark.slow
@@ -78,9 +78,9 @@ def test_cnn_model_kernel_size_1():
         bias=False,
         batch_size=bs,
         n_epochs=50,
-        criterion = nn.MSELoss(),
+        criterion=nn.MSELoss(),
         learning_rate=0.025,
-        optimizer = optim.SGD,
+        optimizer=optim.SGD,
         verbose=True,
     )
 
@@ -88,13 +88,13 @@ def test_cnn_model_kernel_size_1():
     assert model.name == "cnn_model"
 
     # train the model
-    model.train(X[0:4*bs], y[0:4*bs])
+    model.train(X[0:4 * bs], y[0:4 * bs])
     # predict
-    predictions = model.predict(X[4*bs:])
+    predictions = model.predict(X[4 * bs:])
     # check the predictions
     assert (isinstance(predictions, pd.Series) or isinstance(predictions, np.ndarray))
-    assert len(predictions) == len(y[4*bs:])
-    assert np.allclose(predictions, y[4*bs:].values.ravel())
+    assert len(predictions) == len(y[4 * bs:])
+    assert np.allclose(predictions, y[4 * bs:].values.ravel())
 
 
 def test_cnn_model_fail_assertion():
@@ -120,9 +120,9 @@ def test_cnn_model_fail_assertion():
             bias=False,
             batch_size=bs,
             n_epochs=50,
-            criterion = nn.MSELoss(),
+            criterion=nn.MSELoss(),
             learning_rate=0.025,
-            optimizer = optim.SGD,
+            optimizer=optim.SGD,
             verbose=True,
         )
     with pytest.raises(AssertionError):
@@ -139,8 +139,8 @@ def test_cnn_model_fail_assertion():
             bias=False,
             batch_size=bs,
             n_epochs=50,
-            criterion = nn.MSELoss(),
+            criterion=nn.MSELoss(),
             learning_rate=0.025,
-            optimizer = optim.SGD,
+            optimizer=optim.SGD,
             verbose=True,
         )

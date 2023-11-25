@@ -23,8 +23,8 @@ def test_cnn_model(task_api):
     })
     y = pd.DataFrame({"Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16] * bs})
 
-    X_train, X_test = X[0:4*bs], X[4*bs:]
-    y_train, y_test = y[0:4*bs], y[4*bs:]
+    X_train, X_test = X[0:4 * bs], X[4 * bs:]
+    y_train, y_test = y[0:4 * bs], y[4 * bs:]
 
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")
@@ -45,9 +45,9 @@ def test_cnn_model(task_api):
         bias=False,
         batch_size=bs,
         n_epochs=50,
-        criterion = nn.MSELoss(),
+        criterion=nn.MSELoss(),
         learning_rate=0.025,
-        optimizer = optim.SGD,
+        optimizer=optim.SGD,
         verbose=True,
     )
 
@@ -79,8 +79,8 @@ def test_cnn_model_kernel_size_1(task_api):
     })
     y = pd.DataFrame({"Cn2_15m": [1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16, 1.58e-16] * bs})
 
-    X_train, X_test = X[0:4*bs], X[4*bs:]
-    y_train, y_test = y[0:4*bs], y[4*bs:]
+    X_train, X_test = X[0:4 * bs], X[4 * bs:]
+    y_train, y_test = y[0:4 * bs], y[4 * bs:]
 
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")
@@ -101,9 +101,9 @@ def test_cnn_model_kernel_size_1(task_api):
         bias=False,
         batch_size=bs,
         n_epochs=50,
-        criterion = nn.MSELoss(),
+        criterion=nn.MSELoss(),
         learning_rate=0.025,
-        optimizer = optim.SGD,
+        optimizer=optim.SGD,
         verbose=True,
     )
 
@@ -118,6 +118,7 @@ def test_cnn_model_kernel_size_1(task_api):
     assert (isinstance(predictions, pd.Series) or isinstance(predictions, np.ndarray))
     assert len(predictions) == len(y_test)
     assert np.allclose(predictions, y_test.values.ravel())
+
 
 def test_cnn_model_fail_assertion():
     """Test the CNNModel."""
@@ -143,9 +144,9 @@ def test_cnn_model_fail_assertion():
             bias=False,
             batch_size=bs,
             n_epochs=50,
-            criterion = nn.MSELoss(),
+            criterion=nn.MSELoss(),
             learning_rate=0.025,
-            optimizer = optim.SGD,
+            optimizer=optim.SGD,
             verbose=True,
         )
     with pytest.raises(AssertionError):
@@ -163,11 +164,13 @@ def test_cnn_model_fail_assertion():
             bias=False,
             batch_size=bs,
             n_epochs=50,
-            criterion = nn.MSELoss(),
+            criterion=nn.MSELoss(),
             learning_rate=0.025,
-            optimizer = optim.SGD,
+            optimizer=optim.SGD,
             verbose=True,
         )
 
+
 from otbench.tasks import TaskApi
+
 test_cnn_model(TaskApi())

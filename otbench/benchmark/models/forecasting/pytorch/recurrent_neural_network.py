@@ -13,7 +13,8 @@ class RNN(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
 
-        if input_size <= 0: raise AssertionError("input size must be greater than 0")
+        if input_size <= 0:
+            raise AssertionError("input size must be greater than 0")
 
         self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
@@ -45,14 +46,22 @@ class RNNModel(BasePyTorchForecastingModel):
                  random_state: int = 2020,
                  verbose: bool = False,
                  **kwargs):
-        super().__init__(name=name, window_size=window_size, forecast_horizon=forecast_horizon, target_name=target_name, batch_size=batch_size, n_epochs=n_epochs,
-                         learning_rate=learning_rate, criterion=criterion,
-                         optimizer=optimizer, random_state=random_state, verbose=verbose)
+        super().__init__(name=name,
+                         window_size=window_size,
+                         forecast_horizon=forecast_horizon,
+                         target_name=target_name,
+                         batch_size=batch_size,
+                         n_epochs=n_epochs,
+                         learning_rate=learning_rate,
+                         criterion=criterion,
+                         optimizer=optimizer,
+                         random_state=random_state,
+                         verbose=verbose)
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.num_classes = num_classes
-        
+
         # create and set the model
         model = RNN(input_size, hidden_size, num_layers, num_classes)
         self.set_model(model=model, normalize_data=True,

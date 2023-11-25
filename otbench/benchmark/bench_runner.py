@@ -15,7 +15,7 @@ PPRINTER = pprint.PrettyPrinter(indent=4, width=120, compact=True)
 
 def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                    benchmark_regression_models: Union[List[str], str, None] = None,
-                     benchmark_forecasting_models: Union[List[str], str, None] = None,
+                   benchmark_forecasting_models: Union[List[str], str, None] = None,
                    verbose: bool = True,
                    include_pytorch_models: bool = True,
                    write_metrics: bool = True,
@@ -27,13 +27,17 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
     else:
         if type(benchmark_regression_models) == str:
             benchmark_regression_models = [benchmark_regression_models]
-        reg_models = {n: getattr(regression_models, n) for n in benchmark_regression_models if n in regression_models.__all__}
+        reg_models = {
+            n: getattr(regression_models, n) for n in benchmark_regression_models if n in regression_models.__all__
+        }
     if benchmark_forecasting_models is None:
         fcn_models = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
     else:
         if type(benchmark_forecasting_models) == str:
             benchmark_forecasting_models = [benchmark_forecasting_models]
-        fcn_models = {n: getattr(forecasting_models, n) for n in benchmark_forecasting_models if n in forecasting_models.__all__}
+        fcn_models = {
+            n: getattr(forecasting_models, n) for n in benchmark_forecasting_models if n in forecasting_models.__all__
+        }
     if include_pytorch_models:
         try:
             import otbench.benchmark.models.regression.pytorch as pt_regression_models
@@ -42,11 +46,21 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             if benchmark_regression_models is None:
                 pytorch_regression_models = {n: getattr(pt_regression_models, n) for n in pt_regression_models.__all__}
             else:
-                pytorch_regression_models = {n: getattr(pt_regression_models, n) for n in benchmark_regression_models if n in pt_regression_models.__all__}
+                pytorch_regression_models = {
+                    n: getattr(pt_regression_models, n)
+                    for n in benchmark_regression_models
+                    if n in pt_regression_models.__all__
+                }
             if benchmark_forecasting_models is None:
-                pytorch_forecasting_models = {n: getattr(pt_forecasting_models, n) for n in pt_forecasting_models.__all__}
+                pytorch_forecasting_models = {
+                    n: getattr(pt_forecasting_models, n) for n in pt_forecasting_models.__all__
+                }
             else:
-                pytorch_forecasting_models = {n: getattr(pt_forecasting_models, n) for n in benchmark_forecasting_models if n in pt_forecasting_models.__all__}
+                pytorch_forecasting_models = {
+                    n: getattr(pt_forecasting_models, n)
+                    for n in benchmark_forecasting_models
+                    if n in pt_forecasting_models.__all__
+                }
 
             reg_models = {**reg_models, **pytorch_regression_models}
             fcn_models = {**fcn_models, **pytorch_forecasting_models}
