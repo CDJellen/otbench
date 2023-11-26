@@ -163,6 +163,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
                 model_kwargs["input_size"] = len(X.columns) // task.window_size
+                model_kwargs["in_channels"] = task.window_size
 
             # adjust num epochs if provided
             if n_epochs_override is not None:
