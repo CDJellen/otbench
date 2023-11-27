@@ -92,8 +92,7 @@ class RNNModel(BasePyTorchForecastingModel):
         n_features = len(X.columns) // self.window_size
         if self.verbose:
             print(f"validation data contains {n_features} features.")
-        y = X.iloc[:, [0]]
-        self.set_validation_data(X=X, y=y)
+        self.set_validation_data(X=X, y=None)
 
         pred = []
         with torch.no_grad():

@@ -1,276 +1,258 @@
 {
     "forecasting.mlo_cn2.dropna.Cn2_15m": {
-        "possible_predictions": 2431,
+        "possible_predictions": 2432,
         "LinearForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.9374221545339875,
-                "valid_predictions": 2431
+                "metric_value": 0.9301750794775393,
+                "valid_predictions": 2432
             },
             "r2_score": {
-                "metric_value": -1.0304199607785303,
-                "valid_predictions": 2431
+                "metric_value": -0.9980433897905687,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.6926500882596354,
-                "valid_predictions": 2431
+                "metric_value": 0.6859138891687716,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.049631119582110916,
-                "valid_predictions": 2431
+                "metric_value": 0.04913322467195988,
+                "valid_predictions": 2432
             }
         },
         "MeanWindowForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.488908588886261,
-                "valid_predictions": 2431
+                "metric_value": 0.48137521743774414,
+                "valid_predictions": 2432
             },
             "r2_score": {
-                "metric_value": 0.44770544727020123,
-                "valid_predictions": 2431
+                "metric_value": 0.46489009026592176,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.35933542251586914,
-                "valid_predictions": 2431
+                "metric_value": 0.3529319763183594,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.025728628039360046,
-                "valid_predictions": 2431
+                "metric_value": 0.025265973061323166,
+                "valid_predictions": 2432
             }
         },
         "PersistenceForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 1.2277367115020752,
-                "valid_predictions": 2431
+                "metric_value": 1.2711966037750244,
+                "valid_predictions": 2432
             },
             "r2_score": {
-                "metric_value": -2.4827794720273686,
-                "valid_predictions": 2431
+                "metric_value": -2.731650019700246,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 1.0390281677246094,
-                "valid_predictions": 2431
+                "metric_value": 1.0888313055038452,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.07343247532844543,
-                "valid_predictions": 2431
+                "metric_value": 0.07705160230398178,
+                "valid_predictions": 2432
             }
         },
         "MinuteClimatologyForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.556152880191803,
-                "valid_predictions": 2431
+                "metric_value": 0.5507352948188782,
+                "valid_predictions": 2432
             },
             "r2_score": {
-                "metric_value": 0.28533295063449826,
-                "valid_predictions": 2431
+                "metric_value": 0.2995755022584453,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.42159250378608704,
-                "valid_predictions": 2431
+                "metric_value": 0.4170035421848297,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.030425529927015305,
-                "valid_predictions": 2431
+                "metric_value": 0.030099932104349136,
+                "valid_predictions": 2432
             }
         },
         "ClimatologyForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.6582076549530029,
-                "valid_predictions": 2431
+                "metric_value": 0.6583983302116394,
+                "valid_predictions": 2432
             },
             "r2_score": {
-                "metric_value": -0.0010167006826073965,
-                "valid_predictions": 2431
+                "metric_value": -0.0010434240737311473,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.5277912616729736,
-                "valid_predictions": 2431
+                "metric_value": 0.5279864072799683,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.038164172321558,
-                "valid_predictions": 2431
+                "metric_value": 0.03818046674132347,
+                "valid_predictions": 2432
             }
         },
         "RandomForestForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.4114189861819781,
-                "valid_predictions": 2431
+                "metric_value": 0.4283680034537716,
+                "valid_predictions": 2432
             },
             "r2_score": {
-                "metric_value": 0.6089033398622277,
-                "valid_predictions": 2431
+                "metric_value": 0.5762501442324708,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.30184009884903806,
-                "valid_predictions": 2431
+                "metric_value": 0.31760423943549015,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.021864150926737345,
-                "valid_predictions": 2431
+                "metric_value": 0.0230231115580597,
+                "valid_predictions": 2432
             }
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.5454270839691162,
-                "valid_predictions": 2431
+                "metric_value": 0.5805817246437073,
+                "valid_predictions": 2432
             },
             "r2_score": {
-                "metric_value": 0.31263271878349264,
-                "valid_predictions": 2431
+                "metric_value": 0.22160112331640924,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.4079537093639374,
-                "valid_predictions": 2431
+                "metric_value": 0.43866515159606934,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.029569530859589577,
-                "valid_predictions": 2431
+                "metric_value": 0.03191736340522766,
+                "valid_predictions": 2432
             }
         }
     },
     "forecasting.usna_cn2_sm.full.Cn2_3m": {
-        "possible_predictions": 4073,
+        "possible_predictions": 4074,
         "LinearForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.3611837046504372,
-                "valid_predictions": 4073
+                "metric_value": 0.35766029556257317,
+                "valid_predictions": 4074
             },
             "r2_score": {
-                "metric_value": 0.38969565649481597,
-                "valid_predictions": 4073
+                "metric_value": 0.4027971580105201,
+                "valid_predictions": 4074
             },
             "mean_absolute_error": {
-                "metric_value": 0.21019338617990932,
-                "valid_predictions": 4073
+                "metric_value": 0.20475838574340885,
+                "valid_predictions": 4074
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.014838818579275511,
-                "valid_predictions": 4073
+                "metric_value": 0.014466686130689977,
+                "valid_predictions": 4074
             }
         },
         "MeanWindowForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.1876151064023521,
-                "valid_predictions": 4073
+                "metric_value": 0.18197107355144435,
+                "valid_predictions": 4074
             },
             "r2_score": {
-                "metric_value": 0.8353257203476709,
-                "valid_predictions": 4073
+                "metric_value": 0.8454086755204887,
+                "valid_predictions": 4074
             },
             "mean_absolute_error": {
-                "metric_value": 0.10657598774263474,
-                "valid_predictions": 4073
+                "metric_value": 0.10216899660692459,
+                "valid_predictions": 4074
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.007538717390241261,
-                "valid_predictions": 4073
+                "metric_value": 0.00723260913078015,
+                "valid_predictions": 4074
             }
         },
         "PersistenceForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 1.5013733623189507,
-                "valid_predictions": 4073
+                "metric_value": 0.8212316846223886,
+                "valid_predictions": 4074
             },
             "r2_score": {
-                "metric_value": -9.545509733280348,
-                "valid_predictions": 4073
+                "metric_value": -2.1485587211640644,
+                "valid_predictions": 4074
             },
             "mean_absolute_error": {
-                "metric_value": 1.4303366952554861,
-                "valid_predictions": 4073
+                "metric_value": 0.6937863663297408,
+                "valid_predictions": 4074
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.10000286329131947,
-                "valid_predictions": 4073
+                "metric_value": 0.048072417551083595,
+                "valid_predictions": 4074
             }
         },
         "MinuteClimatologyForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.45258303532537403,
-                "valid_predictions": 4073
+                "metric_value": 0.45294037686388644,
+                "valid_predictions": 4074
             },
             "r2_score": {
-                "metric_value": 0.04173261743222356,
-                "valid_predictions": 4073
+                "metric_value": 0.04222724733370109,
+                "valid_predictions": 4074
             },
             "mean_absolute_error": {
-                "metric_value": 0.361954729034872,
-                "valid_predictions": 4073
+                "metric_value": 0.36202741587478954,
+                "valid_predictions": 4074
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.025580726867960264,
-                "valid_predictions": 4073
+                "metric_value": 0.02558917173522264,
+                "valid_predictions": 4074
             }
         },
         "ClimatologyForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.4794206528388924,
-                "valid_predictions": 4073
+                "metric_value": 0.4799858269445086,
+                "valid_predictions": 4074
             },
             "r2_score": {
-                "metric_value": -0.0752851355605697,
-                "valid_predictions": 4073
+                "metric_value": -0.07556641058405544,
+                "valid_predictions": 4074
             },
             "mean_absolute_error": {
-                "metric_value": 0.3812330210673334,
-                "valid_predictions": 4073
+                "metric_value": 0.38152894906631035,
+                "valid_predictions": 4074
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.026940450393957146,
-                "valid_predictions": 4073
+                "metric_value": 0.026964371274693588,
+                "valid_predictions": 4074
             }
         },
         "RandomForestForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.15498499411649153,
-                "valid_predictions": 4073
+                "metric_value": 0.1603699396113978,
+                "valid_predictions": 4074
             },
             "r2_score": {
-                "metric_value": 0.8876250616037604,
-                "valid_predictions": 4073
+                "metric_value": 0.879932260330424,
+                "valid_predictions": 4074
             },
             "mean_absolute_error": {
-                "metric_value": 0.08038749961875308,
-                "valid_predictions": 4073
+                "metric_value": 0.0815838278224119,
+                "valid_predictions": 4074
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.0057036874195515175,
-                "valid_predictions": 4073
+                "metric_value": 0.005791995641806741,
+                "valid_predictions": 4074
             }
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.1820542216947567,
-                "valid_predictions": 4073
-            },
-            "r2_score": {
-                "metric_value": 0.8449428943455315,
-                "valid_predictions": 4073
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.10829607583476397,
-                "valid_predictions": 4073
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.007656862348700272,
-                "valid_predictions": 4073
-            }
-        },
-        "lgbm": {
-            "root_mean_square_error": {
-                "metric_value": 0.16789671817327995,
+                "metric_value": 0.18675840805507377,
                 "valid_predictions": 4074
             },
             "r2_score": {
-                "metric_value": 0.8683972943955358,
+                "metric_value": 0.8371676351762862,
                 "valid_predictions": 4074
             },
             "mean_absolute_error": {
-                "metric_value": 0.08689376057499568,
+                "metric_value": 0.11999809879217871,
                 "valid_predictions": 4074
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.006166048461118418,
+                "metric_value": 0.008519056464439479,
                 "valid_predictions": 4074
             }
         }
@@ -402,24 +384,6 @@
                 "metric_value": 0.015167005360126495,
                 "valid_predictions": 2449
             }
-        },
-        "lgbm": {
-            "root_mean_square_error": {
-                "metric_value": 0.21550584034473647,
-                "valid_predictions": 2449
-            },
-            "r2_score": {
-                "metric_value": 0.8936031659084048,
-                "valid_predictions": 2449
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.15718607854371786,
-                "valid_predictions": 2449
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.011320035736497307,
-                "valid_predictions": 2449
-            }
         }
     },
     "regression.mlo_cn2.full.Cn2_15m": {
@@ -534,19 +498,19 @@
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.6100049018859863,
+                "metric_value": 0.5481449961662292,
                 "valid_predictions": 2816
             },
             "r2_score": {
-                "metric_value": 0.15686172328358972,
+                "metric_value": 0.31919444677009623,
                 "valid_predictions": 2816
             },
             "mean_absolute_error": {
-                "metric_value": 0.46108028292655945,
+                "metric_value": 0.41288402676582336,
                 "valid_predictions": 2816
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.033031970262527466,
+                "metric_value": 0.029578138142824173,
                 "valid_predictions": 2816
             }
         }
@@ -681,37 +645,37 @@
         },
         "GradientBoostingRegressionModel": {
             "root_mean_square_error": {
-                "metric_value": 1.3394975579298778,
+                "metric_value": 1.3395167304400033,
                 "valid_predictions": 488306
             },
             "r2_score": {
-                "metric_value": -3.4995957221068545,
+                "metric_value": -3.4997245303475593,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
-                "metric_value": 0.6834588957129395,
+                "metric_value": 0.6831977165894831,
                 "valid_predictions": 488306
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.04818302454207459,
+                "metric_value": 0.04816660520199875,
                 "valid_predictions": 488306
             }
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.5617936580157342,
+                "metric_value": 0.5299129503254789,
                 "valid_predictions": 488306
             },
             "r2_score": {
-                "metric_value": 0.20851387251142528,
+                "metric_value": 0.29579564062203767,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
-                "metric_value": 0.42091179644968224,
+                "metric_value": 0.39897702378970384,
                 "valid_predictions": 488306
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.02965316066377031,
+                "metric_value": 0.028121164252675274,
                 "valid_predictions": 488306
             }
         }
@@ -864,19 +828,19 @@
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.3728512476822504,
+                "metric_value": 0.37466592481888317,
                 "valid_predictions": 4080
             },
             "r2_score": {
-                "metric_value": 0.3508153645642442,
+                "metric_value": 0.34448078824748507,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {
-                "metric_value": 0.28153564968449896,
+                "metric_value": 0.28145469568498926,
                 "valid_predictions": 4080
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.01992689596952816,
+                "metric_value": 0.01993480459285803,
                 "valid_predictions": 4080
             }
         }
