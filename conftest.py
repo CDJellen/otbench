@@ -3,7 +3,7 @@ from os import path
 import pandas as pd
 import pytest
 
-from otb.tasks import TaskApi
+from otbench.tasks import TaskApi
 
 
 def pytest_addoption(parser):

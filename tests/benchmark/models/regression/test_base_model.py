@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.regression.base_model import BaseRegressionModel
+from otbench.benchmark.models.regression.base_model import BaseRegressionModel
 
 
 def test_base_model():

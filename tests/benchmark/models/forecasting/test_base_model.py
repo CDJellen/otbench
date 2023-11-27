@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.forecasting.base_model import BaseForecastingModel
+from otbench.benchmark.models.forecasting.base_model import BaseForecastingModel
 
 
 def test_base_model():

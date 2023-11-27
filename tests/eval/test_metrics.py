@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-import otb.eval.metrics as otb_metrics
+import otbench.eval.metrics as otb_metrics
 
 
 @pytest.fixture(scope='module')

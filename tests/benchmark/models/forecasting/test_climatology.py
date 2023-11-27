@@ -2,7 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.forecasting.minute_climatology import MinuteClimatologyForecastingModel
+from otbench.benchmark.models.forecasting.minute_climatology import MinuteClimatologyForecastingModel
 
 
 @pytest.mark.slow

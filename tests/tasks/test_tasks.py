@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from otb.tasks.tasks import TaskABC, BaseTask, RegressionTask, ForecastingTask
+from otbench.tasks.tasks import TaskABC, BaseTask, RegressionTask, ForecastingTask
 from tests import TESTS_BENCHMARK_FP
 
 
@@ -74,7 +74,7 @@ def test_tasks(task_api):
     assert len(X_test) < len(df)
 
     # test task get val data
-    X_val, y_val = task.get_val_data()
+    X_val, y_val = task.get_validation_data()
     assert isinstance(X_val, pd.DataFrame)
     assert isinstance(y_val, pd.DataFrame)
     assert len(X_val) > 0
@@ -152,7 +152,7 @@ def test_tasks(task_api):
     assert len(X_test) < len(df)
 
     # test task get val data
-    X_val, y_val = task.get_val_data()
+    X_val, y_val = task.get_validation_data()
     assert isinstance(X_val, pd.DataFrame)
     assert isinstance(y_val, pd.DataFrame)
     assert len(X_val) > 0
@@ -174,7 +174,6 @@ def test_list_tasks(task_api):
     assert isinstance(task_api.list_tasks(), list)
 
 
-@pytest.mark.private
 def test_is_supported_task(task_api):
     """Test the is_supported_task function."""
     assert task_api._is_supported_task("regression.mlo_cn2.dropna.Cn2_15m")
@@ -210,7 +209,7 @@ def test_task_abc():
     with pytest.raises(NotImplementedError):
         task.get_test_data("foo")
     with pytest.raises(NotImplementedError):
-        task.get_val_data("foo")
+        task.get_validation_data("foo")
     with pytest.raises(NotImplementedError):
         task.evaluate_model(lambda x: x, "foo")
     with pytest.raises(NotImplementedError):

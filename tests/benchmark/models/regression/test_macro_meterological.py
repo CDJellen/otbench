@@ -3,7 +3,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.regression.macro_meteorological import MacroMeteorologicalModel
+from otbench.benchmark.models.regression.macro_meteorological import MacroMeteorologicalModel
 
 
 @pytest.mark.slow

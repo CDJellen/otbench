@@ -3,8 +3,8 @@ import os
 import pytest
 import pandas as pd
 
-from otb.cache import InMemoryCache
-from otb.config import CACHE_DIR
+from otbench.cache import InMemoryCache
+from otbench.config import CACHE_DIR
 
 
 @pytest.fixture(scope='module')

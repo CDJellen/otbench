@@ -1,7 +1,7 @@
 import pytest
 import pandas as pd
 
-from otb.utils import add_temporal_hour, add_temporal_hour_weight
+from otbench.utils import add_temporal_hour, add_temporal_hour_weight
 
 
 @pytest.fixture(scope='module')

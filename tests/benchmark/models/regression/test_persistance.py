@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.regression.persistence import PersistenceRegressionModel
+from otbench.benchmark.models.regression.persistence import PersistenceRegressionModel
 from tests import TESTS_BENCHMARK_FP
 
 

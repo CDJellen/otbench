@@ -5,7 +5,7 @@ import pytest
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.forecasting.persistence import PersistenceForecastingModel
+from otbench.benchmark.models.forecasting.persistence import PersistenceForecastingModel
 from tests import TESTS_BENCHMARK_FP
 
 

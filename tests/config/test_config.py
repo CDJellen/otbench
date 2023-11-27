@@ -1,6 +1,6 @@
 import pytest
 
-import otb.config as otb_config
+import otbench.config as otb_config
 
 
 @pytest.fixture(scope='module')

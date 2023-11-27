@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-from otb.benchmark.models.regression.air_water_temperature_difference import AWTModel
+from otbench.benchmark.models.regression.air_water_temperature_difference import AWTModel
 
 
 def test_awt_model():
