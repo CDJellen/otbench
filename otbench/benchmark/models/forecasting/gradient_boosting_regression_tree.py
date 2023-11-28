@@ -7,13 +7,13 @@ import lightgbm as lgb
 from otbench.benchmark.models.forecasting.base_model import BaseForecastingModel
 
 
-class RandomForestForecastingModel(BaseForecastingModel):
-    """A model that uses a random forest regressor for direct forecasting."""
+class GradientBoostingForecastingModel(BaseForecastingModel):
+    """A model that uses gradient boosting regression trees for direct forecasting."""
 
     def __init__(self, name: str, target_name: str, window_size: int, forecast_horizon: int, **kwargs):
         super().__init__(name, target_name, window_size, forecast_horizon, **kwargs)
-        kwargs["verbose"] = -1
-        self._lgb_mdl = lgb.LGBMRegressor(**kwargs)
+        del kwargs["verbose"]
+        self._lgb_mdl = lgb.LGBMRegressor(verbose=-1, **kwargs)
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         """Train the underlying LightGBM regressor."""
