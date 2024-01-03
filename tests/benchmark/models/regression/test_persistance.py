@@ -79,13 +79,13 @@ def test_with_regression_evaluation(task_api):
     # see where it shows up in the benchmark
     top_models = task.top_models(n=100, metric="")
     assert isinstance(top_models, dict)
-    # see where it shows up in the r2_score metrics
-    top_models = task.top_models(n=100, metric="r2_score")
+    # see where it shows up in the coefficient_of_determination metrics
+    top_models = task.top_models(n=100, metric="coefficient_of_determination")
     assert isinstance(top_models, dict)
     # remove the experiments.json file and then try to get the top models
     os.remove(TESTS_BENCHMARK_FP)
     with pytest.raises(FileNotFoundError):
-        top_models = task.top_models(n=100, metric="r2_score")
+        top_models = task.top_models(n=100, metric="coefficient_of_determination")
     # restore experiments.json contents
     with open(TESTS_BENCHMARK_FP, "w") as f:
         json.dump(old_experiments, f, indent=4)

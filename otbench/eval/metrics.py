@@ -3,8 +3,9 @@ from typing import Sequence, Tuple
 import numpy as np
 import pandas as pd
 import sklearn.metrics as sk_m
+from scipy.stats import linregress
 
-__all__ = ["r2_score", "root_mean_square_error", "mean_absolute_error", "mean_absolute_percentage_error"]
+__all__ = ["coefficient_of_determination", "root_mean_square_error", "mean_absolute_error", "mean_absolute_percentage_error"]
 
 
 def is_implemented_metric(metric_name: str) -> bool:
@@ -14,10 +15,12 @@ def is_implemented_metric(metric_name: str) -> bool:
     return False
 
 
-def r2_score(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
-    """An alias for `sklearn.metrics.r2_score`."""
+def coefficient_of_determination(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
+    """Calculates R using `scipy.stats.linregress`, returns R^2."""
     y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
-    return _format_metric(float(sk_m.r2_score(y_true=y_true, y_pred=y_pred)), len(y_pred))
+    lr_result = linregress(y_true, y_pred)
+    r2_score = lr_result.rvalue ** 2
+    return _format_metric(r2_score, len(y_pred))
 
 
 def root_mean_square_error(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
@@ -27,13 +30,13 @@ def root_mean_square_error(y_true: Sequence, y_pred: Sequence) -> Tuple[float, i
 
 
 def mean_absolute_error(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
-    """An alias for `sklearn.metrics.r2_score`."""
+    """An alias for `sklearn.metrics.mean_absolute_error`."""
     y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
     return _format_metric(float(sk_m.mean_absolute_error(y_true=y_true, y_pred=y_pred)), len(y_pred))
 
 
 def mean_absolute_percentage_error(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
-    """An alias for `sklearn.metrics.r2_score`."""
+    """An alias for `sklearn.metrics.mean_absolute_percentage_error`."""
     y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
     return _format_metric(float(sk_m.mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred)), len(y_pred))
 

@@ -6,8 +6,8 @@
                 "metric_value": 0.9301750794775393,
                 "valid_predictions": 2432
             },
-            "r2_score": {
-                "metric_value": -0.9980433897905687,
+            "coefficient_of_determination": {
+                "metric_value": 0.0709949512018475,
                 "valid_predictions": 2432
             },
             "mean_absolute_error": {
@@ -24,8 +24,8 @@
                 "metric_value": 0.48137521743774414,
                 "valid_predictions": 2432
             },
-            "r2_score": {
-                "metric_value": 0.46489009026592176,
+            "coefficient_of_determination": {
+                "metric_value": 0.5094407195832247,
                 "valid_predictions": 2432
             },
             "mean_absolute_error": {
@@ -42,8 +42,8 @@
                 "metric_value": 1.2711966037750244,
                 "valid_predictions": 2432
             },
-            "r2_score": {
-                "metric_value": -2.731650019700246,
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
                 "valid_predictions": 2432
             },
             "mean_absolute_error": {
@@ -60,8 +60,8 @@
                 "metric_value": 0.5507352948188782,
                 "valid_predictions": 2432
             },
-            "r2_score": {
-                "metric_value": 0.2995755022584453,
+            "coefficient_of_determination": {
+                "metric_value": 0.44694638903207434,
                 "valid_predictions": 2432
             },
             "mean_absolute_error": {
@@ -78,8 +78,8 @@
                 "metric_value": 0.6583983302116394,
                 "valid_predictions": 2432
             },
-            "r2_score": {
-                "metric_value": -0.0010434240737311473,
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
                 "valid_predictions": 2432
             },
             "mean_absolute_error": {
@@ -96,8 +96,8 @@
                 "metric_value": 0.4283680034537716,
                 "valid_predictions": 2432
             },
-            "r2_score": {
-                "metric_value": 0.5762501442324708,
+            "coefficient_of_determination": {
+                "metric_value": 0.6518880920552661,
                 "valid_predictions": 2432
             },
             "mean_absolute_error": {
@@ -111,19 +111,19 @@
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.5316997170448303,
+                "metric_value": 0.5657574534416199,
                 "valid_predictions": 2432
             },
-            "r2_score": {
-                "metric_value": 0.347157697251924,
+            "coefficient_of_determination": {
+                "metric_value": 0.4033707575395383,
                 "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.3963962495326996,
+                "metric_value": 0.4200192093849182,
                 "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.02866935171186924,
+                "metric_value": 0.030401138588786125,
                 "valid_predictions": 2432
             }
         }
@@ -135,8 +135,8 @@
                 "metric_value": 0.35766029556257317,
                 "valid_predictions": 4074
             },
-            "r2_score": {
-                "metric_value": 0.4027971580105201,
+            "coefficient_of_determination": {
+                "metric_value": 0.5292783037645352,
                 "valid_predictions": 4074
             },
             "mean_absolute_error": {
@@ -153,8 +153,8 @@
                 "metric_value": 0.18197107355144435,
                 "valid_predictions": 4074
             },
-            "r2_score": {
-                "metric_value": 0.8454086755204887,
+            "coefficient_of_determination": {
+                "metric_value": 0.8471920373053263,
                 "valid_predictions": 4074
             },
             "mean_absolute_error": {
@@ -171,8 +171,8 @@
                 "metric_value": 0.8212316846223886,
                 "valid_predictions": 4074
             },
-            "r2_score": {
-                "metric_value": -2.1485587211640644,
+            "coefficient_of_determination": {
+                "metric_value": 8.073492637827552e-30,
                 "valid_predictions": 4074
             },
             "mean_absolute_error": {
@@ -189,8 +189,8 @@
                 "metric_value": 0.45294037686388644,
                 "valid_predictions": 4074
             },
-            "r2_score": {
-                "metric_value": 0.04222724733370109,
+            "coefficient_of_determination": {
+                "metric_value": 0.12039064844256872,
                 "valid_predictions": 4074
             },
             "mean_absolute_error": {
@@ -207,8 +207,8 @@
                 "metric_value": 0.4799858269445086,
                 "valid_predictions": 4074
             },
-            "r2_score": {
-                "metric_value": -0.07556641058405544,
+            "coefficient_of_determination": {
+                "metric_value": 8.073492637827552e-30,
                 "valid_predictions": 4074
             },
             "mean_absolute_error": {
@@ -225,8 +225,8 @@
                 "metric_value": 0.1603699396113978,
                 "valid_predictions": 4074
             },
-            "r2_score": {
-                "metric_value": 0.879932260330424,
+            "coefficient_of_determination": {
+                "metric_value": 0.8808208953373919,
                 "valid_predictions": 4074
             },
             "mean_absolute_error": {
@@ -243,8 +243,8 @@
                 "metric_value": 0.18675840805507377,
                 "valid_predictions": 4074
             },
-            "r2_score": {
-                "metric_value": 0.8371676351762862,
+            "coefficient_of_determination": {
+                "metric_value": 0.8617647016417663,
                 "valid_predictions": 4074
             },
             "mean_absolute_error": {
@@ -264,8 +264,8 @@
                 "metric_value": 0.7138353117427121,
                 "valid_predictions": 813
             },
-            "r2_score": {
-                "metric_value": -1.0279853591950694,
+            "coefficient_of_determination": {
+                "metric_value": 0.02068922453109421,
                 "valid_predictions": 813
             },
             "mean_absolute_error": {
@@ -282,8 +282,8 @@
                 "metric_value": 0.8157009064248446,
                 "valid_predictions": 2274
             },
-            "r2_score": {
-                "metric_value": -0.4749983894964831,
+            "coefficient_of_determination": {
+                "metric_value": 0.039793794176718224,
                 "valid_predictions": 2274
             },
             "mean_absolute_error": {
@@ -300,8 +300,8 @@
                 "metric_value": 1.2090872526168823,
                 "valid_predictions": 2449
             },
-            "r2_score": {
-                "metric_value": -2.349082521894287,
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
                 "valid_predictions": 2449
             },
             "mean_absolute_error": {
@@ -318,8 +318,8 @@
                 "metric_value": 0.5041238069534302,
                 "valid_predictions": 2449
             },
-            "r2_score": {
-                "metric_value": 0.4177827700127321,
+            "coefficient_of_determination": {
+                "metric_value": 0.5375378356586982,
                 "valid_predictions": 2449
             },
             "mean_absolute_error": {
@@ -336,8 +336,8 @@
                 "metric_value": 0.6611728668212891,
                 "valid_predictions": 2449
             },
-            "r2_score": {
-                "metric_value": -0.001476310741173048,
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
                 "valid_predictions": 2449
             },
             "mean_absolute_error": {
@@ -354,8 +354,8 @@
                 "metric_value": 0.21200749028200058,
                 "valid_predictions": 2449
             },
-            "r2_score": {
-                "metric_value": 0.8970294513678981,
+            "coefficient_of_determination": {
+                "metric_value": 0.9079344888760108,
                 "valid_predictions": 2449
             },
             "mean_absolute_error": {
@@ -372,8 +372,8 @@
                 "metric_value": 0.3358548879623413,
                 "valid_predictions": 2449
             },
-            "r2_score": {
-                "metric_value": 0.7415872022561101,
+            "coefficient_of_determination": {
+                "metric_value": 0.7609812185273418,
                 "valid_predictions": 2449
             },
             "mean_absolute_error": {
@@ -393,8 +393,8 @@
                 "metric_value": 0.6200457025149092,
                 "valid_predictions": 862
             },
-            "r2_score": {
-                "metric_value": -0.47803997562878453,
+            "coefficient_of_determination": {
+                "metric_value": 0.03194277654059044,
                 "valid_predictions": 862
             },
             "mean_absolute_error": {
@@ -411,8 +411,8 @@
                 "metric_value": 0.8302753265342115,
                 "valid_predictions": 2641
             },
-            "r2_score": {
-                "metric_value": -0.5165283968828056,
+            "coefficient_of_determination": {
+                "metric_value": 0.024465788037029035,
                 "valid_predictions": 2641
             },
             "mean_absolute_error": {
@@ -429,8 +429,8 @@
                 "metric_value": 1.2207112312316895,
                 "valid_predictions": 2816
             },
-            "r2_score": {
-                "metric_value": -2.376432385945642,
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
                 "valid_predictions": 2816
             },
             "mean_absolute_error": {
@@ -447,8 +447,8 @@
                 "metric_value": 0.5862628817558289,
                 "valid_predictions": 2816
             },
-            "r2_score": {
-                "metric_value": 0.22121596672897037,
+            "coefficient_of_determination": {
+                "metric_value": 0.4268338171566551,
                 "valid_predictions": 2816
             },
             "mean_absolute_error": {
@@ -465,8 +465,8 @@
                 "metric_value": 0.6645260453224182,
                 "valid_predictions": 2816
             },
-            "r2_score": {
-                "metric_value": -0.0005900963758072031,
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
                 "valid_predictions": 2816
             },
             "mean_absolute_error": {
@@ -483,8 +483,8 @@
                 "metric_value": 4.503356399221535,
                 "valid_predictions": 2816
             },
-            "r2_score": {
-                "metric_value": -44.95204403902485,
+            "coefficient_of_determination": {
+                "metric_value": 0.06494974732899454,
                 "valid_predictions": 2816
             },
             "mean_absolute_error": {
@@ -501,8 +501,8 @@
                 "metric_value": 0.5481449961662292,
                 "valid_predictions": 2816
             },
-            "r2_score": {
-                "metric_value": 0.31919444677009623,
+            "coefficient_of_determination": {
+                "metric_value": 0.34265572348558165,
                 "valid_predictions": 2816
             },
             "mean_absolute_error": {
@@ -522,8 +522,8 @@
                 "metric_value": 1.0461998343461816,
                 "valid_predictions": 458687
             },
-            "r2_score": {
-                "metric_value": -1.7895686434323945,
+            "coefficient_of_determination": {
+                "metric_value": 0.10944505469195645,
                 "valid_predictions": 458687
             },
             "mean_absolute_error": {
@@ -540,8 +540,8 @@
                 "metric_value": 1.217037352229368,
                 "valid_predictions": 312367
             },
-            "r2_score": {
-                "metric_value": -2.7504153724657994,
+            "coefficient_of_determination": {
+                "metric_value": 0.01509102605199758,
                 "valid_predictions": 312367
             },
             "mean_absolute_error": {
@@ -558,8 +558,8 @@
                 "metric_value": 0.6748188087597109,
                 "valid_predictions": 317350
             },
-            "r2_score": {
-                "metric_value": -0.18580295710108707,
+            "coefficient_of_determination": {
+                "metric_value": 0.00013537583497916106,
                 "valid_predictions": 317350
             },
             "mean_absolute_error": {
@@ -576,8 +576,8 @@
                 "metric_value": 1.2083104592404925,
                 "valid_predictions": 488306
             },
-            "r2_score": {
-                "metric_value": -2.6613960818087024,
+            "coefficient_of_determination": {
+                "metric_value": 9.647867875651636e-30,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
@@ -594,8 +594,8 @@
                 "metric_value": 0.6254808688755286,
                 "valid_predictions": 488306
             },
-            "r2_score": {
-                "metric_value": 0.018889995168563045,
+            "coefficient_of_determination": {
+                "metric_value": 0.020947718352732028,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
@@ -612,8 +612,8 @@
                 "metric_value": 0.631974388051484,
                 "valid_predictions": 488306
             },
-            "r2_score": {
-                "metric_value": -0.0015868153265194973,
+            "coefficient_of_determination": {
+                "metric_value": 1.0841202187829783e-29,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
@@ -630,8 +630,8 @@
                 "metric_value": 0.4579319178199759,
                 "valid_predictions": 458687
             },
-            "r2_score": {
-                "metric_value": 0.46554691466967413,
+            "coefficient_of_determination": {
+                "metric_value": 0.48036024695666374,
                 "valid_predictions": 458687
             },
             "mean_absolute_error": {
@@ -645,19 +645,19 @@
         },
         "GradientBoostingRegressionModel": {
             "root_mean_square_error": {
-                "metric_value": 1.3396907632054738,
+                "metric_value": 1.339473597112731,
                 "valid_predictions": 488306
             },
-            "r2_score": {
-                "metric_value": -3.500893833211828,
+            "coefficient_of_determination": {
+                "metric_value": 0.029330056054944494,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
-                "metric_value": 0.6834703860374763,
+                "metric_value": 0.6834389214873006,
                 "valid_predictions": 488306
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.04818399154178206,
+                "metric_value": 0.04818159896071329,
                 "valid_predictions": 488306
             }
         },
@@ -666,8 +666,8 @@
                 "metric_value": 0.5299129503254789,
                 "valid_predictions": 488306
             },
-            "r2_score": {
-                "metric_value": 0.29579564062203767,
+            "coefficient_of_determination": {
+                "metric_value": 0.36225649774594715,
                 "valid_predictions": 488306
             },
             "mean_absolute_error": {
@@ -687,8 +687,8 @@
                 "metric_value": 0.9096191919328067,
                 "valid_predictions": 4080
             },
-            "r2_score": {
-                "metric_value": -2.863814437832751,
+            "coefficient_of_determination": {
+                "metric_value": 0.26661127635285675,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {
@@ -705,8 +705,8 @@
                 "metric_value": 0.8638771705816506,
                 "valid_predictions": 3653
             },
-            "r2_score": {
-                "metric_value": -2.5085090260228906,
+            "coefficient_of_determination": {
+                "metric_value": 0.26763633228241185,
                 "valid_predictions": 3653
             },
             "mean_absolute_error": {
@@ -723,8 +723,8 @@
                 "metric_value": 0.17819538474607394,
                 "valid_predictions": 421
             },
-            "r2_score": {
-                "metric_value": -0.2901433400280673,
+            "coefficient_of_determination": {
+                "metric_value": 0.05798783868686379,
                 "valid_predictions": 421
             },
             "mean_absolute_error": {
@@ -741,8 +741,8 @@
                 "metric_value": 0.757756119953163,
                 "valid_predictions": 4080
             },
-            "r2_score": {
-                "metric_value": -1.6813650009865642,
+            "coefficient_of_determination": {
+                "metric_value": 1.4793090160430023e-29,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {
@@ -759,8 +759,8 @@
                 "metric_value": 0.4519271501365811,
                 "valid_predictions": 4080
             },
-            "r2_score": {
-                "metric_value": 0.04625143600905823,
+            "coefficient_of_determination": {
+                "metric_value": 0.1259538903929186,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {
@@ -777,8 +777,8 @@
                 "metric_value": 0.4801184955506507,
                 "valid_predictions": 4080
             },
-            "r2_score": {
-                "metric_value": -0.07645010465305124,
+            "coefficient_of_determination": {
+                "metric_value": 1.4793090160430023e-29,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {
@@ -795,8 +795,8 @@
                 "metric_value": 0.3034463678691597,
                 "valid_predictions": 4080
             },
-            "r2_score": {
-                "metric_value": 0.570007462748507,
+            "coefficient_of_determination": {
+                "metric_value": 0.5828683569229168,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {
@@ -813,8 +813,8 @@
                 "metric_value": 0.2989640119890569,
                 "valid_predictions": 4080
             },
-            "r2_score": {
-                "metric_value": 0.5826169031202797,
+            "coefficient_of_determination": {
+                "metric_value": 0.5840761733534754,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {
@@ -831,8 +831,8 @@
                 "metric_value": 0.37466592481888317,
                 "valid_predictions": 4080
             },
-            "r2_score": {
-                "metric_value": 0.34448078824748507,
+            "coefficient_of_determination": {
+                "metric_value": 0.45091283711198493,
                 "valid_predictions": 4080
             },
             "mean_absolute_error": {

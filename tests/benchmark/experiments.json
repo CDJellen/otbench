@@ -6,7 +6,7 @@
                 "metric_value": 0.2779041826725006,
                 "valid_predictions": 2444
             },
-            "r2_score": {
+            "coefficient_of_determination": {
                 "metric_value": 0.8227610719548378,
                 "valid_predictions": 2444
             },
@@ -24,7 +24,7 @@
                 "metric_value": 0.45668903701202007,
                 "valid_predictions": 2444
             },
-            "r2_score": {
+            "coefficient_of_determination": {
                 "metric_value": 0.5213587668339381,
                 "valid_predictions": 2444
             },
@@ -42,7 +42,7 @@
                 "metric_value": 0.7114374938363093,
                 "valid_predictions": 809
             },
-            "r2_score": {
+            "coefficient_of_determination": {
                 "metric_value": -1.063896399963308,
                 "valid_predictions": 809
             },
@@ -60,7 +60,7 @@
                 "metric_value": 0.8156299828336213,
                 "valid_predictions": 2269
             },
-            "r2_score": {
+            "coefficient_of_determination": {
                 "metric_value": -0.4793665847428459,
                 "valid_predictions": 2269
             },
@@ -81,7 +81,7 @@
                 "metric_value": 0.6611728668212891,
                 "valid_predictions": 2449
             },
-            "r2_score": {
+            "coefficient_of_determination": {
                 "metric_value": -0.001476310741173048,
                 "valid_predictions": 2449
             },
@@ -99,7 +99,7 @@
                 "metric_value": 0.7138353117427121,
                 "valid_predictions": 813
             },
-            "r2_score": {
+            "coefficient_of_determination": {
                 "metric_value": -1.0279853591950694,
                 "valid_predictions": 813
             },
@@ -117,7 +117,7 @@
                 "metric_value": 0.8157009064248446,
                 "valid_predictions": 2274
             },
-            "r2_score": {
+            "coefficient_of_determination": {
                 "metric_value": -0.4749983894964831,
                 "valid_predictions": 2274
             },
