@@ -18,11 +18,11 @@ def sample_data():
     yield y_true, y_pred
 
 
-def test_r2_score(metrics, sample_data):
+def test_coefficient_of_determination(metrics, sample_data):
     """Test the r2 score metric."""
     y_true, y_pred = sample_data
     want = {"metric_value": 1.0, "valid_predictions": 5}
-    assert metrics.r2_score(y_true=y_true, y_pred=y_pred) == want
+    assert metrics.coefficient_of_determination(y_true=y_true, y_pred=y_pred) == want
 
 
 def test_root_mean_square_error(metrics, sample_data):
@@ -48,7 +48,7 @@ def test_mean_absolute_percentage_error(metrics, sample_data):
 
 def test_is_implemented_metric(metrics):
     """Test the is_implemented_metric function."""
-    assert metrics.is_implemented_metric(metric_name="r2_score")
+    assert metrics.is_implemented_metric(metric_name="coefficient_of_determination")
     assert metrics.is_implemented_metric(metric_name="root_mean_square_error")
     assert metrics.is_implemented_metric(metric_name="mean_absolute_error")
     assert metrics.is_implemented_metric(metric_name="mean_absolute_percentage_error")

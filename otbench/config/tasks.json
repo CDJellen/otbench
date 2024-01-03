@@ -14,7 +14,7 @@
                     "test_idx": ["10367:13943"],
                     "dropna": true,
                     "log_transform": true,
-                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "eval_metrics": ["root_mean_square_error", "coefficient_of_determination", "mean_absolute_error", "mean_absolute_percentage_error"],
                     "target": "Cn2_15m",
                     "remove": ["base_time", "Cn2_6m", "Cn2_15m", "Cn2_25m"]
                 }
@@ -32,7 +32,7 @@
                     "test_idx": ["10367:13943"],
                     "dropna": false,
                     "log_transform": true,
-                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "eval_metrics": ["root_mean_square_error", "coefficient_of_determination", "mean_absolute_error", "mean_absolute_percentage_error"],
                     "target": "Cn2_15m",
                     "remove": ["base_time", "Cn2_6m", "Cn2_15m", "Cn2_25m"]
                 }
@@ -52,7 +52,7 @@
                     "test_idx": ["788209:1291225"],
                     "dropna": false,
                     "log_transform": true,
-                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "eval_metrics": ["root_mean_square_error", "coefficient_of_determination", "mean_absolute_error", "mean_absolute_percentage_error"],
                     "target": "Cn2_3m",
                     "remove": ["base_time", "Dir_3m", "Cn2_3m", "lat", "lon", "alt"]
                 }
@@ -72,7 +72,7 @@
                     "test_idx": ["18000:22081"],
                     "dropna": false,
                     "log_transform": true,
-                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "eval_metrics": ["root_mean_square_error", "coefficient_of_determination", "mean_absolute_error", "mean_absolute_percentage_error"],
                     "target": "Cn2_3m",
                     "remove": ["base_time", "Dir_3m", "Cn2_3m", "lat", "lon", "alt"]
                 }
@@ -94,7 +94,7 @@
                     "test_idx": ["10367:13943"],
                     "dropna": true,
                     "log_transform": true,
-                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "eval_metrics": ["root_mean_square_error", "coefficient_of_determination", "mean_absolute_error", "mean_absolute_percentage_error"],
                     "window_size": 12,
                     "forecast_horizon": 6,
                     "target": "Cn2_15m",
@@ -116,7 +116,7 @@
                     "test_idx": ["18000:22081"],
                     "dropna": false,
                     "log_transform": true,
-                    "eval_metrics": ["root_mean_square_error", "r2_score", "mean_absolute_error", "mean_absolute_percentage_error"],
+                    "eval_metrics": ["root_mean_square_error", "coefficient_of_determination", "mean_absolute_error", "mean_absolute_percentage_error"],
                     "window_size": 6,
                     "forecast_horizon": 1,
                     "target": "Cn2_3m",
