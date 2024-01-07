@@ -64,7 +64,7 @@ pip install -e .
 The current dependencies are listed in `requirements.txt`. We strongly recommend installing the package in a virtual environment.
 
 _Requirements_:
-```bash
+```text
 numpy>=1.22
 pandas==1.3.5
 scikit-learn>=1.0.1
