@@ -6,8 +6,9 @@ import pandas as pd
 import numpy as np
 import xarray as xr
 
-from otbench.config import ROOT_DIR, DATA_DIR, DATASETS_FP, CACHE_DIR, RETURN_TYPES
+from otbench.config import settings, RETURN_TYPES
 from otbench.cache import CACHE
+from otbench.models import Task
 
 
 class Dataset(object):
@@ -15,10 +16,10 @@ class Dataset(object):
 
     def __init__(self,
                  name: str,
-                 datasets_fp: Union[str, os.PathLike, None] = DATASETS_FP,
-                 root_dir: Union[str, os.PathLike, None] = ROOT_DIR,
-                 data_dir: Union[str, os.PathLike, None] = DATA_DIR,
-                 cache_dir: Union[str, os.PathLike, None] = CACHE_DIR) -> None:
+                 datasets_fp: Union[str, os.PathLike, None] = settings.DATASETS_FP,
+                 root_dir: Union[str, os.PathLike, None] = settings.ROOT_DIR,
+                 data_dir: Union[str, os.PathLike, None] = settings.DATA_DIR,
+                 cache_dir: Union[str, os.PathLike, None] = settings.CACHE_DIR) -> None:
         """Read the currently-supported benchmarking task for loaders and evaluators."""
         self._name = name
         self._datasets_fp = datasets_fp
@@ -44,40 +45,49 @@ class Dataset(object):
         """Obtain the training data for this dataset from the supplied task."""
         return self._handle_return_type(data=self._df, return_type=data_type)
 
-    def get_train(self, task: dict, data_type: str = "pd") -> Tuple[Any, Any]:
+    def get_train(self, task: Union[dict, Task], data_type: str = "pd") -> Tuple[Any, Any]:
         """Obtain the training data for this dataset from the supplied task."""
-        indices = [int(i) for i in task["train_idx"] for i in i.split(":")]
+        if isinstance(task, dict):
+            task = Task(**task)
+        
+        indices = [int(i) for i in task.train_idx for i in i.split(":")]
         starts, stops = indices[::2], indices[1::2]
         data = self.get_slice(starts, stops)
         X, y = self._handle_task(data=data, task=task)
         return self._handle_return_type(data=X, return_type=data_type), self._handle_return_type(data=y,
                                                                                                  return_type=data_type)
 
-    def get_test(self, task: dict, data_type: str = "pd") -> Tuple[Any, Any]:
+    def get_test(self, task: Union[dict, Task], data_type: str = "pd") -> Tuple[Any, Any]:
         """Obtain the test data for this dataset from the supplied task."""
-        indices = [int(i) for i in task["test_idx"] for i in i.split(":")]
+        if isinstance(task, dict):
+            task = Task(**task)
+
+        indices = [int(i) for i in task.test_idx for i in i.split(":")]
         starts, stops = indices[::2], indices[1::2]
         data = self.get_slice(starts, stops)
         X, y = self._handle_task(data=data, task=task)
         return self._handle_return_type(data=X, return_type=data_type), self._handle_return_type(data=y,
                                                                                                  return_type=data_type)
 
-    def get_val(self, task: dict, data_type: str = "pd") -> Tuple[Any, Any]:
+    def get_val(self, task: Union[dict, Task], data_type: str = "pd") -> Tuple[Any, Any]:
         """Obtain the validation data for this dataset from the supplied task."""
-        indices = [int(i) for i in task["val_idx"] for i in i.split(":")]
+        if isinstance(task, dict):
+            task = Task(**task)
+
+        indices = [int(i) for i in task.val_idx for i in i.split(":")]
         starts, stops = indices[::2], indices[1::2]
         data = self.get_slice(starts, stops)
         X, y = self._handle_task(data=data, task=task)
         return self._handle_return_type(data=X, return_type=data_type), self._handle_return_type(data=y,
                                                                                                  return_type=data_type)
 
-    def _handle_task(self, data: pd.DataFrame, task: dict) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def _handle_task(self, data: pd.DataFrame, task: Task) -> Tuple[pd.DataFrame, pd.DataFrame]:
         """Split into features and target, dropping missing and transforming target if needed."""
-        if task["dropna"]:
+        if task.dropna:
             data = data.dropna()
-        X = data[[c for c in data.columns if c not in task["remove"]]]
-        y = data[[task["target"]]]
-        if task["log_transform"]:
+        X = data[[c for c in data.columns if c not in task.remove]]
+        y = data[[task.target]]
+        if task.log_transform:
             y = np.log10(y)
         return X, y
 
@@ -115,7 +125,7 @@ class Dataset(object):
         """Load the dataset from disk."""
         supported_datasets = self._supported_datasets()
         file_name = supported_datasets[self._name]["local_data_path"]
-        fp = os.path.join(self._data_dir, self._name, file_name)
+        fp = settings.DATA_DIR / self._name / file_name
         fp_str = str(fp)
         try:
             file_type = fp_str.split(".")[-1]

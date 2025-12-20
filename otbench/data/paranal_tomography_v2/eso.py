@@ -4,6 +4,8 @@ import numpy as np
 import xarray as xr
 from glob import glob
 from typing import List, Dict
+from pathlib import Path
+from otbench.config import settings
 
 # --- Configuration: Physical Constants ---
 # MASS: Coarse layers at 0.5, 1, 2, 4, 8, 16 km
@@ -23,14 +25,14 @@ SLODAR_LAYERS = [1, 2, 3, 4, 5, 6, 7, 8]
 
 class ESOParanalLoader:
     def __init__(self, raw_dir: str = "raw"):
-        self.raw_dir = raw_dir
+        self.raw_dir = Path(raw_dir)
         
     def load_csv_pattern(self, pattern: str, time_col: str = "Date time") -> pd.DataFrame:
         """
         Loads and stitches all files matching a pattern (e.g. 'mass_paranal_*.csv').
         """
-        search_path = os.path.join(self.raw_dir, pattern)
-        files = sorted(glob(search_path))
+        search_path = self.raw_dir / pattern
+        files = sorted(glob(str(search_path)))
         
         if not files:
             print(f"  [WARN] No files found for pattern: {pattern}")

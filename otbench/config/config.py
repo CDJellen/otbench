@@ -1,10 +1,13 @@
 import os
 
-CONFIG_DIR = os.path.dirname(os.path.abspath(__file__))
-TASKS_FP = os.path.join(CONFIG_DIR, "tasks.json")
-DATASETS_FP = os.path.join(CONFIG_DIR, "datasets.json")
-ROOT_DIR = os.path.dirname(CONFIG_DIR)
-CACHE_DIR = os.path.join(ROOT_DIR, "cache", "processed")
-DATA_DIR = os.path.join(ROOT_DIR, "data")
-BENCHMARK_FP = os.path.join(ROOT_DIR, "benchmark", "experiments.json")
-RETURN_TYPES = ["pd", "np", "xr", "nc"]
+import os
+from .settings import settings
+
+CONFIG_DIR = str(settings.CONFIG_DIR)
+TASKS_FP = str(settings.TASKS_FP)
+DATASETS_FP = str(settings.DATASETS_FP)
+ROOT_DIR = str(settings.ROOT_DIR)
+CACHE_DIR = str(settings.CACHE_DIR)
+DATA_DIR = str(settings.DATA_DIR)
+BENCHMARK_FP = str(settings.BENCHMARK_FP)
+RETURN_TYPES = settings.RETURN_TYPES
