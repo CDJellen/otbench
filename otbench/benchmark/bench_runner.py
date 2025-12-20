@@ -130,6 +130,13 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             water_temperature_col_name = "T_0m"
             humidity_col_name = "RH_3m"
             time_col_name = "time"
+        elif "paranal_tomography_v2" in task_name:
+            height_of_observation = 0.0  # Ground level
+            air_temperature_col_name = "temp_profile_temp_profile_0"  # Lowest alt temperature
+            water_temperature_col_name = None  # No water temp at Paranal
+            humidity_col_name = "rh"
+            wind_speed_col_name = "wind_speed"
+            time_col_name = "time"
         else:
             raise ValueError(f"benchmarks not configured for task {task_name}.")
 
@@ -157,6 +164,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 use_log10=use_log10,
                 verbose=verbose,
                 input_size=len(X.columns),
+                output_size=1 if y.ndim == 1 else y.shape[1],
             )
             # if forecast model, add forecast horizon and window size
             if "forecasting" in task_name:
@@ -164,6 +172,14 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 model_kwargs["window_size"] = task.window_size
                 model_kwargs["input_size"] = len(X.columns) // task.window_size
                 model_kwargs["in_channels"] = task.window_size
+                model_kwargs["output_size"] = 1 if y.ndim == 1 else 1  # Forecasting typically outputs scalar per step, or vector?
+                # If forecasting task has vector target, y is 2D? 
+                # y in forecasting prepared data is (samples, horizon) for scalar target? 
+                # If vector target, it might be (samples, horizon, features) or flattened? 
+                # Current implementation assumes scalar target for forecasting mainly.
+                # However, providing output_size=1 is safer for existing models.
+                # Let's trust the shape check above if it works for regression.
+                model_kwargs["output_size"] = 1 if y.ndim == 1 else y.shape[1]
 
             # adjust num epochs if provided
             if n_epochs_override is not None:

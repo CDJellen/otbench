@@ -16,29 +16,36 @@ def is_implemented_metric(metric_name: str) -> bool:
 
 
 def coefficient_of_determination(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
-    """Calculates R using `scipy.stats.linregress`, returns R^2."""
+    """Calculates R2 score using `sklearn.metrics.r2_score`."""
     y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
-    lr_result = linregress(y_true, y_pred)
-    r2_score = lr_result.rvalue ** 2
-    return _format_metric(r2_score, len(y_pred))
+    if len(y_pred) == 0:
+        return _format_metric(np.nan, 0)
+    r2 = sk_m.r2_score(y_true, y_pred, multioutput="uniform_average")
+    return _format_metric(float(r2), len(y_pred))
 
 
 def root_mean_square_error(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
     """Calculate RMSE from `sklearn.metrics.mean_squared_error`."""
     y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
-    return _format_metric(float(sk_m.mean_squared_error(y_true=y_true, y_pred=y_pred, squared=False)), len(y_pred))
+    if len(y_pred) == 0:
+        return _format_metric(np.nan, 0)
+    return _format_metric(float(sk_m.mean_squared_error(y_true=y_true, y_pred=y_pred, squared=False, multioutput="uniform_average")), len(y_pred))
 
 
 def mean_absolute_error(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
     """An alias for `sklearn.metrics.mean_absolute_error`."""
     y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
-    return _format_metric(float(sk_m.mean_absolute_error(y_true=y_true, y_pred=y_pred)), len(y_pred))
+    if len(y_pred) == 0:
+        return _format_metric(np.nan, 0)
+    return _format_metric(float(sk_m.mean_absolute_error(y_true=y_true, y_pred=y_pred, multioutput="uniform_average")), len(y_pred))
 
 
 def mean_absolute_percentage_error(y_true: Sequence, y_pred: Sequence) -> Tuple[float, int]:
     """An alias for `sklearn.metrics.mean_absolute_percentage_error`."""
     y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
-    return _format_metric(float(sk_m.mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred)), len(y_pred))
+    if len(y_pred) == 0:
+        return _format_metric(np.nan, 0)
+    return _format_metric(float(sk_m.mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred, multioutput="uniform_average")), len(y_pred))
 
 
 def _format_metric(metric_value: float, valid_predictions: int) -> dict:
@@ -59,4 +66,12 @@ def _get_valid_indices(y_true: Sequence, y_pred: Sequence) -> Tuple[Sequence, Se
     else:
         y_pred = np.array(y_pred).squeeze()
 
-    return y_true[~np.isnan(y_true) & ~np.isnan(y_pred)], y_pred[~np.isnan(y_true) & ~np.isnan(y_pred)]
+    # handle 1D case (scalar target)
+    if y_true.ndim == 1:
+        mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
+    # handle 2D case (vector target)
+    else:
+        # Check if any value in the row is nan
+        mask = ~np.isnan(y_true).all(axis=1) & ~np.isnan(y_pred).all(axis=1)
+
+    return y_true[mask], y_pred[mask]

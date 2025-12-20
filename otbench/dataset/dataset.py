@@ -26,24 +26,50 @@ class Dataset(object):
         self._root_dir = root_dir
         self._data_dir = data_dir
         self._cache_dir = cache_dir
-        self._df = self._load_dataset()
+        self._cache_dir = cache_dir
+        self._data: Union[pd.DataFrame, xr.Dataset] = self._load_dataset()
 
-    def get_slice(self, start_indices: Sequence[int], end_indices: Sequence[int]) -> pd.DataFrame:
+    def get_slice(self, start_indices: Sequence[int], end_indices: Sequence[int]) -> Union[pd.DataFrame, xr.Dataset]:
         """Obtain a slice of the underlying dataset from start and end indices."""
         if len(start_indices) == 0 or len(start_indices) != len(end_indices):
             raise ValueError(f"malformed {start_indices}, {end_indices}.")
-        ranges = []
-        for start_idx, end_idx in zip(start_indices, end_indices):
-            if start_idx >= 0 and end_idx <= len(self._df) and start_idx < end_idx:
-                ranges.append(np.arange(start_idx, end_idx))
-            else:
-                raise ValueError(f"requested {start_idx}:{end_idx} out of bounds for df with len {len(self._df)}.")
-        included = np.concatenate(ranges)
-        return self._df.iloc[included, :].copy(deep=True)
+        
+        # Handle pandas DataFrame
+        if isinstance(self._data, pd.DataFrame):
+            ranges = []
+            for start_idx, end_idx in zip(start_indices, end_indices):
+                if start_idx >= 0 and end_idx <= len(self._data) and start_idx < end_idx:
+                    ranges.append(np.arange(start_idx, end_idx))
+                else:
+                    raise ValueError(f"requested {start_idx}:{end_idx} out of bounds for df with len {len(self._data)}.")
+            included = np.concatenate(ranges)
+            return self._data.iloc[included, :].copy(deep=True)
+        
+        # Handle xarray Dataset
+        elif isinstance(self._data, xr.Dataset):
+            # Assumes 'time' is the primary dimension for slicing
+            if 'time' not in self._data.dims:
+                raise ValueError("xarray Dataset must have 'time' dimension for slicing.")
+            
+            slices = []
+            max_len = len(self._data.time)
+            for start_idx, end_idx in zip(start_indices, end_indices):
+                if start_idx >= 0 and end_idx <= max_len and start_idx < end_idx:
+                    # isel slicing is efficient
+                    slices.append(self._data.isel(time=slice(start_idx, end_idx)))
+                else:
+                    raise ValueError(f"requested {start_idx}:{end_idx} out of bounds for ds with len {max_len}.")
+            
+            if not slices:
+                return xr.Dataset()
+            return xr.concat(slices, dim="time")
+        
+        else:
+             raise NotImplementedError(f"Unsupported data type: {type(self._data)}")
 
     def get_all(self, data_type: str = "pd", device: str = "") -> Any:
         """Obtain the training data for this dataset from the supplied task."""
-        return self._handle_return_type(data=self._df, return_type=data_type)
+        return self._handle_return_type(data=self._data, return_type=data_type)
 
     def get_train(self, task: Union[dict, Task], data_type: str = "pd") -> Tuple[Any, Any]:
         """Obtain the training data for this dataset from the supplied task."""
@@ -81,45 +107,95 @@ class Dataset(object):
         return self._handle_return_type(data=X, return_type=data_type), self._handle_return_type(data=y,
                                                                                                  return_type=data_type)
 
-    def _handle_task(self, data: pd.DataFrame, task: Task) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    def _handle_task(self, data: Union[pd.DataFrame, xr.Dataset], task: Task) -> Tuple[Union[pd.DataFrame, xr.Dataset], Union[pd.DataFrame, xr.Dataset]]:
         """Split into features and target, dropping missing and transforming target if needed."""
-        if task.dropna:
-            data = data.dropna()
-        X = data[[c for c in data.columns if c not in task.remove]]
-        y = data[[task.target]]
-        if task.log_transform:
-            y = np.log10(y)
-        return X, y
+        # Handle pandas DataFrame
+        if isinstance(data, pd.DataFrame):
+            if task.dropna:
+                data = data.dropna()
+            X = data[[c for c in data.columns if c not in task.remove]]
+            
+            # Handle string or list target
+            if isinstance(task.target, list):
+                y = data[task.target]
+            else:
+                y = data[[task.target]]
+                
+            if task.log_transform:
+                y = np.log10(y.clip(lower=1e-19))
+            return X, y
 
-    def _handle_return_type(self, data: pd.DataFrame, return_type: str) -> Any:
+        # Handle xarray Dataset
+        elif isinstance(data, xr.Dataset):
+            if task.dropna:
+                # dropna along time dimension if any variable is nan
+                data = data.dropna(dim='time', how='any')
+            
+            # Remove variables
+            # drop_vars returns a new dataset
+            X = data.drop_vars(task.remove, errors='ignore')
+            
+            # Select target(s)
+            if isinstance(task.target, list):
+                 y = data[task.target]
+            else:
+                 y = data[[task.target]]
+            
+            if task.log_transform:
+                y = np.log10(y.clip(lower=1e-19))
+            
+            return X, y
+        
+        else:
+             raise NotImplementedError(f"Unsupported data type: {type(data)}")
+
+    def _handle_return_type(self, data: Union[pd.DataFrame, xr.Dataset], return_type: str) -> Any:
         """Map the slice of underlying data to the requested type."""
         if return_type not in RETURN_TYPES:
             raise NotImplementedError(f"return type {return_type} not implemented.")
-        # switch case
-        if return_type == "pd":
+        
+        # If requested pd and data is pd, return
+        if return_type == "pd" and isinstance(data, pd.DataFrame):
             return data
+            
+        # If requested xr/nc and data is xr, return
+        if return_type in ["xr", "nc"] and isinstance(data, xr.Dataset):
+            return data
+            
         return getattr(self, f"_convert_to_{return_type}")(data)
 
-    def _convert_to_np(self, data: pd.DataFrame) -> np.ndarray:
+    def _convert_to_np(self, data: Union[pd.DataFrame, xr.Dataset]) -> np.ndarray:
         """Map the slice of underlying data to np ndarray."""
-        nd_arr = data.to_numpy()
-        return nd_arr
+        if isinstance(data, pd.DataFrame):
+            return data.to_numpy()
+        elif isinstance(data, xr.Dataset):
+            return data.to_array().values
+        else:
+             raise NotImplementedError
 
-    def _convert_to_xr(self, data: pd.DataFrame) -> xr.Dataset:
+    def _convert_to_xr(self, data: Union[pd.DataFrame, xr.Dataset]) -> xr.Dataset:
         """Map the slice of underlying data to xr xarray."""
-        ds = data.set_index("time").to_xarray()
-        return ds
+        if isinstance(data, pd.DataFrame):
+            ds = data.set_index("time").to_xarray()
+            return ds
+        elif isinstance(data, xr.Dataset):
+            return data
+        else:
+             raise NotImplementedError
 
     def _convert_to_nc(self, data: pd.DataFrame) -> xr.Dataset:
         """Map the slice of underlying data to netCDF (an alias for xr.DataSet)."""
         return self._convert_to_xr(data)
 
-    def _load_dataset(self) -> pd.DataFrame:
+    def _load_dataset(self) -> Union[pd.DataFrame, xr.Dataset]:
         """Load the dataset from cache or disk."""
         if self._name in CACHE:
             return CACHE.get_dataset(self._name)
         else:
-            return self._load_dataset_from_disk()
+            data = self._load_dataset_from_disk()
+             # update the cache
+            CACHE.add_dataset(self._name, data)
+            return data
 
     def _flatten_dataset(self, ds: xr.Dataset) -> pd.DataFrame:
         """
@@ -163,7 +239,7 @@ class Dataset(object):
         # Concatenate all parts along columns (axis=1), aligning on index (time)
         return pd.concat(dfs, axis=1)
 
-    def _load_dataset_from_disk(self) -> pd.DataFrame:
+    def _load_dataset_from_disk(self) -> Union[pd.DataFrame, xr.Dataset]:
         """Load the dataset from disk."""
         supported_datasets = self._supported_datasets()
         file_name = supported_datasets[self._name]["local_data_path"]
@@ -177,17 +253,23 @@ class Dataset(object):
         if file_type == "nc":
             ds = xr.load_dataset(fp)
             # Check if we need to flatten
-            # If any data_var has more than 1 dimension and one of them is time
-            needs_flattening = any(len(ds[v].dims) > 1 for v in ds.data_vars)
-            if needs_flattening:
-                df = self._flatten_dataset(ds)
+            # Default to True to maintain backward compatibility, unless explicitly disabled in datasets.json
+            dataset_config = supported_datasets.get(self._name, {})
+            should_flatten = dataset_config.get("flatten", True)
+            
+            if should_flatten:
+                # If any data_var has more than 1 dimension and one of them is time
+                needs_flattening = any(len(ds[v].dims) > 1 for v in ds.data_vars)
+                if needs_flattening:
+                    df = self._flatten_dataset(ds)
+                else:
+                    df = ds.to_dataframe()
+                return df
             else:
-                df = ds.to_dataframe()
+                # Return the xarray Dataset as is
+                return ds
         else:
             raise NotImplementedError(f"unknown or unsupported file type {fp}.")
-
-        # update the cache
-        CACHE.add_dataset(self._name, df)
 
         return df
 

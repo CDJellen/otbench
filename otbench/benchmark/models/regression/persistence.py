@@ -18,4 +18,6 @@ class PersistenceRegressionModel(BaseRegressionModel):
 
     def predict(self, X: 'pd.DataFrame'):
         # predict the mean for each entry in X
+        if np.ndim(self.persistence) > 0:
+            return np.tile(self.persistence, (len(X), 1))
         return np.full(len(X), self.persistence)

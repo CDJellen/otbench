@@ -1,6 +1,6 @@
 import os
 import pickle
-from typing import List, Union
+from typing import List, Union, Any
 
 import pandas as pd
 
@@ -13,7 +13,7 @@ class InMemoryCache:
         self._cache = dict()
         self._cache_dir = cache_dir
 
-    def add_dataset(self, name: str, dataset: pd.DataFrame) -> None:
+    def add_dataset(self, name: str, dataset: Any) -> None:
         """Adds a new dataset to the cache, persisting to disk if needed."""
         self._cache[name] = dataset
         self._cache_dataset(key=name)
@@ -28,7 +28,7 @@ class InMemoryCache:
         """List the datasets available in memory."""
         return list(self._cache.keys())
 
-    def get_dataset(self, key: str) -> pd.DataFrame:
+    def get_dataset(self, key: str) -> Any:
         """Get a dataset from memory or disk"""
         if key not in self.available_datasets():
             raise NotImplementedError
@@ -52,14 +52,16 @@ class InMemoryCache:
         """Save a dataset from memory to disk."""
         if key not in self._cache:
             raise KeyError(f"no dataset named {key}.")
-        df = self._cache[key]
-        df.to_pickle(os.path.join(self._cache_dir, f"{key}.pickle"))
+        data = self._cache[key]
+        with open(os.path.join(self._cache_dir, f"{key}.pickle"), "wb") as f:
+            pickle.dump(data, f)
 
     def _load_dataset(self, key) -> None:
         """Load a dataset from disk to memory"""
         try:
-            df = pd.read_pickle(os.path.join(self._cache_dir, f"{key}.pickle"))
-            self._cache[key] = df
+            with open(os.path.join(self._cache_dir, f"{key}.pickle"), "rb") as f:
+                data = pickle.load(f)
+            self._cache[key] = data
         except Exception as e:  # @TODO narrow scope
             print(f"failed to load dataset with key '{key}' from cache at {self._cache_dir} with error {e}.")
             return

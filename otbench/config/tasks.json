@@ -177,6 +177,68 @@
                         "cn2_ground_scalar",
                         "seeing"
                     ]
+                },
+                "cn2_profile": {
+                    "description": "Regression task for Paranal Cn2 Profile Reconstruction",
+                    "description_long": "Inferring the full vertical Cn2 profile from ground meteorological data.",
+                    "ds_name": "paranal_tomography_v2",
+                    "obs_tz": "Chile/Continental",
+                    "obs_lat": -24.62,
+                    "obs_lon": -70.40,
+                    "train_idx": [
+                        "0:55000"
+                    ],
+                    "val_idx": [
+                        "55000:73000"
+                    ],
+                    "test_idx": [
+                        "73000:92543"
+                    ],
+                    "dropna": true,
+                    "log_transform": true,
+                    "eval_metrics": [
+                        "root_mean_square_error",
+                        "mean_absolute_error"
+                    ],
+                    "target": [
+                        "cn2_free_atmos_cn2_free_atmos_500",
+                        "cn2_free_atmos_cn2_free_atmos_1000",
+                        "cn2_free_atmos_cn2_free_atmos_2000",
+                        "cn2_free_atmos_cn2_free_atmos_4000",
+                        "cn2_free_atmos_cn2_free_atmos_8000",
+                        "cn2_free_atmos_cn2_free_atmos_16000",
+                        "cn2_boundary_cn2_boundary_1",
+                        "cn2_boundary_cn2_boundary_2",
+                        "cn2_boundary_cn2_boundary_3",
+                        "cn2_boundary_cn2_boundary_4",
+                        "cn2_boundary_cn2_boundary_5",
+                        "cn2_boundary_cn2_boundary_6",
+                        "cn2_boundary_cn2_boundary_7",
+                        "cn2_boundary_cn2_boundary_8",
+                        "cn2_ground_scalar"
+                    ],
+                    "remove": [
+                        "time",
+                        "cn2_free_atmos",
+                        "cn2_boundary",
+                        "cn2_ground_scalar",
+                        "seeing",
+                        "cn2_free_atmos_cn2_free_atmos_500",
+                        "cn2_free_atmos_cn2_free_atmos_1000",
+                        "cn2_free_atmos_cn2_free_atmos_2000",
+                        "cn2_free_atmos_cn2_free_atmos_4000",
+                        "cn2_free_atmos_cn2_free_atmos_8000",
+                        "cn2_free_atmos_cn2_free_atmos_16000",
+                        "cn2_boundary_cn2_boundary_1",
+                        "cn2_boundary_cn2_boundary_2",
+                        "cn2_boundary_cn2_boundary_3",
+                        "cn2_boundary_cn2_boundary_4",
+                        "cn2_boundary_cn2_boundary_5",
+                        "cn2_boundary_cn2_boundary_6",
+                        "cn2_boundary_cn2_boundary_7",
+                        "cn2_boundary_cn2_boundary_8",
+                        "cn2_ground_scalar"
+                    ]
                 }
             }
         }
@@ -256,6 +318,43 @@
                         "lat",
                         "lon",
                         "alt"
+                    ]
+                }
+            }
+        },
+        "paranal_tomography_v2": {
+            "full": {
+                "seeing_nowcast": {
+                    "description": "Forecasting task for Paranal Seeing (Nowcast)",
+                    "description_long": "Predicting seeing at Paranal 1 hour into the future (10 steps) based on the past 2 hours (20 steps).",
+                    "ds_name": "paranal_tomography_v2",
+                    "obs_tz": "Chile/Continental",
+                    "obs_lat": -24.62,
+                    "obs_lon": -70.40,
+                    "train_idx": [
+                        "0:55000"
+                    ],
+                    "val_idx": [
+                        "55000:73000"
+                    ],
+                    "test_idx": [
+                        "73000:92543"
+                    ],
+                    "dropna": true,
+                    "log_transform": false,
+                    "eval_metrics": [
+                        "root_mean_square_error",
+                        "mean_absolute_error"
+                    ],
+                    "window_size": 20,
+                    "forecast_horizon": 10,
+                    "target": "seeing",
+                    "remove": [
+                        "time",
+                        "cn2_free_atmos",
+                        "cn2_boundary",
+                        "cn2_ground_scalar",
+                        "seeing"
                     ]
                 }
             }

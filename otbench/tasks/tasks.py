@@ -182,7 +182,7 @@ class BaseTask(TaskABC):
 
     def get_df(self) -> pd.DataFrame:
         """Return the underlying pd.DataFrame for this task's dataset."""
-        return self._ds._df
+        return self._ds.get_all(data_type="pd")
 
     def get_data(self, data_type: str = "pd") -> Any:
         """Return the underlying data."""
