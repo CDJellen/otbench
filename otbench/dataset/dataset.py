@@ -121,6 +121,48 @@ class Dataset(object):
         else:
             return self._load_dataset_from_disk()
 
+    def _flatten_dataset(self, ds: xr.Dataset) -> pd.DataFrame:
+        """
+        Flattens a multi-dimensional xarray Dataset into a 2D DataFrame.
+        Variables with extra dimensions (e.g. height) are pivoted into columns.
+        """
+        dfs = []
+        for var_name, da in ds.data_vars.items():
+            if 'time' not in da.dims:
+                continue
+            
+            if len(da.dims) == 1:
+                # 1D variable (time,)
+                dfs.append(da.to_dataframe())
+            else:
+                # Multi-dimensional variable (time, dim1, ...)
+                # Stack all non-time dimensions
+                other_dims = [d for d in da.dims if d != 'time']
+                
+                # Convert to dataframe and unstack variables to columns
+                # This pivots the other dimensions to be part of the column index
+                temp_df = da.to_dataframe().unstack(level=other_dims)
+                
+                # Flatten MultiIndex columns: varname_dim1_dim2...
+                new_columns = []
+                for col in temp_df.columns:
+                    # col is a tuple of dimension values
+                    # if only 1 dim, col is a single value (wrapped in tuple or not depending on pandas version)
+                    if isinstance(col, tuple):
+                         suffix = "_".join(map(str, col))
+                    else:
+                         suffix = str(col)
+                    new_columns.append(f"{var_name}_{suffix}")
+                
+                temp_df.columns = new_columns
+                dfs.append(temp_df)
+        
+        if not dfs:
+            return pd.DataFrame()
+            
+        # Concatenate all parts along columns (axis=1), aligning on index (time)
+        return pd.concat(dfs, axis=1)
+
     def _load_dataset_from_disk(self) -> pd.DataFrame:
         """Load the dataset from disk."""
         supported_datasets = self._supported_datasets()
@@ -134,7 +176,13 @@ class Dataset(object):
         # netcdf
         if file_type == "nc":
             ds = xr.load_dataset(fp)
-            df = ds.to_dataframe()
+            # Check if we need to flatten
+            # If any data_var has more than 1 dimension and one of them is time
+            needs_flattening = any(len(ds[v].dims) > 1 for v in ds.data_vars)
+            if needs_flattening:
+                df = self._flatten_dataset(ds)
+            else:
+                df = ds.to_dataframe()
         else:
             raise NotImplementedError(f"unknown or unsupported file type {fp}.")
 
