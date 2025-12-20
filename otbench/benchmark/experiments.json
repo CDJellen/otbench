@@ -384,6 +384,42 @@
                 "metric_value": 0.015167005360126495,
                 "valid_predictions": 2449
             }
+        },
+        "lgbm": {
+            "root_mean_square_error": {
+                "metric_value": 0.21550585756932833,
+                "valid_predictions": 2449
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.8936031635109586,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.157186091619036,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.011320036163510173,
+                "valid_predictions": 2449
+            }
+        },
+        "rnn": {
+            "root_mean_square_error": {
+                "metric_value": 0.32510700821876526,
+                "valid_predictions": 2449
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.757861852645874,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.2353658676147461,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.01688477210700512,
+                "valid_predictions": 2449
+            }
         }
     },
     "regression.mlo_cn2.full.Cn2_15m": {

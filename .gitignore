@@ -14,3 +14,4 @@ doc/
 !notebooks/forecasting/*.ipynb
 !notebooks/regression/*.ipynb
 !notebooks/pytorch/*.ipynb
+!notebooks/tomography_analysis.ipynb
