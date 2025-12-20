@@ -8,7 +8,7 @@ from typing import Any, Callable, List, Tuple, Union
 
 import pandas as pd
 
-import otbench.eval.metrics as eval_metrics
+import otbench.eval as eval_metrics
 from otbench.dataset import Dataset
 from otbench.config import BENCHMARK_FP
 
@@ -88,6 +88,7 @@ class TaskABC(ABC):
                        return_predictions: bool = False,
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
+                       detailed_metrics: bool = False,
                        overwrite: bool = False) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed validation set, default against all metrics."""
         raise NotImplementedError
@@ -209,6 +210,7 @@ class BaseTask(TaskABC):
                        return_predictions: bool = False,
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
+                       detailed_metrics: bool = False,
                        overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         raise NotImplementedError
@@ -243,6 +245,7 @@ class RegressionTask(BaseTask):
                        return_predictions: bool = False,
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
+                       detailed_metrics: bool = False,
                        overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         # obtain evaluation data
@@ -266,8 +269,19 @@ class RegressionTask(BaseTask):
         model_metrics = {k: -1 for k in eval_metric_names}
 
         for m in eval_metric_names:
-            val = getattr(eval_metrics, m)(y_test, y_test_pred)
-            model_metrics[m] = val
+            if eval_metrics.is_implemented_metric(m):
+                # check if metric accepts detailed arg? 
+                # metrics.py functions now all accept detailed.
+                val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics)
+                model_metrics[m] = val
+            else:
+                try:
+                    val = getattr(eval_metrics, m)(y_test, y_test_pred)
+                    model_metrics[m] = val
+                except TypeError:
+                    # fallback if some metric doesn't support detailed
+                    val = getattr(eval_metrics, m)(y_test, y_test_pred)
+                    model_metrics[m] = val
 
         if include_as_benchmark:
             self._add_experiment_to_benchmarks(model_name=model_name, model_metrics=model_metrics, overwrite=overwrite)
@@ -314,6 +328,7 @@ class ForecastingTask(BaseTask):
                        return_predictions: bool = False,
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
+                       detailed_metrics: bool = False,
                        overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         window_size = window_size if window_size is not None else self.window_size
@@ -353,8 +368,16 @@ class ForecastingTask(BaseTask):
         model_metrics = {k: -1 for k in eval_metric_names}
 
         for m in eval_metric_names:
-            val = getattr(eval_metrics, m)(y_test, y_test_pred)
-            model_metrics[m] = val
+            if eval_metrics.is_implemented_metric(m):
+                val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics)
+                model_metrics[m] = val
+            else:
+                try:
+                    val = getattr(eval_metrics, m)(y_test, y_test_pred)
+                    model_metrics[m] = val
+                except TypeError:
+                    val = getattr(eval_metrics, m)(y_test, y_test_pred)
+                    model_metrics[m] = val
 
         if include_as_benchmark:
             self._add_experiment_to_benchmarks(model_name=model_name, model_metrics=model_metrics, overwrite=overwrite)
