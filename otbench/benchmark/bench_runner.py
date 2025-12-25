@@ -4,6 +4,7 @@ import pprint
 from typing import List, Union
 
 import pandas as pd
+import numpy as np
 
 from otbench.tasks import TaskApi, tasks
 from otbench.config import BENCHMARK_FP
@@ -12,6 +13,24 @@ import otbench.benchmark.models.forecasting as forecasting_models
 
 PPRINTER = pprint.PrettyPrinter(indent=4, width=120, compact=True)
 
+class NumpyEncoder(json.JSONEncoder):
+    """Custom encoder for numpy data types"""
+    def default(self, obj):
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
+                            np.int16, np.int32, np.int64, np.uint8,
+                            np.uint16, np.uint32, np.uint64)):
+            return int(obj)
+        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+            return float(obj)
+        elif isinstance(obj, (np.complex_, np.complex64, np.complex128)):
+            return {'real': obj.real, 'imag': obj.imag}
+        elif isinstance(obj, (np.ndarray,)):
+            return obj.tolist()
+        elif isinstance(obj, (np.bool_)):
+            return bool(obj)
+        elif isinstance(obj, (np.void)): 
+            return None
+        return json.JSONEncoder.default(self, obj)
 
 def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                    benchmark_regression_models: Union[List[str], str, None] = None,
@@ -104,7 +123,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             raise ValueError(f"unknown task type {type(task)}.")
 
         benchmark_results[task_name] = {}
-        benchmark_results[task_name]["possible_predictions"] = int(y_test.notna().sum().values[0])
+        benchmark_results[task_name]["possible_predictions"] = int(y_test.notna().sum().values[0]) if y_test.ndim == 1 else int(y_test.notna().sum().sum())
 
         X_train, y_train = task.get_train_data(data_type="pd")
         X_val, y_val = task.get_validation_data(data_type="pd")
@@ -115,7 +134,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         if "mlo_cn2" in task_name:
             height_of_observation = 15.0
             air_temperature_col_name = "T_2m"
-            water_temperature_col_name = ""
+            water_temperature_col_name = None
             humidity_col_name = "RH_2m"
             wind_speed_col_name = "Spd_10m"
             time_col_name = "time"
@@ -139,11 +158,29 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             time_col_name = "time"
         else:
             raise ValueError(f"benchmarks not configured for task {task_name}.")
+        
+        # Determine if task is vector-valued
+        is_vector_task = (y.ndim > 1) and (y.shape[1] > 1)
+        scalar_only_models = [
+            "MacroMeteorologicalModel",
+            "OffshoreMacroMeteorologicalModel", 
+            "AirWaterTemperatureDifferenceRegressionModel",
+            "GradientBoostingRegressionModel"
+        ]
 
         for model_name, model in models.items():
-            #if model_name != "RandomForestRegressionModel":
-            if "AWT" in model_name and "mlo_cn2" in task_name:
+            # Filter models requiring water temp if it's not provided
+            if water_temperature_col_name is None and ("AirWaterTemperature" in model_name or "AWT" in model_name):
+                if verbose:
+                    print(f"Skipping {model_name} because water_temperature_col_name is None.")
                 continue
+
+            # Skip scalar-only models for vector tasks
+            if is_vector_task and model_name in scalar_only_models:
+                if verbose:
+                    print(f"Skipping {model_name} for vector task '{task_name}' (incompatible).")
+                continue
+
             if verbose:
                 print(f"Running benchmark for {model_name}...")
 
@@ -172,13 +209,6 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 model_kwargs["window_size"] = task.window_size
                 model_kwargs["input_size"] = len(X.columns) // task.window_size
                 model_kwargs["in_channels"] = task.window_size
-                model_kwargs["output_size"] = 1 if y.ndim == 1 else 1  # Forecasting typically outputs scalar per step, or vector?
-                # If forecasting task has vector target, y is 2D? 
-                # y in forecasting prepared data is (samples, horizon) for scalar target? 
-                # If vector target, it might be (samples, horizon, features) or flattened? 
-                # Current implementation assumes scalar target for forecasting mainly.
-                # However, providing output_size=1 is safer for existing models.
-                # Let's trust the shape check above if it works for regression.
                 model_kwargs["output_size"] = 1 if y.ndim == 1 else y.shape[1]
 
             # adjust num epochs if provided
@@ -197,7 +227,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
 
     if write_metrics:
         with open(metrics_fp, "w") as f:
-            f.write(json.dumps(benchmark_results, indent=4))
+            f.write(json.dumps(benchmark_results, indent=4, cls=NumpyEncoder))
         if verbose:
             print(f"Wrote benchmark metrics to {metrics_fp}.")
     else:
