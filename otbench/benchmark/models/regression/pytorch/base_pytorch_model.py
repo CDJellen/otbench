@@ -121,10 +121,10 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
     def _normalize_data(self, X: 'pd.DataFrame', y: 'pd.DataFrame') -> Tuple[np.ndarray, np.ndarray]:
         """Normalize the data before training."""
         # normalize the training data
-        X_mean = np.nanmean(X, axis=(0, 1))
-        X_std = np.nanstd(X, axis=(0, 1)) + sys.float_info.epsilon
-        y_mean = np.nanmean(y, axis=(0, 1))
-        y_std = np.nanstd(y, axis=(0, 1)) + sys.float_info.epsilon
+        X_mean = np.nanmean(X, axis=0)
+        X_std = np.nanstd(X, axis=0) + sys.float_info.epsilon
+        y_mean = np.nanmean(y, axis=0)
+        y_std = np.nanstd(y, axis=0) + sys.float_info.epsilon
 
         # save the mean and std
         self.X_mean = X_mean
@@ -138,8 +138,15 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
                              y: Union['pd.DataFrame', np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
         """Apply normalization learned during training for test or validation."""
         # replace missing values with the mean of that column
-        X[np.isnan(X)] = np.take(self.X_mean, np.where(np.isnan(X))[1])
-        y[np.isnan(y)] = np.take(self.y_mean, np.where(np.isnan(y))[1])
+        # replace missing values with the mean of that column
+        # vector-safe replacement: calculate indices of NaNs and replace with corresponding column mean
+        if np.any(np.isnan(X)):
+            inds = np.where(np.isnan(X))
+            X[inds] = np.take(self.X_mean, inds[1])
+        
+        if np.any(np.isnan(y)):
+            inds = np.where(np.isnan(y))
+            y[inds] = np.take(self.y_mean, inds[1])
 
         # normalize the data before training
         X = (X - self.X_mean) / self.X_std

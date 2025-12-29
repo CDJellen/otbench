@@ -438,7 +438,7 @@ class TaskApi(object):
                                       task=self._get_task(key=task_name),
                                       benchmark_fp=benchmark_fp)
             elif task_name.split(".")[0] == TaskTypes.FORECASTING.value:
-                return ForecastingTask(task_type=TaskTypes.REGRESSION,
+                return ForecastingTask(task_type=TaskTypes.FORECASTING,
                                        task_name=task_name,
                                        task=self._get_task(key=task_name),
                                        benchmark_fp=benchmark_fp)

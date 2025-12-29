@@ -38,6 +38,7 @@ class RNNModel(BasePyTorchForecastingModel):
                  hidden_size: int = 512,
                  num_layers: int = 2,
                  num_classes: int = 1,
+                 output_size: int = None,
                  batch_size: int = 32,
                  n_epochs: int = 500,
                  learning_rate: float = 0.025,
@@ -61,31 +62,43 @@ class RNNModel(BasePyTorchForecastingModel):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.num_classes = num_classes
+        # Prioritize output_size if provided (passed by bench_runner), else use num_classes
+        self.num_classes = output_size if output_size is not None else num_classes
 
         # create and set the model
-        model = RNN(input_size, hidden_size, num_layers, num_classes)
+        model = RNN(input_size, hidden_size, num_layers, self.num_classes)
         self.set_model(model=model, normalize_data=normalize_data,
                        set_optimizer_callable_params=True)  # apply model params to SGD
 
     def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
-        # maintain the same interface as the other models
-        n_features = len(X.columns) // self.window_size
+        # 1. Calculate actual features per timestep in the data
+        n_features_in_data = len(X.columns) // self.window_size
+        
+        # 2. THE FIX: Validate against initialized architecture
+        if n_features_in_data != self.input_size:
+            raise ValueError(
+                f"Dimension Mismatch: Model initialized with input_size={self.input_size}, "
+                f"but training data has {n_features_in_data} features per timestep "
+                f"(Total columns: {len(X.columns)}, Window: {self.window_size})."
+            )
+
         if self.verbose:
-            print(f"training data contains {n_features} features.")
-        # set train dataloader
+            print(f"training data contains {n_features_in_data} features per timestep.")
+            
+        # 3. Proceed with standard training
         self.set_training_data(X=X, y=y)
-        # train the model
+        
         torch.manual_seed(self.random_state)
         for i in range(self.n_epochs):
-            for _, (X, y) in enumerate(self.train_dataloader):
+            for _, (X_batch, y_batch) in enumerate(self.train_dataloader):
                 self.optimizer.zero_grad()
-                outputs = self.model(X.float())
-                loss = self.criterion(outputs, y.float())
+                outputs = self.model(X_batch.float())
+                loss = self.criterion(outputs, y_batch.float())
                 loss.backward()
                 self.optimizer.step()
+            
             if self.verbose and self.n_epochs >= 10 and (i % (self.n_epochs // 10) == 0):
-                print(f"at epoch {i}. loss: {loss}")
+                print(f"at epoch {i}. loss: {loss.item():.6f}") # Added .item() for cleaner logs
 
     def predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
@@ -103,6 +116,9 @@ class RNNModel(BasePyTorchForecastingModel):
                 y_pred = y_pred.numpy()
 
                 # add the prediction value to the list
-                pred.append(y_pred[0][0])
+                if self.num_classes == 1:
+                    pred.append(y_pred[0][0])
+                else:
+                    pred.append(y_pred[0])
 
         return np.array(pred)

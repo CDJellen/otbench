@@ -2,21 +2,29 @@ from typing import Union
 
 import numpy as np
 
-from otbench.benchmark.models.forecasting.base_model import BaseForecastingModel
+from otbench.benchmark.models.regression.base_model import BaseRegressionModel
 
 
-class PersistenceForecastingModel(BaseForecastingModel):
+class PersistenceForecastingModel(BaseRegressionModel):
     """A model which predicts the most recent value of the target variable."""
-
-    def __init__(self, name: str, target_name: str, window_size: int, forecast_horizon: int, **kwargs):
-        super().__init__(name, target_name, window_size, forecast_horizon, **kwargs)
+    def __init__(self, name: str, target_name: str, **kwargs):
+        super().__init__(name, target_name, **kwargs)
+        self.persistence = None
+        self.output_size = kwargs.get("output_size", 1)  # Passed by bench_runner
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
-        """Maintain the same interface as the other models."""
-        pass
+        """Store the last observed value(s)."""
+        y = np.asarray(y)
+        self.persistence = y[-1]  # scalar or vector
 
     def predict(self, X: 'pd.DataFrame'):
-        persistence = X[self.target_name].values[0]
+        if self.persistence is None:
+            raise RuntimeError("Model must be trained before prediction.")
 
-        # develop a prediction for each row in X
-        return np.array([persistence for i in range(len(X))])
+        n_samples = len(X)
+        if np.ndim(self.persistence) == 0 or (np.ndim(self.persistence) == 1 and len(self.persistence) == 1):
+            # Scalar
+            return np.full(n_samples, self.persistence)
+        else:
+            # Vector: tile the last observed vector
+            return np.tile(self.persistence, (n_samples, 1))

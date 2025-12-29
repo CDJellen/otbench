@@ -163,9 +163,11 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         is_vector_task = (y.ndim > 1) and (y.shape[1] > 1)
         scalar_only_models = [
             "MacroMeteorologicalModel",
-            "OffshoreMacroMeteorologicalModel", 
-            "AirWaterTemperatureDifferenceRegressionModel",
-            "GradientBoostingRegressionModel"
+            "OffshoreMacroMeteorologicalModel",
+            "AWTModel",
+            "HybridAWTRegressionModel",
+            "GradientBoostingRegressionModel",
+            "GradientBoostingForecastingModel",  # Included for safety (forecasting equivalent)
         ]
 
         for model_name, model in models.items():
@@ -201,7 +203,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 use_log10=use_log10,
                 verbose=verbose,
                 input_size=len(X.columns),
-                output_size=1 if y.ndim == 1 else y.shape[1],
+                output_size=len(y.columns) if hasattr(y, "columns") else (1 if y.ndim == 1 else y.shape[1]),
             )
             # if forecast model, add forecast horizon and window size
             if "forecasting" in task_name:

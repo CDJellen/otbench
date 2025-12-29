@@ -356,6 +356,70 @@
                         "cn2_ground_scalar",
                         "seeing"
                     ]
+                },
+                "cn2_profile_forecast": {
+                    "description": "Forecasting task for Paranal Tomography Profile",
+                    "description_long": "Predicting the full vertical turbulence profile (13 layers) 10 steps into the future based on the past 20 steps.",
+                    "ds_name": "paranal_tomography_v2",
+                    "obs_tz": "Chile/Continental",
+                    "obs_lat": -24.62,
+                    "obs_lon": -70.40,
+                    "train_idx": [
+                        "0:55000"
+                    ],
+                    "val_idx": [
+                        "55000:73000"
+                    ],
+                    "test_idx": [
+                        "73000:92543"
+                    ],
+                    "dropna": true,
+                    "log_transform": true,
+                    "eval_metrics": [
+                        "root_mean_square_error",
+                        "mean_absolute_error"
+                    ],
+                    "window_size": 20,
+                    "forecast_horizon": 10,
+                    "target": [
+                        "cn2_free_atmos_cn2_free_atmos_500",
+                        "cn2_free_atmos_cn2_free_atmos_1000",
+                        "cn2_free_atmos_cn2_free_atmos_2000",
+                        "cn2_free_atmos_cn2_free_atmos_4000",
+                        "cn2_free_atmos_cn2_free_atmos_8000",
+                        "cn2_free_atmos_cn2_free_atmos_16000",
+                        "cn2_boundary_cn2_boundary_1",
+                        "cn2_boundary_cn2_boundary_2",
+                        "cn2_boundary_cn2_boundary_3",
+                        "cn2_boundary_cn2_boundary_4",
+                        "cn2_boundary_cn2_boundary_5",
+                        "cn2_boundary_cn2_boundary_6",
+                        "cn2_boundary_cn2_boundary_7",
+                        "cn2_boundary_cn2_boundary_8",
+                        "cn2_ground_scalar"
+                    ],
+                    "remove": [
+                        "time",
+                        "cn2_free_atmos",
+                        "cn2_boundary",
+                        "cn2_ground_scalar",
+                        "seeing",
+                        "cn2_free_atmos_cn2_free_atmos_500",
+                        "cn2_free_atmos_cn2_free_atmos_1000",
+                        "cn2_free_atmos_cn2_free_atmos_2000",
+                        "cn2_free_atmos_cn2_free_atmos_4000",
+                        "cn2_free_atmos_cn2_free_atmos_8000",
+                        "cn2_free_atmos_cn2_free_atmos_16000",
+                        "cn2_boundary_cn2_boundary_1",
+                        "cn2_boundary_cn2_boundary_2",
+                        "cn2_boundary_cn2_boundary_3",
+                        "cn2_boundary_cn2_boundary_4",
+                        "cn2_boundary_cn2_boundary_5",
+                        "cn2_boundary_cn2_boundary_6",
+                        "cn2_boundary_cn2_boundary_7",
+                        "cn2_boundary_cn2_boundary_8",
+                        "cn2_ground_scalar"
+                    ]
                 }
             }
         }

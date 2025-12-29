@@ -39,13 +39,13 @@ def root_mean_square_error(y_true: Sequence, y_pred: Sequence, detailed: bool = 
         return _format_metric(np.nan, 0)
     
     if detailed:
-        rmse_raw = sk_m.mean_squared_error(y_true, y_pred, squared=False, multioutput="raw_values")
+        rmse_raw = sk_m.root_mean_squared_error(y_true, y_pred, multioutput="raw_values")
         rmse_avg = np.mean(rmse_raw)
         res = _format_metric(float(rmse_avg), len(y_pred))
         res["detailed_score"] = rmse_raw.tolist()
         return res
 
-    return _format_metric(float(sk_m.mean_squared_error(y_true=y_true, y_pred=y_pred, squared=False, multioutput="uniform_average")), len(y_pred))
+    return _format_metric(float(sk_m.root_mean_squared_error(y_true=y_true, y_pred=y_pred, multioutput="uniform_average")), len(y_pred))
 
 
 def mean_absolute_error(y_true: Sequence, y_pred: Sequence, detailed: bool = False) -> dict:

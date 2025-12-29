@@ -38,6 +38,7 @@ class RNNModel(BasePyTorchRegressionModel):
             hidden_size: int = 512,
             num_layers: int = 2,
             num_classes: int = 1,
+            output_size: int = None,
             batch_size: int = 32,
             n_epochs: int = 500,
             learning_rate: float = 0.025,
@@ -60,16 +61,28 @@ class RNNModel(BasePyTorchRegressionModel):
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.num_classes = num_classes
+        # Prioritize output_size if provided (passed by bench_runner), else use num_classes
+        self.num_classes = output_size if output_size is not None else num_classes
 
         # create and set the model
-        model = RNN(input_size, hidden_size, num_layers, num_classes)
+        model = RNN(input_size, hidden_size, num_layers, self.num_classes)
         self.set_model(model=model, normalize_data=normalize_data,
                        set_optimizer_callable_params=True)  # apply model params to SGD
 
     def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
         # maintain the same interface as the other models
         n_features = len(X.columns) // self.window_size
+        
+        # Validate output dimension
+        if y.ndim > 1 and y.shape[1] != self.num_classes:
+             # Try to adjust if not set explicitly, or warn/error
+             # If y has 15 columns but num_classes is 1, this is the error we want to catch
+             if self.verbose:
+                 print(f"Warning: Target dimension {y.shape[1]} does not match model output size {self.num_classes}.")
+             if self.num_classes == 1 and y.shape[1] > 1:
+                 raise ValueError(f"Model initialized with output_size=1 but target has {y.shape[1]} columns. "
+                                  f"Ensure input_size and output_size are set correctly.")
+
         if self.verbose:
             print(f"training data contains {n_features} features.")
         # set train dataloader
@@ -102,6 +115,10 @@ class RNNModel(BasePyTorchRegressionModel):
                 y_pred = y_pred.numpy()
 
                 # add the prediction value to the list
-                pred.append(y_pred[0][0])
+                # y_pred is (batch_size, num_classes) where batch_size=1
+                if self.num_classes == 1:
+                    pred.append(y_pred[0][0])
+                else:
+                    pred.append(y_pred[0])
 
         return np.array(pred)
