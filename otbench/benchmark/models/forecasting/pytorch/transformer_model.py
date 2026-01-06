@@ -19,17 +19,18 @@ class PositionalEncoding(nn.Module):
 
         position = torch.arange(max_len).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
+        # Batch first: (1, max_len, d_model)
+        pe = torch.zeros(1, max_len, d_model)
+        pe[0, :, 0::2] = torch.sin(position * div_term)
+        pe[0, :, 1::2] = torch.cos(position * div_term)
         self.register_buffer('pe', pe)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Args:
-            x: Tensor, shape [seq_len, batch_size, embedding_dim]
+            x: Tensor, shape [batch_size, seq_len, embedding_dim]
         """
-        x = x + self.pe[:x.size(0)]
+        x = x + self.pe[:, :x.size(1), :]
         return self.dropout(x)
 
 
@@ -48,7 +49,8 @@ class Transformer(nn.Module):
         self.pos_encoder = PositionalEncoding(d_model, dropout)
         
         # 3. Transformer Encoder
-        encoder_layers = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward=d_model*4, dropout=dropout)
+        # Set batch_first=True to avoid warning and align with input shape (batch, seq, feature)
+        encoder_layers = nn.TransformerEncoderLayer(d_model, nhead, dim_feedforward=d_model*4, dropout=dropout, batch_first=True)
         self.transformer_encoder = nn.TransformerEncoder(encoder_layers, num_layers)
         
         # 4. Decoder / Readout Head
@@ -61,9 +63,7 @@ class Transformer(nn.Module):
         Args:
             x: [batch_size, seq_len, input_size]
         """
-        # PyTorch Transformer expects [seq_len, batch_size, feature] by default
-        # We need to permute from [batch, seq, feature] -> [seq, batch, feature]
-        x = x.permute(1, 0, 2)
+        # No permutation needed: input is already [batch, seq, feature] and we use batch_first=True
         
         # Project & Add Position
         x = self.input_projection(x) * math.sqrt(self.d_model)
@@ -74,8 +74,8 @@ class Transformer(nn.Module):
         
         # Decode
         # We take the output of the *last* time step to predict the future
-        # output shape: [seq_len, batch_size, d_model]
-        last_step_output = output[-1, :, :]
+        # output shape: [batch_size, seq_len, d_model]
+        last_step_output = output[:, -1, :]
         
         prediction = self.decoder(last_step_output)
         return prediction

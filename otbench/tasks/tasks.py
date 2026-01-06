@@ -302,14 +302,39 @@ class ForecastingTask(BaseTask):
                                  y: Union[pd.DataFrame, pd.Series],
                                  window_size: Union[int, None] = None,
                                  forecast_horizon: Union[int, None] = None):
-        """Prepare data for forecasting."""
+        """Prepare data for forecasting, respecting session boundaries."""
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
+        session_col = self.task.get("session_col")
+        valid_session_mask = None
+        
+        if session_col and session_col in X.columns:
+            # We must check if the session ID at t is the same as at t - window_size
+            # If they differ, this row effectively crosses a "night boundary" (daylight gap)
+            current_session = X[session_col]
+            past_session = X[session_col].shift(window_size)
+            
+            # We keep rows where the session hasn't changed over the window
+            valid_session_mask = (current_session == past_session)
+            
+            # Drop the session column from features now that we've used it
+            X = X.drop(columns=[session_col])
 
         X = self._join_target(X, y)
+        
         if window_size > 1:
             X = self._add_lags(X, (window_size - 1))
+            
         y = self._shift_target(y, forecast_horizon)
+        
+        # Apply Session Mask (Drop Invalid Cross-Night Rows)
+        if valid_session_mask is not None:
+            # Align mask with the shifted data
+            # The mask corresponds to X's index. 
+            # We must ensure we apply it before the final dropna or index slicing
+            X = X[valid_session_mask]
+            y = y[valid_session_mask]
+
         X, y = self._obtain_valid_data(X, y, (window_size - 1), forecast_horizon)
 
         return X, y

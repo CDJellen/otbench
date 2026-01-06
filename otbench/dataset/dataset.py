@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Any, Union, Tuple, Sequence
+from typing import Any, Union, Tuple, Sequence, List
 
 import pandas as pd
 import numpy as np
@@ -25,7 +25,6 @@ class Dataset(object):
         self._datasets_fp = datasets_fp
         self._root_dir = root_dir
         self._data_dir = data_dir
-        self._cache_dir = cache_dir
         self._cache_dir = cache_dir
         self._data: Union[pd.DataFrame, xr.Dataset] = self._load_dataset()
 
@@ -66,6 +65,62 @@ class Dataset(object):
         
         else:
              raise NotImplementedError(f"Unsupported data type: {type(self._data)}")
+
+    def get_context(self, indices: Any, columns: Union[str, List[str]], data_type: str = "pd") -> Any:
+        """
+        Retrieves "Contextual Metadata" (e.g., night_id) for the given indices from the raw dataset.
+        
+        This allows for the recovery of columns that were removed during task processing (via the 'remove' list)
+        but are necessary for downstream visualization or analysis (e.g., grouping by observing session).
+        
+        Args:
+            indices: The indices (row identifiers) corresponding to the data you currently have.
+                     Usually X_train.index or X_test.index.
+            columns: The list of column names to recover (e.g. ['night_id']).
+            data_type: The return format ('pd', 'np', 'xr', 'nc').
+        """
+        if isinstance(columns, str):
+            columns = [columns]
+
+        context_slice = None
+
+        # 1. Pandas Implementation
+        if isinstance(self._data, pd.DataFrame):
+            # Verify columns exist
+            missing = [c for c in columns if c not in self._data.columns]
+            if missing:
+                raise ValueError(f"Context columns {missing} not found in source dataset.")
+
+            # Use .loc to retrieve rows by the user's index (TimeIndex or RangeIndex)
+            try:
+                context_slice = self._data.loc[indices, columns]
+            except KeyError:
+                # If indices don't align, it might be a Type mismatch (Int vs DateTime)
+                raise KeyError(f"Provided indices could not be located in source dataset index ({type(self._data.index)}).")
+
+        # 2. Xarray Implementation
+        elif isinstance(self._data, xr.Dataset):
+            # Verify variables exist
+            missing = [c for c in columns if c not in self._data.data_vars and c not in self._data.coords]
+            if missing:
+                raise ValueError(f"Context variables {missing} not found in source dataset.")
+            
+            # Xarray selection requires values, not a Pandas Index object usually
+            if hasattr(indices, 'values'):
+                sel_indices = indices.values
+            else:
+                sel_indices = indices
+                
+            try:
+                # Assumes 'time' is the indexing dimension
+                context_slice = self._data.sel(time=sel_indices)[columns]
+            except Exception as e:
+                raise KeyError(f"Could not select indices from xarray dataset: {e}")
+        
+        else:
+            raise NotImplementedError(f"Storage type {type(self._data)} not supported.")
+
+        return self._handle_return_type(context_slice, return_type=data_type)
 
     def get_all(self, data_type: str = "pd", device: str = "") -> Any:
         """Obtain the training data for this dataset from the supplied task."""
@@ -176,7 +231,11 @@ class Dataset(object):
     def _convert_to_xr(self, data: Union[pd.DataFrame, xr.Dataset]) -> xr.Dataset:
         """Map the slice of underlying data to xr xarray."""
         if isinstance(data, pd.DataFrame):
-            ds = data.set_index("time").to_xarray()
+            # Safely check if time is already the index
+            if "time" in data.columns:
+                ds = data.set_index("time").to_xarray()
+            else:
+                ds = data.to_xarray()
             return ds
         elif isinstance(data, xr.Dataset):
             return data
@@ -223,7 +282,6 @@ class Dataset(object):
                 new_columns = []
                 for col in temp_df.columns:
                     # col is a tuple of dimension values
-                    # if only 1 dim, col is a single value (wrapped in tuple or not depending on pandas version)
                     if isinstance(col, tuple):
                          suffix = "_".join(map(str, col))
                     else:

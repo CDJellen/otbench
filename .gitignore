@@ -8,7 +8,7 @@
 .coverage
 coverage.xml
 otbench/cache/processed/*.pickle
-otbench/data/paranal_tomography_v2/raw/*
+otbench/data/paranal_tomography_v2/raw*/*
 doc/
 !notebooks/overview.ipynb
 !notebooks/forecasting/*.ipynb

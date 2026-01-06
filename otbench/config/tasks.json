@@ -186,13 +186,13 @@
                     "obs_lat": -24.62,
                     "obs_lon": -70.40,
                     "train_idx": [
-                        "0:55000"
+                        "0:65000"
                     ],
                     "val_idx": [
-                        "55000:73000"
+                        "65000:78000"
                     ],
                     "test_idx": [
-                        "73000:92543"
+                        "78000:92541"
                     ],
                     "dropna": true,
                     "log_transform": true,
@@ -328,17 +328,18 @@
                     "description": "Forecasting task for Paranal Seeing (Nowcast)",
                     "description_long": "Predicting seeing at Paranal 1 hour into the future (10 steps) based on the past 2 hours (20 steps).",
                     "ds_name": "paranal_tomography_v2",
+                    "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,
                     "obs_lon": -70.40,
                     "train_idx": [
-                        "0:55000"
+                        "0:65000"
                     ],
                     "val_idx": [
-                        "55000:73000"
+                        "65000:78000"
                     ],
                     "test_idx": [
-                        "73000:92543"
+                        "78000:92541"
                     ],
                     "dropna": true,
                     "log_transform": false,
@@ -346,11 +347,12 @@
                         "root_mean_square_error",
                         "mean_absolute_error"
                     ],
-                    "window_size": 20,
-                    "forecast_horizon": 10,
+                    "window_size": 60,
+                    "forecast_horizon": 1,
                     "target": "seeing",
                     "remove": [
                         "time",
+                        "night_id",
                         "cn2_free_atmos",
                         "cn2_boundary",
                         "cn2_ground_scalar",
@@ -361,17 +363,18 @@
                     "description": "Forecasting task for Paranal Tomography Profile",
                     "description_long": "Predicting the full vertical turbulence profile (13 layers) 10 steps into the future based on the past 20 steps.",
                     "ds_name": "paranal_tomography_v2",
+                    "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,
                     "obs_lon": -70.40,
                     "train_idx": [
-                        "0:55000"
+                        "0:65000"
                     ],
                     "val_idx": [
-                        "55000:73000"
+                        "65000:78000"
                     ],
                     "test_idx": [
-                        "73000:92543"
+                        "78000:92541"
                     ],
                     "dropna": true,
                     "log_transform": true,
@@ -379,8 +382,8 @@
                         "root_mean_square_error",
                         "mean_absolute_error"
                     ],
-                    "window_size": 20,
-                    "forecast_horizon": 10,
+                    "window_size": 60,
+                    "forecast_horizon": 5,
                     "target": [
                         "cn2_free_atmos_cn2_free_atmos_500",
                         "cn2_free_atmos_cn2_free_atmos_1000",
@@ -400,6 +403,7 @@
                     ],
                     "remove": [
                         "time",
+                        "night_id",
                         "cn2_free_atmos",
                         "cn2_boundary",
                         "cn2_ground_scalar",

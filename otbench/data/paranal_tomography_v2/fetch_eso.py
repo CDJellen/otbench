@@ -28,7 +28,6 @@ class ESOFetcher:
             "slodar_paranal": self._get_slodar_payload
         }
 
-    # ... [Insert _get_mass_payload, _get_meteo_payload, etc. from previous turn here] ...
     def _get_lhatpro_payload(self) -> Dict[str, Any]:
         payload = {"wdbo": "csv/download", "max_rows_returned": 100000, "platform": "%", "tab_lhatpro_id": "on", "integration": ""}
         for i in range(1, 40):
@@ -178,7 +177,7 @@ if __name__ == "__main__":
     
     # Example: Fetch 1 Year of data in Monthly chunks
     # This prevents timeouts and allows easy resume
-    fetcher.fetch_campaign("meteo_paranal", "2017-01-01", "2018-01-01", freq="MS")
-    fetcher.fetch_campaign("lhatpro_paranal", "2017-01-01", "2018-01-01", freq="MS")
-    fetcher.fetch_campaign("mass_paranal", "2017-01-01", "2018-01-01", freq="MS")
-    fetcher.fetch_campaign("slodar_paranal", "2017-01-01", "2018-01-01", freq="MS")
+    fetcher.fetch_campaign("meteo_paranal", "2017-01-01", "2020-03-01", freq="MS")
+    fetcher.fetch_campaign("lhatpro_paranal", "2017-01-01", "2020-03-01", freq="MS")
+    fetcher.fetch_campaign("mass_paranal", "2017-01-01", "2020-03-01", freq="MS")
+    fetcher.fetch_campaign("slodar_paranal", "2017-01-01", "2020-03-01", freq="MS")

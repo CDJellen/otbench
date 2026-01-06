@@ -7,14 +7,13 @@ def run_pipeline():
     fetcher = ESOFetcher(output_dir="raw")
     
     # We define the target range for the benchmark
-    START = "2017-01-01"
-    END = "2017-01-16" # Expanding to 4 years for production
+    START = "2017-06-01"
+    END = "2020-03-01"
     
     # Download all streams
-    # Note: You must ensure PAYLOADS in fetch_eso.py covers all instruments
     for instrument in ["mass_paranal", "meteo_paranal", "slodar_paranal", "lhatpro_paranal"]:
         try:
-            fetcher.fetch(instrument, start_date=START, end_date=END)
+            fetcher.fetch_campaign(instrument, start_date=START, end_date=END)
         except Exception as e:
             print(f"Critical Download Failure for {instrument}: {e}")
             sys.exit(1)
