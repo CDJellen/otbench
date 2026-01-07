@@ -3,15 +3,14 @@ from fetch_eso import ESOFetcher
 from eso import ESOParanalLoader
 
 def run_pipeline():
-    print("=== STAGE 1: INGESTION ===")
+    print("=== STAGE 1: INGESTION (5-Year Campaign) ===")
     fetcher = ESOFetcher(output_dir="raw")
     
-    # We define the target range for the benchmark
     START = "2017-06-01"
-    END = "2020-03-01"
+    END = "2026-01-01"
     
-    # Download all streams
-    for instrument in ["mass_paranal", "meteo_paranal", "slodar_paranal", "lhatpro_paranal"]:
+    # Download Core Instruments (No SLODAR)
+    for instrument in ["mass_paranal", "meteo_paranal", "lhatpro_paranal"]:
         try:
             fetcher.fetch_campaign(instrument, start_date=START, end_date=END)
         except Exception as e:

@@ -148,96 +148,48 @@
         },
         "paranal_tomography_v2": {
             "full": {
-                "seeing": {
-                    "description": "Regression task for Paranal Seeing",
-                    "description_long": "Predicting seeing at Paranal.",
+                "cn2_profile_reconstruction": {
+                    "description": "Zero-Shot Profile Reconstruction",
+                    "description_long": "Inferring the full vertical profile solely from thermodynamics (LHATPRO) and surface meteo.",
                     "ds_name": "paranal_tomography_v2",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,
                     "obs_lon": -70.40,
                     "train_idx": [
-                        "0:55000"
+                        "0:400000"
                     ],
                     "val_idx": [
-                        "55000:73000"
+                        "400000:500000"
                     ],
                     "test_idx": [
-                        "73000:92543"
-                    ],
-                    "dropna": true,
-                    "log_transform": false,
-                    "eval_metrics": [
-                        "root_mean_square_error"
-                    ],
-                    "target": "seeing",
-                    "remove": [
-                        "time",
-                        "cn2_free_atmos",
-                        "cn2_boundary",
-                        "cn2_ground_scalar",
-                        "seeing"
-                    ]
-                },
-                "cn2_profile": {
-                    "description": "Regression task for Paranal Cn2 Profile Reconstruction",
-                    "description_long": "Inferring the full vertical Cn2 profile from ground meteorological data.",
-                    "ds_name": "paranal_tomography_v2",
-                    "obs_tz": "Chile/Continental",
-                    "obs_lat": -24.62,
-                    "obs_lon": -70.40,
-                    "train_idx": [
-                        "0:65000"
-                    ],
-                    "val_idx": [
-                        "65000:78000"
-                    ],
-                    "test_idx": [
-                        "78000:92541"
+                        "500000:620000"
                     ],
                     "dropna": true,
                     "log_transform": true,
                     "eval_metrics": [
-                        "root_mean_square_error",
-                        "mean_absolute_error"
+                        "root_mean_square_error"
                     ],
                     "target": [
-                        "cn2_free_atmos_cn2_free_atmos_500",
-                        "cn2_free_atmos_cn2_free_atmos_1000",
-                        "cn2_free_atmos_cn2_free_atmos_2000",
-                        "cn2_free_atmos_cn2_free_atmos_4000",
-                        "cn2_free_atmos_cn2_free_atmos_8000",
-                        "cn2_free_atmos_cn2_free_atmos_16000",
-                        "cn2_boundary_cn2_boundary_1",
-                        "cn2_boundary_cn2_boundary_2",
-                        "cn2_boundary_cn2_boundary_3",
-                        "cn2_boundary_cn2_boundary_4",
-                        "cn2_boundary_cn2_boundary_5",
-                        "cn2_boundary_cn2_boundary_6",
-                        "cn2_boundary_cn2_boundary_7",
-                        "cn2_boundary_cn2_boundary_8",
-                        "cn2_ground_scalar"
+                        "cn2_ground_scalar",
+                        "cn2_free_atmos_500",
+                        "cn2_free_atmos_1000",
+                        "cn2_free_atmos_2000",
+                        "cn2_free_atmos_4000",
+                        "cn2_free_atmos_8000",
+                        "cn2_free_atmos_16000"
                     ],
                     "remove": [
                         "time",
-                        "cn2_free_atmos",
-                        "cn2_boundary",
-                        "cn2_ground_scalar",
+                        "night_id",
                         "seeing",
-                        "cn2_free_atmos_cn2_free_atmos_500",
-                        "cn2_free_atmos_cn2_free_atmos_1000",
-                        "cn2_free_atmos_cn2_free_atmos_2000",
-                        "cn2_free_atmos_cn2_free_atmos_4000",
-                        "cn2_free_atmos_cn2_free_atmos_8000",
-                        "cn2_free_atmos_cn2_free_atmos_16000",
-                        "cn2_boundary_cn2_boundary_1",
-                        "cn2_boundary_cn2_boundary_2",
-                        "cn2_boundary_cn2_boundary_3",
-                        "cn2_boundary_cn2_boundary_4",
-                        "cn2_boundary_cn2_boundary_5",
-                        "cn2_boundary_cn2_boundary_6",
-                        "cn2_boundary_cn2_boundary_7",
-                        "cn2_boundary_cn2_boundary_8",
-                        "cn2_ground_scalar"
+                        "cn2_free_atmos",
+                        "cn2_ground_scalar",
+                        "cn2_free_atmos_500",
+                        "cn2_free_atmos_1000",
+                        "cn2_free_atmos_2000",
+                        "cn2_free_atmos_4000",
+                        "cn2_free_atmos_8000",
+                        "cn2_free_atmos_16000"
                     ]
                 }
             }
@@ -325,21 +277,21 @@
         "paranal_tomography_v2": {
             "full": {
                 "seeing_nowcast": {
-                    "description": "Forecasting task for Paranal Seeing (Nowcast)",
-                    "description_long": "Predicting seeing at Paranal 1 hour into the future (10 steps) based on the past 2 hours (20 steps).",
+                    "description": "Scalar Nowcasting (Operational)",
+                    "description_long": "Predicting scalar seeing 10 minutes ahead to optimize queue scheduling.",
                     "ds_name": "paranal_tomography_v2",
                     "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,
                     "obs_lon": -70.40,
                     "train_idx": [
-                        "0:65000"
+                        "0:400000"
                     ],
                     "val_idx": [
-                        "65000:78000"
+                        "400000:500000"
                     ],
                     "test_idx": [
-                        "78000:92541"
+                        "500000:620000"
                     ],
                     "dropna": true,
                     "log_transform": false,
@@ -347,34 +299,38 @@
                         "root_mean_square_error",
                         "mean_absolute_error"
                     ],
-                    "window_size": 60,
-                    "forecast_horizon": 1,
+                    "window_size": 20,
+                    "forecast_horizon": 10,
                     "target": "seeing",
                     "remove": [
                         "time",
-                        "night_id",
                         "cn2_free_atmos",
-                        "cn2_boundary",
                         "cn2_ground_scalar",
+                        "cn2_free_atmos_500",
+                        "cn2_free_atmos_1000",
+                        "cn2_free_atmos_2000",
+                        "cn2_free_atmos_4000",
+                        "cn2_free_atmos_8000",
+                        "cn2_free_atmos_16000",
                         "seeing"
                     ]
                 },
                 "cn2_profile_forecast": {
-                    "description": "Forecasting task for Paranal Tomography Profile",
-                    "description_long": "Predicting the full vertical turbulence profile (13 layers) 10 steps into the future based on the past 20 steps.",
+                    "description": "Vector Tomographic Forecasting (Grand Challenge)",
+                    "description_long": "Predicting the 7-layer hybrid profile (Ground + Free Atmos) 10 minutes into the future.",
                     "ds_name": "paranal_tomography_v2",
                     "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,
                     "obs_lon": -70.40,
                     "train_idx": [
-                        "0:65000"
+                        "0:400000"
                     ],
                     "val_idx": [
-                        "65000:78000"
+                        "400000:500000"
                     ],
                     "test_idx": [
-                        "78000:92541"
+                        "500000:620000"
                     ],
                     "dropna": true,
                     "log_transform": true,
@@ -382,47 +338,28 @@
                         "root_mean_square_error",
                         "mean_absolute_error"
                     ],
-                    "window_size": 60,
-                    "forecast_horizon": 5,
+                    "window_size": 20,
+                    "forecast_horizon": 10,
                     "target": [
-                        "cn2_free_atmos_cn2_free_atmos_500",
-                        "cn2_free_atmos_cn2_free_atmos_1000",
-                        "cn2_free_atmos_cn2_free_atmos_2000",
-                        "cn2_free_atmos_cn2_free_atmos_4000",
-                        "cn2_free_atmos_cn2_free_atmos_8000",
-                        "cn2_free_atmos_cn2_free_atmos_16000",
-                        "cn2_boundary_cn2_boundary_1",
-                        "cn2_boundary_cn2_boundary_2",
-                        "cn2_boundary_cn2_boundary_3",
-                        "cn2_boundary_cn2_boundary_4",
-                        "cn2_boundary_cn2_boundary_5",
-                        "cn2_boundary_cn2_boundary_6",
-                        "cn2_boundary_cn2_boundary_7",
-                        "cn2_boundary_cn2_boundary_8",
-                        "cn2_ground_scalar"
+                        "cn2_ground_scalar",
+                        "cn2_free_atmos_500",
+                        "cn2_free_atmos_1000",
+                        "cn2_free_atmos_2000",
+                        "cn2_free_atmos_4000",
+                        "cn2_free_atmos_8000",
+                        "cn2_free_atmos_16000"
                     ],
                     "remove": [
                         "time",
-                        "night_id",
-                        "cn2_free_atmos",
-                        "cn2_boundary",
-                        "cn2_ground_scalar",
                         "seeing",
-                        "cn2_free_atmos_cn2_free_atmos_500",
-                        "cn2_free_atmos_cn2_free_atmos_1000",
-                        "cn2_free_atmos_cn2_free_atmos_2000",
-                        "cn2_free_atmos_cn2_free_atmos_4000",
-                        "cn2_free_atmos_cn2_free_atmos_8000",
-                        "cn2_free_atmos_cn2_free_atmos_16000",
-                        "cn2_boundary_cn2_boundary_1",
-                        "cn2_boundary_cn2_boundary_2",
-                        "cn2_boundary_cn2_boundary_3",
-                        "cn2_boundary_cn2_boundary_4",
-                        "cn2_boundary_cn2_boundary_5",
-                        "cn2_boundary_cn2_boundary_6",
-                        "cn2_boundary_cn2_boundary_7",
-                        "cn2_boundary_cn2_boundary_8",
-                        "cn2_ground_scalar"
+                        "cn2_free_atmos",
+                        "cn2_ground_scalar",
+                        "cn2_free_atmos_500",
+                        "cn2_free_atmos_1000",
+                        "cn2_free_atmos_2000",
+                        "cn2_free_atmos_4000",
+                        "cn2_free_atmos_8000",
+                        "cn2_free_atmos_16000"
                     ]
                 }
             }

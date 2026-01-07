@@ -267,26 +267,26 @@ class Dataset(object):
                 continue
             
             if len(da.dims) == 1:
-                # 1D variable (time,)
+                # 1D variable (time,) -> Column name is just 'var_name'
                 dfs.append(da.to_dataframe())
             else:
                 # Multi-dimensional variable (time, dim1, ...)
                 # Stack all non-time dimensions
                 other_dims = [d for d in da.dims if d != 'time']
                 
-                # Convert to dataframe and unstack variables to columns
-                # This pivots the other dimensions to be part of the column index
+                # Unstack creates a MultiIndex column: (var_name, dim_val1, dim_val2...)
                 temp_df = da.to_dataframe().unstack(level=other_dims)
                 
-                # Flatten MultiIndex columns: varname_dim1_dim2...
+                # Flatten MultiIndex columns
                 new_columns = []
                 for col in temp_df.columns:
-                    # col is a tuple of dimension values
+                    # 'col' is a tuple, e.g., ('cn2_free_atmos', 500)
                     if isinstance(col, tuple):
-                         suffix = "_".join(map(str, col))
+                        # Join them directly. This preserves "varname_dimval"
+                        new_columns.append("_".join(map(str, col)))
                     else:
-                         suffix = str(col)
-                    new_columns.append(f"{var_name}_{suffix}")
+                        # Fallback for simple indexes
+                        new_columns.append(str(col))
                 
                 temp_df.columns = new_columns
                 dfs.append(temp_df)

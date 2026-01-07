@@ -57,6 +57,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         fcn_models = {
             n: getattr(forecasting_models, n) for n in benchmark_forecasting_models if n in forecasting_models.__all__
         }
+    
     if include_pytorch_models:
         try:
             import otbench.benchmark.models.regression.pytorch as pt_regression_models
@@ -89,13 +90,16 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
 
     if metrics_fp is None:
         metrics_fp = BENCHMARK_FP
+    
     task_api = TaskApi()
     if benchmark_tasks is None:
         benchmark_tasks = sorted(task_api.list_tasks())
     elif type(benchmark_tasks) == str:
         benchmark_tasks = [benchmark_tasks]
+    
     benchmark_results = {}
 
+    # Task Execution Loop
     for task_name in benchmark_tasks:
         if verbose:
             print(f"Running benchmark for {task_name}...")
@@ -107,30 +111,57 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         if verbose:
             PPRINTER.pprint(task_info)
 
+        # Task Metadata Extraction
         obs_timezone = task_info["obs_tz"]
         obs_lat = task_info["obs_lat"]
         obs_lon = task_info["obs_lon"]
         use_log10 = task_info["log_transform"]
 
-        _, y_test = task.get_test_data(data_type="pd")
+        # Data Loading & Context Recovery
+        # We load Train/Val to train benchmark models, and Test to evaluate.
+        X_train, y_train = task.get_train_data(data_type="pd")
+        X_val, y_val = task.get_validation_data(data_type="pd")
+        
+        # Combine Train+Val for full benchmark training
+        X_combined = pd.concat([X_train, X_val])
+        y_combined = pd.concat([y_train, y_val])
+        
+        # Load Test Data
+        X_test, y_test = task.get_test_data(data_type="pd")
 
+        # Select Model Class
         if type(task) == tasks.RegressionTask:
             models = reg_models
+            X_bench, y_bench = X_combined, y_combined
+            X_eval, y_eval = X_test, y_test
+            
         elif type(task) == tasks.ForecastingTask:
             models = fcn_models
-            _, y_test = task.prepare_forecasting_data(_, y_test)
+            
+            # CRITICAL FIX: Recover Session Context for Masking
+            session_col = task.task.get("session_col")
+            if session_col:
+                if verbose: print(f"Recovering context '{session_col}' for masking...")
+                # Recover for Train/Val
+                ctx_train = task.get_dataset().get_context(X_combined.index, session_col)
+                X_combined = X_combined.join(ctx_train)
+                
+                # Recover for Test
+                ctx_test = task.get_dataset().get_context(X_test.index, session_col)
+                X_test = X_test.join(ctx_test)
+
+            # Apply Windowing (Masking happens here using the recovered column)
+            X_bench, y_bench = task.prepare_forecasting_data(X_combined, y_combined)
+            X_eval, y_eval = task.prepare_forecasting_data(X_test, y_test)
+            
         else:
             raise ValueError(f"unknown task type {type(task)}.")
 
+        # Initialize Results Container
         benchmark_results[task_name] = {}
-        benchmark_results[task_name]["possible_predictions"] = int(y_test.notna().sum().values[0]) if y_test.ndim == 1 else int(y_test.notna().sum().sum())
+        benchmark_results[task_name]["possible_predictions"] = int(y_eval.notna().sum().values[0]) if y_eval.ndim == 1 else int(y_eval.notna().sum().sum())
 
-        X_train, y_train = task.get_train_data(data_type="pd")
-        X_val, y_val = task.get_validation_data(data_type="pd")
-        X, y = pd.concat([X_train, X_val]), pd.concat([y_train, y_val])
-        if type(task) == tasks.ForecastingTask:
-            X, y = task.prepare_forecasting_data(X, y)
-
+        # Feature Mapping (Hardcoded Physics)
         if "mlo_cn2" in task_name:
             height_of_observation = 15.0
             air_temperature_col_name = "T_2m"
@@ -150,8 +181,8 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             humidity_col_name = "RH_3m"
             time_col_name = "time"
         elif "paranal_tomography_v2" in task_name:
-            height_of_observation = 0.0  # Ground level
-            air_temperature_col_name = "temp_profile_temp_profile_0"  # Lowest alt temperature
+            height_of_observation = 0.0  # Ground level reference
+            air_temperature_col_name = "temp_profile_0"  
             water_temperature_col_name = None  # No water temp at Paranal
             humidity_col_name = "rh"
             wind_speed_col_name = "wind_speed"
@@ -159,28 +190,33 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         else:
             raise ValueError(f"benchmarks not configured for task {task_name}.")
         
-        # Determine if task is vector-valued
-        is_vector_task = (y.ndim > 1) and (y.shape[1] > 1)
+        # Determine Vector Status
+        # Check output dimensionality to filter incompatible models
+        output_dim = 1
+        if hasattr(y_bench, "shape") and len(y_bench.shape) > 1:
+            output_dim = y_bench.shape[1]
+        
+        is_vector_task = output_dim > 1
+        
         scalar_only_models = [
             "MacroMeteorologicalModel",
             "OffshoreMacroMeteorologicalModel",
             "AWTModel",
             "HybridAWTRegressionModel",
-            "GradientBoostingRegressionModel",
-            "GradientBoostingForecastingModel",  # Included for safety (forecasting equivalent)
+            "GradientBoostingRegressionModel", # GBRT uses single-valued output
+            "GradientBoostingForecastingModel",
         ]
 
+        # Model Training Loop
         for model_name, model in models.items():
-            # Filter models requiring water temp if it's not provided
+            # Skip models requiring water temp if missing
             if water_temperature_col_name is None and ("AirWaterTemperature" in model_name or "AWT" in model_name):
-                if verbose:
-                    print(f"Skipping {model_name} because water_temperature_col_name is None.")
+                if verbose: print(f"Skipping {model_name} (needs Water Temp).")
                 continue
 
-            # Skip scalar-only models for vector tasks
+            # Skip scalar models for vector tasks
             if is_vector_task and model_name in scalar_only_models:
-                if verbose:
-                    print(f"Skipping {model_name} for vector task '{task_name}' (incompatible).")
+                if verbose: print(f"Skipping {model_name} for vector task '{task_name}' (incompatible).")
                 continue
 
             if verbose:
@@ -202,43 +238,48 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 constant_adjustment=True,
                 use_log10=use_log10,
                 verbose=verbose,
-                input_size=len(X.columns),
-                output_size=len(y.columns) if hasattr(y, "columns") else (1 if y.ndim == 1 else y.shape[1]),
+                input_size=len(X_bench.columns),
+                output_size=output_dim,  # Critical for Vector Tasks
             )
-            # if forecast model, add forecast horizon and window size
+            
+            # Forecasting Specific Configs
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
-                model_kwargs["input_size"] = len(X.columns) // task.window_size
+                # Input size for RNN/Transformer is Features per Step
+                model_kwargs["input_size"] = len(X_bench.columns) // task.window_size
                 model_kwargs["in_channels"] = task.window_size
-                model_kwargs["output_size"] = 1 if y.ndim == 1 else y.shape[1]
 
-            # adjust num epochs if provided
+            # Override epochs
             if n_epochs_override is not None:
                 model_kwargs["n_epochs"] = n_epochs_override
 
-            mdl = model(**model_kwargs)
-            mdl.train(X.copy(deep=True), y.copy(deep=True))  # copy to avoid modifying original data
+            # Instantiate & Train
+            try:
+                mdl = model(**model_kwargs)
+                mdl.train(X_bench.copy(deep=True), y_bench.copy(deep=True))
 
-            results = task.evaluate_model(predict_call=mdl.predict, x_transforms=None, x_transform_kwargs=None)
-            benchmark_results[task_name][model_name] = results
-            if verbose:
-                print(f"Done running benchmark for {model_name}.")
-            if verbose:
-                PPRINTER.pprint(results)
+                # Evaluate
+                results = task.evaluate_model(predict_call=mdl.predict, x_transforms=None, x_transform_kwargs=None)
+                benchmark_results[task_name][model_name] = results
+                
+                if verbose:
+                    print(f"Done running benchmark for {model_name}.")
+                    # Only print scalar summary for brevity
+                    summary = {k: v['metric_value'] for k,v in results.items() if isinstance(v, dict)}
+                    PPRINTER.pprint(summary)
+            except Exception as e:
+                print(f"Failed to run {model_name} on {task_name}: {e}")
+                import traceback
+                traceback.print_exc()
 
     if write_metrics:
         with open(metrics_fp, "w") as f:
             f.write(json.dumps(benchmark_results, indent=4, cls=NumpyEncoder))
         if verbose:
             print(f"Wrote benchmark metrics to {metrics_fp}.")
-    else:
-        if verbose:
-            print("Skipping writing benchmark metrics.")
-
+    
     if verbose:
         print("Done running benchmarks.")
-    if verbose:
-        PPRINTER.pprint(benchmark_results)
 
     return benchmark_results
