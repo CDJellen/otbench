@@ -158,8 +158,9 @@ class TransformerModel(BasePyTorchForecastingModel):
             total_loss = 0
             for _, (X_batch, y_batch) in enumerate(self.train_dataloader):
                 self.optimizer.zero_grad()
-                outputs = self.model(X_batch.float())
-                loss = self.criterion(outputs, y_batch.float())
+                X_batch, y_batch = X_batch.to(self.device).float(), y_batch.to(self.device).float()
+                outputs = self.model(X_batch)
+                loss = self.criterion(outputs, y_batch)
                 loss.backward()
                 # Gradient Clipping is crucial for Transformers to prevent exploding gradients
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
@@ -181,12 +182,14 @@ class TransformerModel(BasePyTorchForecastingModel):
         with torch.no_grad():
             self.model.eval() # Important: Disable Dropout for inference
             for _, (X_batch, _) in enumerate(self.val_dataloader):
-                y_pred = self.model(X_batch.float())
+                X_batch = X_batch.to(self.device).float()
+                y_pred = self.model(X_batch)
                 
                 if self.normalize_data:
+                    y_pred = y_pred.cpu()
                     y_pred = y_pred * self.y_std + self.y_mean
                 
-                y_pred = y_pred.numpy()
+                y_pred = y_pred.cpu().numpy()
 
                 # Handle Scalar vs Vector output format
                 if self.output_size == 1:

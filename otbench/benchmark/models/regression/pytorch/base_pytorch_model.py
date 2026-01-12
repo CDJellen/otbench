@@ -40,6 +40,7 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         self.train_dataloader = None
         self.test_dataloader = None
         self.val_dataloader = None
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def set_model(self,
                   model: 'torch.nn.Module',
@@ -55,6 +56,9 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
                 print("will normalize data before training")
             else:
                 print("will not normalize data before training.")
+        
+        self.model.to(self.device)
+
         if set_optimizer_callable_params:
             self.optimizer = self._optimizer_callable(self.model.parameters(), lr=self.learning_rate)
         else:

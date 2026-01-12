@@ -144,11 +144,16 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 if verbose: print(f"Recovering context '{session_col}' for masking...")
                 # Recover for Train/Val
                 ctx_train = task.get_dataset().get_context(X_combined.index, session_col)
-                X_combined = X_combined.join(ctx_train)
+                # Only join columns that are not already present
+                cols_to_use = ctx_train.columns.difference(X_combined.columns)
+                if not cols_to_use.empty:
+                    X_combined = X_combined.join(ctx_train[cols_to_use])
                 
                 # Recover for Test
                 ctx_test = task.get_dataset().get_context(X_test.index, session_col)
-                X_test = X_test.join(ctx_test)
+                cols_to_use_test = ctx_test.columns.difference(X_test.columns)
+                if not cols_to_use_test.empty:
+                    X_test = X_test.join(ctx_test[cols_to_use_test])
 
             # Apply Windowing (Masking happens here using the recovered column)
             X_bench, y_bench = task.prepare_forecasting_data(X_combined, y_combined)
@@ -253,6 +258,18 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             # Override epochs
             if n_epochs_override is not None:
                 model_kwargs["n_epochs"] = n_epochs_override
+
+            # Model Specific Configs
+            if "TransformerModel" in model_name:
+                model_kwargs.update({
+                    "d_model": 128,
+                    "nhead": 4,
+                    "num_layers": 2,
+                    "dropout": 0.1,
+                    # Transformer needs larger batch and careful epochs
+                    "batch_size": 256,
+                    "n_epochs": 20
+                })
 
             # Instantiate & Train
             try:

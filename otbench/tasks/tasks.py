@@ -474,7 +474,7 @@ class TaskApi(object):
 
     def list_tasks(self) -> List[str]:
         """List all currently supported tasks."""
-        return list(self.task_names)
+        return sorted(list(self.task_names))
 
     def _get_task(self, key: str) -> dict:
         """Traverse a task key, returning bottom-level data."""

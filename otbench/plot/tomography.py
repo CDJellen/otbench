@@ -129,17 +129,18 @@ def plot_time_series_heatmap(data: Union[np.ndarray, pd.DataFrame],
                              feature_names: Optional[List[str]] = None,
                              heights: Optional[Sequence[float]] = None,
                              title: str = "Turbulence Evolution",
-                             xlabel: str = "Time Step",
+                             xlabel: Optional[str] = "Time Step",
                              ylabel: str = "Altitude (m)",
                              cmap: str = "magma",
                              vmin: Optional[float] = None,
                              vmax: Optional[float] = None,
-                             ax: Optional[plt.Axes] = None) -> plt.Axes:
+                             ax: Optional[plt.Axes] = None,
+                             add_cbar: bool = True,
+                             cbar_label: str = "Magnitude") -> plt.Axes:
     """
-    Plots a tomogram (Time x Altitude) with physically mapped Y-axis.
+    Plots a tomogram with optional colorbar and clean axis labeling.
     """
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(10, 4))
+    if ax is None: fig, ax = plt.subplots(figsize=(10, 4))
         
     if isinstance(data, pd.DataFrame):
         if feature_names is None: feature_names = data.columns.tolist()
@@ -147,23 +148,16 @@ def plot_time_series_heatmap(data: Union[np.ndarray, pd.DataFrame],
     else:
         data_arr = data
 
-    # 1. Height Resolution
     if heights is None:
-        if feature_names:
-            heights = _parse_heights(feature_names)
-        else:
-            heights = np.arange(data_arr.shape[1])
+        heights = _parse_heights(feature_names) if feature_names else np.arange(data_arr.shape[1])
 
-    # Sort data by height (Bottom -> Top)
     sort_idx = np.argsort(heights)
     h_sorted = heights[sort_idx]
     data_sorted = data_arr[:, sort_idx]
 
-    # 2. Plotting (Transpose for Time on X, Height on Y)
-    # Use extent to map array indices to physical units [x0, x1, y0, y1]
+    # Map array indices to physical units [x0, x1, y0, y1]
     extent = [0, data_sorted.shape[0], h_sorted[0], h_sorted[-1]]
     
-    # Colormap selection
     if HAS_CMOCEAN and cmap in dir(cmocean.cm):
         cmap = getattr(cmocean.cm, cmap)
 
@@ -172,9 +166,18 @@ def plot_time_series_heatmap(data: Union[np.ndarray, pd.DataFrame],
                    vmin=vmin, vmax=vmax)
     
     ax.set_title(title)
-    ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     
-    # Add a colorbar if this is the main plot
-    # (If integrated into subplots, user might handle cbar separately)
+    # Conditionally set X-label (prevents duplication in subplots)
+    if xlabel:
+        ax.set_xlabel(xlabel)
+    else:
+        # Hide tick labels if no label provided (cleaner for stacking)
+        ax.tick_params(labelbottom=False)
+
+    if add_cbar:
+        # Magic fraction/pad to make colorbar height match the plot height
+        cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+        cbar.set_label(cbar_label)
+    
     return ax

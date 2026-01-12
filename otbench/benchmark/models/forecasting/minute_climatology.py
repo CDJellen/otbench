@@ -23,21 +23,46 @@ class MinuteClimatologyForecastingModel(BaseForecastingModel):
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         """Determine the mean value of the target variable seen during training for each time."""
-        X = X[[c for c in X.columns if c.startswith(self.target_name)]]
-
-        self.global_mean = np.nanmean(X.values.flatten())
-
-        # compute the mean for each interval in X across all days
+        targets = self.target_name if isinstance(self.target_name, list) else [self.target_name]
+        
+        # Prepare Data
+        X = X.copy()
         X["time_of_day"] = X.index.time
-        X_means = X.groupby("time_of_day").mean()
-        # iterate through the rows in X_means
-        for i in range(len(X_means)):
-            self.means[X_means.index[i]] = np.nanmean(X_means.iloc[i, :].values)
+        
+        # Calculate Global Means (Fallback)
+        self.global_mean = []
+        for t in targets:
+            cols = [c for c in X.columns if c.startswith(t) and c != "time_of_day"]
+            self.global_mean.append(np.nanmean(X[cols].values))
+        self.global_mean = np.array(self.global_mean)
+
+        # Calculate Time-Specific Means
+        # Structure: self.means[time] = np.array([val_t1, val_t2...])
+        self.means = {}
+        
+        # We process each target separately
+        for t_idx, t in enumerate(targets):
+            cols = [c for c in X.columns if c.startswith(t) and c != "time_of_day"]
+            
+            # 1. Collapse lags (mean across columns per row)
+            # This gives one value per observation per target
+            row_means = X[cols].mean(axis=1)
+            
+            # 2. Group by time of day
+            climatology = row_means.groupby(X["time_of_day"]).mean()
+            
+            # 3. Store
+            for time, val in climatology.items():
+                if time not in self.means:
+                    self.means[time] = np.zeros(len(targets))
+                    # Initialize with global means to handle missing targets for this specific time (rare)
+                    # self.means[time] = self.global_mean.copy() # Optional safety
+                    
+                self.means[time][t_idx] = val
 
     def predict(self, X: 'pd.DataFrame'):
         """Predict the mean seen during training at the time of day of forecast."""
-        times = X.index
-        times = pd.to_datetime(times)
+        times = pd.to_datetime(X.index)
 
         # apply the forecast horizon to each time
         time_step = times[1] - times[0]
@@ -49,9 +74,14 @@ class MinuteClimatologyForecastingModel(BaseForecastingModel):
         # convert to time
         preds = []
         for time in times.time:
-            if time in self.means and not np.isnan(self.means[time]):
+            if time in self.means:
                 preds.append(self.means[time])
             else:
                 preds.append(self.global_mean)
 
-        return np.array(preds)
+        preds = np.array(preds)
+        
+        targets = self.target_name if isinstance(self.target_name, list) else [self.target_name]
+        if len(targets) == 1:
+            return preds.flatten()
+        return preds

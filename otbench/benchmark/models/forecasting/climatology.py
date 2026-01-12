@@ -20,12 +20,22 @@ class ClimatologyForecastingModel(BaseForecastingModel):
         self.time_col_name = time_col_name if time_col_name is not None else None
         self.global_mean = np.nan
 
-    def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
+    def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', 'np.ndarray']):
         """Determine the mean value of the target variable seen during training."""
-        X = X[[c for c in X.columns if c.startswith(self.target_name)]]
+        targets = self.target_name if isinstance(self.target_name, list) else [self.target_name]
+        self.global_mean = []
 
-        self.global_mean = np.nanmean(X.values.flatten())
+        for t in targets:
+            cols = [c for c in X.columns if c.startswith(t)]
+            mean_val = np.nanmean(X[cols].values.flatten())
+            self.global_mean.append(mean_val)
+        
+        self.global_mean = np.array(self.global_mean)
 
     def predict(self, X: 'pd.DataFrame'):
-        """Predict the mean seen during training ."""
-        return np.full(len(X), self.global_mean)
+        """Predict the mean seen during training."""
+        n_samples = len(X)
+        if len(self.global_mean) == 1:
+            return np.full(n_samples, self.global_mean[0])
+        else:
+            return np.tile(self.global_mean, (n_samples, 1))

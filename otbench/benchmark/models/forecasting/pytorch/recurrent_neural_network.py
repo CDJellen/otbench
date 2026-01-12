@@ -20,7 +20,7 @@ class RNN(nn.Module):
         self.fc = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).requires_grad_()
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size, device=x.device).requires_grad_()
         out, _ = self.rnn(x, h0.detach())
         out = self.fc(out[:, -1, :])
         return out
@@ -92,8 +92,9 @@ class RNNModel(BasePyTorchForecastingModel):
         for i in range(self.n_epochs):
             for _, (X_batch, y_batch) in enumerate(self.train_dataloader):
                 self.optimizer.zero_grad()
-                outputs = self.model(X_batch.float())
-                loss = self.criterion(outputs, y_batch.float())
+                X_batch, y_batch = X_batch.to(self.device).float(), y_batch.to(self.device).float()
+                outputs = self.model(X_batch)
+                loss = self.criterion(outputs, y_batch)
                 loss.backward()
                 self.optimizer.step()
             
@@ -110,10 +111,14 @@ class RNNModel(BasePyTorchForecastingModel):
         pred = []
         with torch.no_grad():
             for _, (X, _) in enumerate(self.val_dataloader):
-                y_pred = self.model(X.float())
+                X = X.to(self.device).float()
+                y_pred = self.model(X)
                 if self.normalize_data:
+                    # y_std and y_mean are numpy arrays, need to move y_pred to cpu
+                    y_pred = y_pred.cpu()
                     y_pred = y_pred * self.y_std + self.y_mean
-                y_pred = y_pred.numpy()
+                
+                y_pred = y_pred.cpu().numpy()
 
                 # add the prediction value to the list
                 if self.num_classes == 1:

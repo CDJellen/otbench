@@ -16,16 +16,24 @@ class MeanWindowForecastingModel(BaseForecastingModel):
         pass
 
     def predict(self, X: 'pd.DataFrame'):
-        """Forecast the cn2 using the mean of the lagged values."""
-        # predict the mean for each entry in X
-        # X contains some number of lagged values of the target variable
-        # we will use the mean of these lagged values as our prediction
-        X = X[[c for c in X.columns if c.startswith(self.target_name)]]
+        """Forecast the using the mean of the lagged values."""
+        # Handle Vector vs Scalar
+        targets = self.target_name if isinstance(self.target_name, list) else [self.target_name]
+        all_preds = []
 
-        # develop a prediction for each row in X
-        preds = []
-        for i in range(len(X)):
-            pred = np.nanmean(X.iloc[i, :].values)
-            preds.append(pred)
+        for t in targets:
+            cols = [c for c in X.columns if c.startswith(t)]
+            X_t = X[cols]
 
-        return np.array(preds)
+            preds_t = []
+            for i in range(len(X_t)):
+                pred = np.nanmean(X_t.iloc[i, :].values)
+                preds_t.append(pred)
+            
+            all_preds.append(preds_t)
+
+        all_preds = np.array(all_preds).T
+        
+        if len(targets) == 1:
+            return all_preds.flatten()
+        return all_preds
