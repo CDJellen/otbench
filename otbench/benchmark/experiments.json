@@ -128,7 +128,7 @@
         },
         "possible_predictions": 2432
     },
-    "forecasting.paranal_tomography_v2.full.cn2_profile_forecast": {
+    "forecasting.paranal_tomography.full.cn2_profile_forecast": {
         "ClimatologyForecastingModel": {
             "mean_absolute_error": {
                 "metric_value": 0.5210394866499766,
@@ -201,7 +201,7 @@
         },
         "possible_predictions": 763294
     },
-    "forecasting.paranal_tomography_v2.full.seeing_nowcast": {
+    "forecasting.paranal_tomography.full.seeing_nowcast": {
         "ClimatologyForecastingModel": {
             "mean_absolute_error": {
                 "metric_value": 0.2589120238223599,
@@ -707,7 +707,7 @@
         },
         "possible_predictions": 2816
     },
-    "regression.paranal_tomography_v2.full.cn2_profile_reconstruction": {
+    "regression.paranal_tomography.full.cn2_profile_reconstruction": {
         "ClimatologyRegressionModel": {
             "root_mean_square_error": {
                 "metric_value": 0.7378731442755758,

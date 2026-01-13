@@ -185,7 +185,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             water_temperature_col_name = "T_0m"
             humidity_col_name = "RH_3m"
             time_col_name = "time"
-        elif "paranal_tomography_v2" in task_name:
+        elif "paranal_tomography" in task_name:
             height_of_observation = 0.0  # Ground level reference
             air_temperature_col_name = "temp_profile_0"  
             water_temperature_col_name = None  # No water temp at Paranal

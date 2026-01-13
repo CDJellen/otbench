@@ -146,12 +146,12 @@
                 }
             }
         },
-        "paranal_tomography_v2": {
+        "paranal_tomography": {
             "full": {
                 "cn2_profile_reconstruction": {
                     "description": "Zero-Shot Profile Reconstruction",
                     "description_long": "Inferring the full vertical profile solely from thermodynamics (LHATPRO) and surface meteo.",
-                    "ds_name": "paranal_tomography_v2",
+                    "ds_name": "paranal_tomography",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,
                     "obs_lon": -70.40,
@@ -274,12 +274,12 @@
                 }
             }
         },
-        "paranal_tomography_v2": {
+        "paranal_tomography": {
             "full": {
                 "seeing_nowcast": {
                     "description": "Scalar Nowcasting (Operational)",
                     "description_long": "Predicting scalar seeing 10 minutes ahead to optimize queue scheduling.",
-                    "ds_name": "paranal_tomography_v2",
+                    "ds_name": "paranal_tomography",
                     "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,
@@ -318,7 +318,7 @@
                 "cn2_profile_forecast": {
                     "description": "Vector Tomographic Forecasting (Grand Challenge)",
                     "description_long": "Predicting the 7-layer hybrid profile (Ground + Free Atmos) 10 minutes into the future.",
-                    "ds_name": "paranal_tomography_v2",
+                    "ds_name": "paranal_tomography",
                     "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,

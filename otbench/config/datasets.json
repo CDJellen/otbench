@@ -14,8 +14,8 @@
         "citation_path": "citation.md",
         "remove_data_path": "google.drive"
     },
-    "paranal_tomography_v2": {
-        "local_data_path": "paranal_v2_tomography.nc",
+    "paranal_tomography": {
+        "local_data_path": "paranal_tomography.nc",
         "citation_path": "citation.md",
         "remove_data_path": "https://www.eso.org/sci/facilities/paranal/astroclimate/site-monitor/asm_data.html"
     }
