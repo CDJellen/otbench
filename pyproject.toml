@@ -1,6 +1,6 @@
 [project]
 name = "otbench"
-version = "0.2.0"
+version = "0.3.0"
 description = ""
 authors = [
     {name = "Christopher David Jellen"}
@@ -9,6 +9,19 @@ license = {text = "MIT License"}
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "lightgbm",
+    "xarray",
+    "netcdf4",
+    "matplotlib",
+    "requests",
+    "astral",
+    "cmocean",
+    "tqdm",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
 ]
 
 
