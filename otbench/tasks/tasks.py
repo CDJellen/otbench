@@ -10,7 +10,8 @@ import pandas as pd
 
 import otbench.eval as eval_metrics
 from otbench.dataset import Dataset
-from otbench.config import BENCHMARK_FP
+from otbench.dataset import Dataset
+from otbench.config import BENCHMARK_FP, settings
 
 
 class TaskTypes(Enum):
@@ -452,7 +453,25 @@ class TaskApi(object):
         tasks = json.load(open(tasks_path, 'rb'))
 
         self.tasks = tasks
+        
+        if settings.USE_SYNTHETIC_DATA:
+            self._patch_tasks_for_synthetic_data(self.tasks)
+            
         self._build_task_names()
+
+    def _patch_tasks_for_synthetic_data(self, d: dict) -> None:
+        """Recursively patch task indices to fit within the small synthetic dataset."""
+        if isinstance(d, dict):
+            if "train_idx" in d and "val_idx" in d and "test_idx" in d:
+                # Found a task definition, patch it
+                # Ensure these indices fit within the 2000-step synthetic dataset
+                d["train_idx"] = ["0:1000"]
+                d["val_idx"] = ["1000:1500"]
+                d["test_idx"] = ["1500:2000"]
+            else:
+                # Recurse
+                for k, v in d.items():
+                    self._patch_tasks_for_synthetic_data(v)
 
     def get_task(self, task_name: str, benchmark_fp: str = BENCHMARK_FP) -> Union[RegressionTask, ForecastingTask]:
         """Get a task by name."""

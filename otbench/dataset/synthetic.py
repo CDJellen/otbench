@@ -20,7 +20,7 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
     """
     rng = np.random.default_rng(seed)
     
-    n_time = 650000
+    n_time = 2000
     times = pd.date_range("2017-06-01T00:01:00", periods=n_time, freq="min")
     
     height_mass = np.array([500, 1000, 2000, 4000, 8000, 16000])
