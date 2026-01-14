@@ -30,7 +30,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r requirements_dev.txt
-          python -m pytest
+          python -m pytest --use-synthetic-data --run-slow
   Coverage:
     timeout-minutes: 10
     runs-on: ubuntu-latest
@@ -54,7 +54,7 @@ jobs:
           pip install -r requirements_dev.txt
       - name: Generate coverage report
         run: |
-          coverage run --source otbench -m pytest --run-slow --run-private tests/
+          coverage run --source otbench -m pytest --run-slow --run-private --use-synthetic-data tests/
           coveralls --service=github
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
