@@ -9,6 +9,7 @@ import xarray as xr
 from otbench.config import settings, RETURN_TYPES
 from otbench.cache import CACHE
 from otbench.models import Task
+from otbench.dataset.synthetic import SYNTHETIC_REGISTRY
 
 
 class Dataset(object):
@@ -300,6 +301,26 @@ class Dataset(object):
     def _load_dataset_from_disk(self) -> Union[pd.DataFrame, xr.Dataset]:
         """Load the dataset from disk."""
         supported_datasets = self._supported_datasets()
+        
+        if settings.USE_SYNTHETIC_DATA:
+            if self._name in SYNTHETIC_REGISTRY:
+                # Bypass disk loading completely for synthetic data
+                ds = SYNTHETIC_REGISTRY[self._name]()
+                
+                # Check if we need to flatten (mirroring disk logic)
+                dataset_config = supported_datasets.get(self._name, {})
+                should_flatten = dataset_config.get("flatten", True)
+                
+                if should_flatten:
+                     # Check if it actually needs flattening (dims > 1)
+                     needs_flattening = any(len(ds[v].dims) > 1 for v in ds.data_vars)
+                     if needs_flattening:
+                         return self._flatten_dataset(ds)
+                     else:
+                         return ds.to_dataframe()
+                return ds
+            else:
+                pass
         file_name = supported_datasets[self._name]["local_data_path"]
         fp = settings.DATA_DIR / self._name / file_name
         fp_str = str(fp)

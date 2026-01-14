@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     DATASETS_FP: Path = CONFIG_DIR / "datasets.json"
     
     RETURN_TYPES: list[str] = ["pd", "np", "xr", "nc"]
+    USE_SYNTHETIC_DATA: bool = False
+
 
     model_config = SettingsConfigDict(env_prefix="OTBENCH_")
 
