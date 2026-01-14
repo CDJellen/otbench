@@ -22,7 +22,10 @@ class MinuteClimatologyRegressionModel(BaseRegressionModel):
             if y.ndim > 1:
                 y = pd.DataFrame(y, index=X.index)
             else:
-                y = pd.Series(y, name=self.target_name, index=X.index)
+                y = pd.DataFrame(y, columns=[self.target_name], index=X.index)
+        
+        if isinstance(y, pd.Series):
+            y = y.to_frame()
         
         y = y.copy()
 
