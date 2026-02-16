@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from typing import Sequence, Tuple, Union
 
+
 def _format_metric(metric_value: float, valid_predictions: int) -> dict:
     """Format the metric value and valid predictions into a dict."""
     return {"metric_value": metric_value, "valid_predictions": valid_predictions}
@@ -22,6 +23,10 @@ def _get_valid_indices(y_true: Sequence, y_pred: Sequence) -> Tuple[Sequence, Se
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
 
+    # Fast path for empty inputs
+    if len(y_true) == 0:
+        return np.array([]), np.array([])
+
     # Normalise common (N, 1) -> (N,) cases
     if y_true.ndim == 2 and y_true.shape[1] == 1:
         y_true = y_true.ravel()
@@ -30,18 +35,15 @@ def _get_valid_indices(y_true: Sequence, y_pred: Sequence) -> Tuple[Sequence, Se
 
     # After normalisation, shapes must match
     if y_true.shape != y_pred.shape:
-        raise ValueError(
-            f"y_true and y_pred must have compatible shapes after normalisation. "
-            f"Got y_true.shape = {y_true.shape} and y_pred.shape = {y_pred.shape}"
-        )
+        raise ValueError(f"y_true and y_pred must have compatible shapes after normalisation. "
+                         f"Got y_true.shape = {y_true.shape} and y_pred.shape = {y_pred.shape}")
 
     # Determine masking strategy based on ground truth dimensionality
     if y_true.ndim == 1:
         # Scalar target: drop samples where either value is NaN
         mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
     elif y_true.ndim == 2:
-        # Vector target: drop samples where *all* values in the row are NaN
-        # (i.e. keep samples that have at least one valid value in true and pred)
+        # Vector target: drop samples where all values in the row are NaN
         mask = ~np.isnan(y_true).all(axis=1) & ~np.isnan(y_pred).all(axis=1)
     else:
         raise ValueError(f"Unsupported dimensionality for y_true: ndim={y_true.ndim}. "

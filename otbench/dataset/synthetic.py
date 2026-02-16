@@ -1,9 +1,9 @@
-
 from typing import Callable, Dict, Optional
 import numpy as np
 import pandas as pd
 import xarray as xr
 from otbench.config import settings
+
 
 def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
     """
@@ -19,10 +19,10 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
         xr.Dataset: The synthetic dataset.
     """
     rng = np.random.default_rng(seed)
-    
+
     n_time = 2000
     times = pd.date_range("2017-06-01T00:01:00", periods=n_time, freq="min")
-    
+
     height_mass = np.array([500, 1000, 2000, 4000, 8000, 16000])
     height_slodar = np.array([1, 2, 3, 4, 5, 6, 7, 8])
     height_lhatpro = np.linspace(0, 10000, 39).astype(int)
@@ -34,13 +34,13 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
         "cn2_free_atmos": (("time", "height_mass"), random_cn2((n_time, len(height_mass)))),
         "cn2_boundary": (("time", "height_slodar"), random_cn2((n_time, len(height_slodar)))),
         "cn2_ground_scalar": (("time"), random_cn2(n_time)),
-        "seeing": (("time"), rng.uniform(0.4, 1.5, n_time)), # Arcseconds
+        "seeing": (("time"), rng.uniform(0.4, 1.5, n_time)),  # Arcseconds
         "temp_profile": (("time", "height_lhatpro"), rng.normal(273, 5, (n_time, len(height_lhatpro)))),
         "wind_speed": (("time"), rng.uniform(0, 20, n_time)),
         "wind_dir": (("time"), rng.uniform(0, 360, n_time)),
-        "pressure": (("time"), rng.normal(740, 5, n_time)), # hPa at altitude
+        "pressure": (("time"), rng.normal(740, 5, n_time)),  # hPa at altitude
         "rh": (("time"), rng.uniform(0, 100, n_time)),
-        "night_id": (("time"), np.repeat(np.arange(1, 11), n_time // 10)), # 10 nights, equal split
+        "night_id": (("time"), np.repeat(np.arange(1, 11), n_time // 10)),  # 10 nights, equal split
     }
 
     coords = {
@@ -49,9 +49,9 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
         "height_slodar": height_slodar,
         "height_lhatpro": height_lhatpro,
     }
-    
+
     ds = xr.Dataset(data_vars=data_vars, coords=coords)
-    
+
     ds.attrs = {
         "project": "otbench v2",
         "site": "ESO Paranal",
@@ -59,12 +59,10 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
         "processing": "Synthetic generator",
         "is_synthetic": True
     }
-    
+
     return ds
 
 
 # Registry for synthetic data generators
 # Dictionary mapping dataset name (as in datasets.json) to generator function
-SYNTHETIC_REGISTRY: Dict[str, Callable[[], xr.Dataset]] = {
-    "paranal_tomography": generate_paranal_tomography
-}
+SYNTHETIC_REGISTRY: Dict[str, Callable[[], xr.Dataset]] = {"paranal_tomography": generate_paranal_tomography}

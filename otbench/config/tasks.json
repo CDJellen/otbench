@@ -164,7 +164,7 @@
                     "test_idx": [
                         "500000:620000"
                     ],
-                    "dropna": true,
+                    "dropna": false,
                     "log_transform": true,
                     "eval_metrics": [
                         "root_mean_square_error"
@@ -293,14 +293,14 @@
                     "test_idx": [
                         "500000:620000"
                     ],
-                    "dropna": true,
+                    "dropna": false,
                     "log_transform": false,
                     "eval_metrics": [
                         "root_mean_square_error",
                         "mean_absolute_error"
                     ],
-                    "window_size": 20,
-                    "forecast_horizon": 10,
+                    "window_size": 30,
+                    "forecast_horizon": 5,
                     "target": "seeing",
                     "remove": [
                         "time",
@@ -332,13 +332,13 @@
                     "test_idx": [
                         "500000:620000"
                     ],
-                    "dropna": true,
+                    "dropna": false,
                     "log_transform": true,
                     "eval_metrics": [
                         "root_mean_square_error",
                         "mean_absolute_error"
                     ],
-                    "window_size": 20,
+                    "window_size": 60,
                     "forecast_horizon": 10,
                     "target": [
                         "cn2_ground_scalar",
@@ -351,15 +351,7 @@
                     ],
                     "remove": [
                         "time",
-                        "seeing",
-                        "cn2_free_atmos",
-                        "cn2_ground_scalar",
-                        "cn2_free_atmos_500",
-                        "cn2_free_atmos_1000",
-                        "cn2_free_atmos_2000",
-                        "cn2_free_atmos_4000",
-                        "cn2_free_atmos_8000",
-                        "cn2_free_atmos_16000"
+                        "seeing"
                     ]
                 }
             }

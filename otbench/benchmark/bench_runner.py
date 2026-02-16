@@ -13,12 +13,13 @@ import otbench.benchmark.models.forecasting as forecasting_models
 
 PPRINTER = pprint.PrettyPrinter(indent=4, width=120, compact=True)
 
+
 class NumpyEncoder(json.JSONEncoder):
     """Custom encoder for numpy data types"""
+
     def default(self, obj):
-        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
-                            np.int16, np.int32, np.int64, np.uint8,
-                            np.uint16, np.uint32, np.uint64)):
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64, np.uint8, np.uint16,
+                            np.uint32, np.uint64)):
             return int(obj)
         elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
             return float(obj)
@@ -28,9 +29,10 @@ class NumpyEncoder(json.JSONEncoder):
             return obj.tolist()
         elif isinstance(obj, (np.bool_)):
             return bool(obj)
-        elif isinstance(obj, (np.void)): 
+        elif isinstance(obj, (np.void)):
             return None
         return json.JSONEncoder.default(self, obj)
+
 
 def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                    benchmark_regression_models: Union[List[str], str, None] = None,
@@ -57,7 +59,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         fcn_models = {
             n: getattr(forecasting_models, n) for n in benchmark_forecasting_models if n in forecasting_models.__all__
         }
-    
+
     if include_pytorch_models:
         try:
             import otbench.benchmark.models.regression.pytorch as pt_regression_models
@@ -90,13 +92,13 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
 
     if metrics_fp is None:
         metrics_fp = BENCHMARK_FP
-    
+
     task_api = TaskApi()
     if benchmark_tasks is None:
         benchmark_tasks = sorted(task_api.list_tasks())
     elif type(benchmark_tasks) == str:
         benchmark_tasks = [benchmark_tasks]
-    
+
     benchmark_results = {}
 
     # Task Execution Loop
@@ -121,11 +123,11 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         # We load Train/Val to train benchmark models, and Test to evaluate.
         X_train, y_train = task.get_train_data(data_type="pd")
         X_val, y_val = task.get_validation_data(data_type="pd")
-        
+
         # Combine Train+Val for full benchmark training
         X_combined = pd.concat([X_train, X_val])
         y_combined = pd.concat([y_train, y_val])
-        
+
         # Load Test Data
         X_test, y_test = task.get_test_data(data_type="pd")
 
@@ -134,21 +136,22 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             models = reg_models
             X_bench, y_bench = X_combined, y_combined
             X_eval, y_eval = X_test, y_test
-            
+
         elif type(task) == tasks.ForecastingTask:
             models = fcn_models
-            
+
             # CRITICAL FIX: Recover Session Context for Masking
             session_col = task.task.get("session_col")
             if session_col:
-                if verbose: print(f"Recovering context '{session_col}' for masking...")
+                if verbose:
+                    print(f"Recovering context '{session_col}' for masking...")
                 # Recover for Train/Val
                 ctx_train = task.get_dataset().get_context(X_combined.index, session_col)
                 # Only join columns that are not already present
                 cols_to_use = ctx_train.columns.difference(X_combined.columns)
                 if not cols_to_use.empty:
                     X_combined = X_combined.join(ctx_train[cols_to_use])
-                
+
                 # Recover for Test
                 ctx_test = task.get_dataset().get_context(X_test.index, session_col)
                 cols_to_use_test = ctx_test.columns.difference(X_test.columns)
@@ -158,13 +161,14 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             # Apply Windowing (Masking happens here using the recovered column)
             X_bench, y_bench = task.prepare_forecasting_data(X_combined, y_combined)
             X_eval, y_eval = task.prepare_forecasting_data(X_test, y_test)
-            
+
         else:
             raise ValueError(f"unknown task type {type(task)}.")
 
         # Initialize Results Container
         benchmark_results[task_name] = {}
-        benchmark_results[task_name]["possible_predictions"] = int(y_eval.notna().sum().values[0]) if y_eval.ndim == 1 else int(y_eval.notna().sum().sum())
+        benchmark_results[task_name]["possible_predictions"] = int(
+            y_eval.notna().sum().values[0]) if y_eval.ndim == 1 else int(y_eval.notna().sum().sum())
 
         # Feature Mapping (Hardcoded Physics)
         if "mlo_cn2" in task_name:
@@ -187,41 +191,41 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             time_col_name = "time"
         elif "paranal_tomography" in task_name:
             height_of_observation = 0.0  # Ground level reference
-            air_temperature_col_name = "temp_profile_0"  
+            air_temperature_col_name = "temp_profile_0"
             water_temperature_col_name = None  # No water temp at Paranal
             humidity_col_name = "rh"
             wind_speed_col_name = "wind_speed"
             time_col_name = "time"
         else:
             raise ValueError(f"benchmarks not configured for task {task_name}.")
-        
+
         # Determine Vector Status
         # Check output dimensionality to filter incompatible models
         output_dim = 1
         if hasattr(y_bench, "shape") and len(y_bench.shape) > 1:
             output_dim = y_bench.shape[1]
-        
+
         is_vector_task = output_dim > 1
-        
+
         scalar_only_models = [
             "MacroMeteorologicalModel",
             "OffshoreMacroMeteorologicalModel",
             "AWTModel",
             "HybridAWTRegressionModel",
-            "GradientBoostingRegressionModel", # GBRT uses single-valued output
-            "GradientBoostingForecastingModel",
         ]
 
         # Model Training Loop
         for model_name, model in models.items():
             # Skip models requiring water temp if missing
             if water_temperature_col_name is None and ("AirWaterTemperature" in model_name or "AWT" in model_name):
-                if verbose: print(f"Skipping {model_name} (needs Water Temp).")
+                if verbose:
+                    print(f"Skipping {model_name} (needs Water Temp).")
                 continue
 
             # Skip scalar models for vector tasks
             if is_vector_task and model_name in scalar_only_models:
-                if verbose: print(f"Skipping {model_name} for vector task '{task_name}' (incompatible).")
+                if verbose:
+                    print(f"Skipping {model_name} for vector task '{task_name}' (incompatible).")
                 continue
 
             if verbose:
@@ -246,7 +250,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 input_size=len(X_bench.columns),
                 output_size=output_dim,  # Critical for Vector Tasks
             )
-            
+
             # Forecasting Specific Configs
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
@@ -277,13 +281,13 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 mdl.train(X_bench.copy(deep=True), y_bench.copy(deep=True))
 
                 # Evaluate
-                results = task.evaluate_model(predict_call=mdl.predict, x_transforms=None, x_transform_kwargs=None)
+                results = task.evaluate_model(predict_call=mdl.predict, x_transforms=None, x_transform_kwargs=None, detailed_metrics=True,)
                 benchmark_results[task_name][model_name] = results
-                
+
                 if verbose:
                     print(f"Done running benchmark for {model_name}.")
                     # Only print scalar summary for brevity
-                    summary = {k: v['metric_value'] for k,v in results.items() if isinstance(v, dict)}
+                    summary = {k: v['metric_value'] for k, v in results.items() if isinstance(v, dict)}
                     PPRINTER.pprint(summary)
             except Exception as e:
                 print(f"Failed to run {model_name} on {task_name}: {e}")
@@ -295,7 +299,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             f.write(json.dumps(benchmark_results, indent=4, cls=NumpyEncoder))
         if verbose:
             print(f"Wrote benchmark metrics to {metrics_fp}.")
-    
+
     if verbose:
         print("Done running benchmarks.")
 

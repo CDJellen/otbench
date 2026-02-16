@@ -30,6 +30,6 @@ class ClimatologyRegressionModel(BaseRegressionModel):
         # If scalar, return shape (n_samples,)
         if np.ndim(self.global_mean) == 0:
             return np.full(len(X), self.global_mean)
-        
+
         # If vector, return shape (n_samples, n_features)
         return np.tile(self.global_mean, (len(X), 1))

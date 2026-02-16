@@ -23,10 +23,10 @@ class MinuteClimatologyRegressionModel(BaseRegressionModel):
                 y = pd.DataFrame(y, index=X.index)
             else:
                 y = pd.DataFrame(y, columns=[self.target_name], index=X.index)
-        
+
         if isinstance(y, pd.Series):
             y = y.to_frame()
-        
+
         y = y.copy()
 
         # Compute global mean
@@ -56,9 +56,9 @@ class MinuteClimatologyRegressionModel(BaseRegressionModel):
                 val = self.means[time]
                 # Check for NaNs in the mean (if time step existed but all values were NaN)
                 if np.isnan(val).all():
-                     preds.append(self.global_mean)
+                    preds.append(self.global_mean)
                 else:
-                     preds.append(val)
+                    preds.append(val)
             else:
                 preds.append(self.global_mean)
 

@@ -72,16 +72,16 @@ class RNNModel(BasePyTorchRegressionModel):
     def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
         # maintain the same interface as the other models
         n_features = len(X.columns) // self.window_size
-        
+
         # Validate output dimension
         if y.ndim > 1 and y.shape[1] != self.num_classes:
-             # Try to adjust if not set explicitly, or warn/error
-             # If y has 15 columns but num_classes is 1, this is the error we want to catch
-             if self.verbose:
-                 print(f"Warning: Target dimension {y.shape[1]} does not match model output size {self.num_classes}.")
-             if self.num_classes == 1 and y.shape[1] > 1:
-                 raise ValueError(f"Model initialized with output_size=1 but target has {y.shape[1]} columns. "
-                                  f"Ensure input_size and output_size are set correctly.")
+            # Try to adjust if not set explicitly, or warn/error
+            # If y has 15 columns but num_classes is 1, this is the error we want to catch
+            if self.verbose:
+                print(f"Warning: Target dimension {y.shape[1]} does not match model output size {self.num_classes}.")
+            if self.num_classes == 1 and y.shape[1] > 1:
+                raise ValueError(f"Model initialized with output_size=1 but target has {y.shape[1]} columns. "
+                                 f"Ensure input_size and output_size are set correctly.")
 
         if self.verbose:
             print(f"training data contains {n_features} features.")
@@ -113,7 +113,7 @@ class RNNModel(BasePyTorchRegressionModel):
                 X = X.to(self.device).float()
                 y_pred = self.model(X)
                 if self.normalize_data:
-                    y_pred = y_pred.cpu() # move to cpu for numpy calc
+                    y_pred = y_pred.cpu()  # move to cpu for numpy calc
                     y_pred = y_pred * self.y_std + self.y_mean
                 y_pred = y_pred.cpu().numpy()
 

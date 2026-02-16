@@ -1,52 +1,65 @@
+# otbench/benchmark/models/forecasting/linear.py
 from typing import Union
-
 import numpy as np
-
+import pandas as pd
 from otbench.benchmark.models.forecasting.base_model import BaseForecastingModel
 
-
 class LinearForecastingModel(BaseForecastingModel):
-    """A model that fits a line to the lagged values of the target variable."""
+    """A model that fits a line to the lagged values of the target variable per sample."""
 
-    def __init__(self, name: str, target_name: str, window_size: int, forecast_horizon: int, **kwargs):
-        super().__init__(name, target_name, window_size, forecast_horizon, **kwargs)
+    def _train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
+        pass # Lazy learner
 
-    def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
-        """Maintain the same interface as the other models."""
-        pass
-
-    def predict(self, X: 'pd.DataFrame'):
-        """Forecast the by fitting a line using the lagged values."""
-        # Handle Vector vs Scalar
+    def _predict(self, X: 'pd.DataFrame'):
+        """Forecast by fitting a line to the lagged values."""
         targets = self.target_name if isinstance(self.target_name, list) else [self.target_name]
         all_preds = []
-
-        # interpolate X to fill in missing values
-        X = X.interpolate(method="time")
+        
+        if len(X) == 0:
+            if len(targets) > 1: return np.empty((0, len(targets)))
+            return np.array([])
 
         for t in targets:
-            # Filter columns just for this target variable
-            # We must ensure we don't accidentally pick up other targets if they share prefixes
-            # Assuming 'startswith' logic from before, but scoped to single target 't'
+            # Identify history columns (fuzzy match startswith)
             cols = [c for c in X.columns if c.startswith(t)]
-            X_t = X[cols]
+            
+            # Safety check
+            if not cols:
+                # If no history, fallback to 0 (mean)
+                all_preds.append(np.zeros(len(X)))
+                continue
+
+            X_t = X[cols].values
+            
+            # CRITICAL: Transform History to Log Space if target is Log
+            if self.use_log10:
+                X_t = np.log10(np.maximum(X_t, 1e-19))
 
             preds_t = []
-            for i in range(len(X_t)):
-                # fit a line to the lagged values
-                lagged_values = X_t.iloc[i, :].values
-                A = np.vstack([np.arange(len(lagged_values)), np.ones(len(lagged_values))]).T
-                m, b = np.linalg.lstsq(A, lagged_values, rcond=None)[0]
-
-                # predict the next value at the forecast horizon
-                pred = m * (len(lagged_values) + self.forecast_horizon) + b
-                preds_t.append(pred)
             
+            # Pre-compute X-axis for regression: [-W, ..., -1, 0]
+            # Assuming cols are usually sorted [t, t-1, t-2...] or [t-W ... t]
+            # We assume standard otbench lag order. 
+            n_lags = X_t.shape[1]
+            x_axis = np.arange(n_lags) 
+            
+            # Vectorized implementation of per-row linear regression is hard in pure numpy without loop
+            # Keeping the loop for safety/clarity as in original
+            for i in range(len(X_t)):
+                history = X_t[i, :]
+                
+                # Fit line: y = mx + b
+                A = np.vstack([x_axis, np.ones(len(history))]).T
+                m, b = np.linalg.lstsq(A, history, rcond=None)[0]
+
+                # Project forward
+                # If history is [t-W ... t], then x_axis is 0..W
+                # We want t + H.
+                # The step size is 1.
+                # So we project to W + H.
+                pred = m * (n_lags + self.forecast_horizon) + b
+                preds_t.append(pred)
+
             all_preds.append(preds_t)
 
-        # Stack to (N, n_targets) or (N,)
-        all_preds = np.array(all_preds).T  # Shape: (N, n_targets)
-        
-        if len(targets) == 1:
-            return all_preds.flatten()
-        return all_preds
+        return np.array(all_preds).T

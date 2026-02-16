@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any, Union
 
+
 class Task(BaseModel):
     """
     Represents a benchmarking task configuration.
@@ -12,6 +13,7 @@ class Task(BaseModel):
     remove: List[str] = Field(default_factory=list)
     dropna: bool = True
     log_transform: bool = False
+
 
 class DatasetConfig(BaseModel):
     """

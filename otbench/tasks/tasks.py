@@ -90,7 +90,7 @@ class TaskABC(ABC):
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
                        detailed_metrics: bool = False,
-                       overwrite: bool = False) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+                       overwrite: bool = False,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed validation set, default against all metrics."""
         raise NotImplementedError
 
@@ -212,7 +212,7 @@ class BaseTask(TaskABC):
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
                        detailed_metrics: bool = False,
-                       overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+                       overwrite: bool = True,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         raise NotImplementedError
 
@@ -247,7 +247,7 @@ class RegressionTask(BaseTask):
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
                        detailed_metrics: bool = False,
-                       overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+                       overwrite: bool = True,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         # obtain evaluation data
         X_test, y_test = self.get_test_data(data_type=data_type)
@@ -271,7 +271,7 @@ class RegressionTask(BaseTask):
 
         for m in eval_metric_names:
             if eval_metrics.is_implemented_metric(m):
-                # check if metric accepts detailed arg? 
+                # check if metric accepts detailed arg?
                 # metrics.py functions now all accept detailed.
                 val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics)
                 model_metrics[m] = val
@@ -306,39 +306,70 @@ class ForecastingTask(BaseTask):
         """Prepare data for forecasting, respecting session boundaries."""
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
+        
+        # 1. Session Masking (Prevent Night-to-Night leakage)
+        # ---------------------------------------------------
         session_col = self.task.get("session_col")
         valid_session_mask = None
-        
+
         if session_col and session_col in X.columns:
-            # We must check if the session ID at t is the same as at t - window_size
-            # If they differ, this row effectively crosses a "night boundary" (daylight gap)
+            # Check if session at T is same as session at T-Window
             current_session = X[session_col]
             past_session = X[session_col].shift(window_size)
             
-            # We keep rows where the session hasn't changed over the window
+            # Mask valid rows
             valid_session_mask = (current_session == past_session)
             
-            # Drop the session column from features now that we've used it
+            # Clean up feature set
             X = X.drop(columns=[session_col])
 
-        X = self._join_target(X, y)
-        
+        # 2. Feature Engineering (Lags) on DENSE GRID
+        # ---------------------------------------------------
         if window_size > 1:
             X = self._add_lags(X, (window_size - 1))
-            
+
+        # 3. Target Alignment
+        # ---------------------------------------------------
+        # Shift y back by horizon (Direct Forecasting)
         y = self._shift_target(y, forecast_horizon)
+
+        # 4. Collision-Safe Join
+        # ---------------------------------------------------
+        # We enforce unique names for Y to avoid implicit pandas suffixes (e.g. _x, _y)
+        # causing KeyErrors when we try to extract them later.
+        if isinstance(y, pd.Series):
+            y_temp = y.to_frame()
+        else:
+            y_temp = y.copy()
+            
+        # Create unique temporary keys for targets
+        temp_suffix = "_TEMP_TARGET_XYZ"
+        original_y_cols = y_temp.columns.tolist()
+        y_temp.columns = [str(c) + temp_suffix for c in y_temp.columns]
         
-        # Apply Session Mask (Drop Invalid Cross-Night Rows)
+        # Join (No suffixes needed, keys are guaranteed unique)
+        combined = X.join(y_temp)
+        
+        # Apply Session Mask
         if valid_session_mask is not None:
-            # Align mask with the shifted data
-            # The mask corresponds to X's index. 
-            # We must ensure we apply it before the final dropna or index slicing
-            X = X[valid_session_mask]
-            y = y[valid_session_mask]
+            combined = combined[valid_session_mask]
 
-        X, y = self._obtain_valid_data(X, y, (window_size - 1), forecast_horizon)
+        # 5. The Late Drop (Atomic Cleanup)
+        # ---------------------------------------------------
+        # Drop rows where inputs (X) or targets (y) are NaN.
+        combined = combined.dropna()
+        
+        # 6. Extraction & Restoration
+        # ---------------------------------------------------
+        # Extract using the known temp keys
+        target_cols = y_temp.columns 
+        y_out = combined[target_cols].copy()
+        X_out = combined.drop(columns=target_cols).copy()
+        
+        # Restore original target names
+        y_out.columns = original_y_cols
 
-        return X, y
+        return X_out, y_out
 
     def evaluate_model(self,
                        predict_call: Callable,
@@ -355,7 +386,7 @@ class ForecastingTask(BaseTask):
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
                        detailed_metrics: bool = False,
-                       overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+                       overwrite: bool = True,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
@@ -453,10 +484,10 @@ class TaskApi(object):
         tasks = json.load(open(tasks_path, 'rb'))
 
         self.tasks = tasks
-        
+
         if settings.USE_SYNTHETIC_DATA:
             self._patch_tasks_for_synthetic_data(self.tasks)
-            
+
         self._build_task_names()
 
     def _patch_tasks_for_synthetic_data(self, d: dict) -> None:

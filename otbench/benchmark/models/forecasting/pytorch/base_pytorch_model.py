@@ -1,5 +1,5 @@
 import sys
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
     def __init__(
         self,
         name: str,
-        target_name: str,
+        target_name: Union[str, List[str]],
         window_size: int,
         forecast_horizon: int,
         batch_size: int = 32,
@@ -26,8 +26,10 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         optimizer: 'torch.optim' = optim.SGD,
         random_state: int = 2020,
         verbose: bool = False,
+        **kwargs
     ):
-        super().__init__(name=name, target_name=target_name, window_size=window_size, forecast_horizon=forecast_horizon)
+        # Pass kwargs (predict_residuals, use_log10, etc.) to BaseForecastingModel
+        super().__init__(name=name, target_name=target_name, window_size=window_size, forecast_horizon=forecast_horizon, **kwargs)
         self.batch_size = batch_size
         self.random_state = random_state
         self.n_epochs = n_epochs
@@ -56,7 +58,7 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
                 print("will normalize data before training")
             else:
                 print("will not normalize data before training.")
-        
+
         self.model.to(self.device)
 
         if set_optimizer_callable_params:
@@ -68,20 +70,24 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="train")
 
-    def set_test_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
+    def set_test_data(self,
+                      X: Union[pd.DataFrame, np.ndarray],
+                      y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="test")
 
-    def set_validation_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
+    def set_validation_data(self,
+                            X: Union[pd.DataFrame, np.ndarray],
+                            y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="val")
 
-    def train(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray]):
-        # maintain the same interface as the other models
+    def _train(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray]):
+        # Implementation hook required by BaseForecastingModel
         raise NotImplementedError
 
-    def predict(self, X: Union[pd.DataFrame, np.ndarray]):
-        # maintain the same interface as the other models
+    def _predict(self, X: Union[pd.DataFrame, np.ndarray]):
+        # Implementation hook required by BaseForecastingModel
         raise NotImplementedError
 
     def _set_dataloader_from_data(self,
@@ -111,7 +117,9 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         else:
             if not isinstance(X, np.ndarray) and isinstance(y, np.ndarray):
                 raise ValueError("X and y must be both be pd.DataFrame objects or np.ndarray objects.")
+        
         X, y = self._map_to_tensor(X, y)
+        
         if mode == "train":
             dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=True)
             self.train_dataloader = dataloader

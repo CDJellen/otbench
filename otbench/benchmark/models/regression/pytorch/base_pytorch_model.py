@@ -56,7 +56,7 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
                 print("will normalize data before training")
             else:
                 print("will not normalize data before training.")
-        
+
         self.model.to(self.device)
 
         if set_optimizer_callable_params:
@@ -68,11 +68,15 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="train")
 
-    def set_test_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
+    def set_test_data(self,
+                      X: Union[pd.DataFrame, np.ndarray],
+                      y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="test")
 
-    def set_validation_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
+    def set_validation_data(self,
+                            X: Union[pd.DataFrame, np.ndarray],
+                            y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="val")
 
@@ -147,7 +151,7 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         if np.any(np.isnan(X)):
             inds = np.where(np.isnan(X))
             X[inds] = np.take(self.X_mean, inds[1])
-        
+
         if np.any(np.isnan(y)):
             inds = np.where(np.isnan(y))
             y[inds] = np.take(self.y_mean, inds[1])

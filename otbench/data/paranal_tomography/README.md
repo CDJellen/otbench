@@ -2,20 +2,40 @@
 
 ## Overview
 
-This dataset constitutes the canonical benchmarking corpus for optical turbulence forecasting at the ESO Paranal Observatory. It aggregates vertical profiles of the refractive index structure constant ($C_n^2$) and meteorological covariates, enabling precise evaluation of tomographic reconstruction and prediction algorithms. The schema is optimized for `xarray` ingestion, maintaining strict causal ordering for time-series analysis.
+This dataset constitutes the canonical benchmarking corpus for optical turbulence forecasting at the ESO Paranal Observatory. It combines layer-resolved turbulence profiles from MASS with thermodynamic vertical profiles from LHATPRO and surface meteorological measurements, enabling evaluation of tomographic reconstruction and forecasting algorithms. The schema is optimized for `xarray` ingestion and enforces strict causal ordering for time-series analysis.
 
 ## Provenance and Acquisition
 
-Data are derived from a co-located suite of site testing instrumentation at Paranal ($24^\circ 37'38''S, 70^\circ 24'15''W$):
-*   **MASS (Multi-Aperture Scintillation Sensor)**: Low-resolution turbulence profiling of the free atmosphere.
-*   **SLODAR (Slope Detection and Ranging)**: High-resolution profiling of the surface layer.
-*   **LHATPRO (Low Humidity and Temperature Profiling Microwave Radiometer)**: Radiometric thermodynamic vertical profiling.
+Data are derived from co-located site-monitoring instruments at Paranal ($24^\circ 37'38''$S, $70^\circ 24'15''$W, 2635 m):
+
+*   **MASS-DIMM (Multi-Aperture Scintillation Sensor / Differential Image Motion Monitor)**: Provides turbulence profiling of the free atmosphere (6 restoration layers from 500 m to 16 km) and an integrated ground-layer measurement. Also provides integrated seeing.
+*   **LHATPRO (Low Humidity and Temperature Profiling Microwave Radiometer)**: Radiometric thermodynamic vertical profiling at 39 heights from ground level to 10 km.
+*   **Paranal Meteorological Station**: Surface weather measurements including wind (30 m and 10 m towers), pressure, temperature, and humidity.
+
+Raw data are fetched from the [ESO Ambient Conditions Database](https://archive.eso.org/cms/eso-data/ambient-conditions.html) via `fetch_eso.py` and transformed by `eso.py`.
+
+## Physical Quantities
+
+The MASS instrument measures scintillation indices and restores the vertical distribution of turbulence across discrete atmospheric layers. The restored quantity for each layer is the **turbulence integral**:
+
+$$J_i = \int_{\text{layer}_i} C_n^2(h)\,dh$$
+
+with SI units of $\mathrm{m}^{1/3}$. This is *not* the $C_n^2$ density (which has units $\mathrm{m}^{-2/3}$) but rather the path-integrated turbulence strength over each layer's vertical extent. The total free-atmosphere turbulence integral is obtained by summation: $J_{\mathrm{free}} = \sum_i J_i$.
+
+The ESO archive labels these columns as "Cn2" (following widespread community convention), and the dataset variable names preserve this convention (`cn2_free_atmos`, `cn2_ground_scalar`) for compatibility. See the variable `note` attributes in the NetCDF file for the precise physical definition.
 
 ## Processing Methodology
 
-The ingestion pipeline enforces rigorous causal integrity:
-1.  **Causal Backward Merge**: Observations are unified with a strict 2-minute causal tolerance window.
-2.  **Regularization**: The time domain is regularized to a 1-minute cadence to ensure uniform temporal pacing.
+The ingestion pipeline (`eso.py`) enforces causal integrity:
+
+1.  **Regularization**: Each instrument stream is independently rounded to a 1-minute cadence and deduplicated (first observation per minute retained).
+2.  **Sparse Union Backbone**: A master time index is constructed from the union of all instrument timestamps.
+3.  **Causal Backward Merge**: Each instrument stream is aligned to the backbone using `pd.merge_asof` with `direction="backward"`, ensuring that a row at time $T$ contains only information available at or before $T$. No future data leakage occurs.
+    *   LHATPRO: 5-minute tolerance (radiometric state persists between readings)
+    *   Meteorology: 2-minute tolerance (surface conditions are persistent state)
+    *   MASS: 2-minute tolerance (discrete measurement events)
+4.  **Daylight Pruning**: Rows with no LHATPRO temperature reading (radiometer off during daytime) are removed.
+5.  **Night Identification**: Observing sessions are assigned by shifting UTC timestamps by 16 hours (approximate local solar noon at 70.4$^\circ$W) so that the day boundary falls during daytime inactivity.
 
 ## Schema Definition
 
@@ -23,38 +43,47 @@ The dataset conforms to the following `xarray.Dataset` specification:
 
 ### Dimensions
 
-*   `time`: 375,758 epochs (~2017-06 to 2020-03)
-*   `height_mass`: 6 strata (Free Atmosphere)
-*   `height_slodar`: 8 strata (Boundary Layer)
-*   `height_lhatpro`: 39 strata (Thermodynamic Profile)
+*   `time`: Number of 1-minute epochs (varies with raw data coverage)
+*   `height_mass`: 6 (free-atmosphere restoration layers)
+*   `height_lhatpro`: 39 (thermodynamic profile levels)
 
 ### Coordinates
 
-| Coordinate | Type | domain |
+| Coordinate | Type | Values |
 | :--- | :--- | :--- |
-| `time` | `datetime64[ns]` | `2017-06-01T00:01:00` ... `2020-03-...` |
-| `height_mass` | `int64` | `[500, 1000, 2000, 4000, 8000, 16000]` |
-| `height_lhatpro`| `int64` | `[0, 10, 30, 50 ... 7000, 8000, 9000, 10000]` |
-| `height_slodar` | `int64` | `[1, 2, 3, 4, 5, 6, 7, 8]` |
+| `time` | `datetime64[ns]` | 1-minute cadence, UTC |
+| `height_mass` | `int64` | `[500, 1000, 2000, 4000, 8000, 16000]` m |
+| `height_lhatpro`| `int64` | `[0, 10, 30, 50, 75, 100, ..., 8000, 9000, 10000]` m |
 
 ### Data Variables
 
-| Variable | Dimensions | Dtype | Description |
+| Variable | Dimensions | Units | Description |
 | :--- | :--- | :--- | :--- |
-| `cn2_free_atmos` | `(time, height_mass)` | `float64` | $C_n^2$ profiles derived from MASS. |
-| `cn2_boundary` | `(time, height_slodar)` | `float64` | $C_n^2$ profiles derived from SLODAR. |
-| `cn2_ground_scalar`| `(time)` | `float64` | Scalar ground-level $C_n^2$ values. |
-| `seeing` | `(time)` | `float64` | Integrated astronomical seeing. |
-| `temp_profile` | `(time, height_lhatpro)`| `float64` | Vertical temperature profile. |
-| `wind_speed` | `(time)` | `float64` | Scalar wind speed. |
-| `wind_dir` | `(time)` | `float64` | Wind direction azimuth. |
-| `pressure` | `(time)` | `float64` | Surface atmospheric pressure. |
-| `rh` | `(time)` | `float64` | Surface relative humidity. |
-| `night_id` | `(time)` | `int64` | Sequential identifier for contiguous observing nights. |
+| `cn2_free_atmos` | `(time, height_mass)` | $\mathrm{m}^{1/3}$ | Layer-integrated turbulence strength $J_i$ for each MASS restoration layer. |
+| `cn2_ground_scalar`| `(time)` | $\mathrm{m}^{1/3}$ | Ground-layer (0--500 m) turbulence integral from MASS-DIMM. |
+| `seeing` | `(time)` | arcsec | MASS-DIMM integrated astronomical seeing. |
+| `temp_profile` | `(time, height_lhatpro)`| K | LHATPRO radiometric temperature vertical profile. |
+| `wind_speed` | `(time)` | m/s | Wind speed at 30 m tower. |
+| `wind_dir` | `(time)` | deg | Wind direction at 30 m tower (meteorological convention, 0/360). |
+| `pressure` | `(time)` | hPa | Surface atmospheric pressure. |
+| `rh` | `(time)` | % | Relative humidity at 2 m. |
+| `night_id` | `(time)` | int | Observing-session identifier (YYYYMMDD format of shifted local date). |
 
 ### Global Attributes
 
 *   **project**: `otbench v2`
-*   **site**: `ESO Paranal`
-*   **description**: `Tomographic Benchmark (MASS+SLODAR+LHATPRO)`
-*   **processing**: `Causal Backward Merge (2min tolerance), 1-min Regularization`
+*   **site**: `ESO Paranal Observatory`
+*   **site_latitude**: `-24.6272`
+*   **site_longitude**: `-70.4048`
+*   **site_altitude_m**: `2635`
+*   **description**: `Optical Turbulence Tomography Benchmark (MASS + LHATPRO + Meteo)`
+*   **processing**: Causal backward merge with per-instrument tolerances; 1-min regularization.
+
+## Reproducing the Dataset
+
+```bash
+cd otbench/data/paranal_tomography
+python pipeline.py
+```
+
+This fetches raw monthly CSVs from the ESO archive (if not already cached in `raw/`) and produces `paranal_tomography.nc`.
