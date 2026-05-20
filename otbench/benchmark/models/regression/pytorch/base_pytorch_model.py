@@ -145,16 +145,15 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
     def _apply_normalization(self, X: Union['pd.DataFrame', np.ndarray],
                              y: Union['pd.DataFrame', np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
         """Apply normalization learned during training for test or validation."""
-        # replace missing values with the mean of that column
-        # replace missing values with the mean of that column
-        # vector-safe replacement: calculate indices of NaNs and replace with corresponding column mean
+        # Replace NaN with training mean before normalizing.
+        # X may be 3-D [samples, window, features] — broadcast X_mean over the
+        # sample axis so that each (window, feature) position is filled correctly.
         if np.any(np.isnan(X)):
-            inds = np.where(np.isnan(X))
-            X[inds] = np.take(self.X_mean, inds[1])
+            X = np.where(np.isnan(X), self.X_mean, X)
 
+        # y is 2-D [samples, output_size]; broadcast y_mean over sample axis.
         if np.any(np.isnan(y)):
-            inds = np.where(np.isnan(y))
-            y[inds] = np.take(self.y_mean, inds[1])
+            y = np.where(np.isnan(y), self.y_mean, y)
 
         # normalize the data before training
         X = (X - self.X_mean) / self.X_std

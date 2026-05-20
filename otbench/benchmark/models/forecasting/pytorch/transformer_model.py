@@ -115,8 +115,13 @@ class TransformerModel(BasePyTorchForecastingModel):
         if len(X) == 0:
             return
 
-        # 1. Dimension Guard
-        n_features_in_data = len(X.columns) // self.window_size
+        # 1. Dimension Guard — matches the reshape logic in _set_dataloader_from_data:
+        # temporal mode when columns divide evenly, flat mode otherwise.
+        n_cols = len(X.columns)
+        if self.window_size > 1 and n_cols % self.window_size == 0:
+            n_features_in_data = n_cols // self.window_size
+        else:
+            n_features_in_data = n_cols  # flat/single-step mode
         if n_features_in_data != self.input_size:
             raise ValueError(f"Dimension Mismatch: Model initialized with input_size={self.input_size}, "
                              f"but training data has {n_features_in_data} features per timestep.")

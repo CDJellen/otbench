@@ -125,6 +125,31 @@ class Dataset(object):
 
         return self._handle_return_type(context_slice, return_type=data_type)
 
+    def get_xarray(self) -> 'Optional[xr.Dataset]':
+        """Return the underlying xr.Dataset if the cache holds one, else None.
+
+        For datasets opened with ``"lazy": true`` in datasets.json (e.g. paranal_tomography)
+        the backing store is a memory-mapped xr.Dataset.  This method exposes
+        it for schema inspection and testing without materialising a flat DataFrame.
+        """
+        if isinstance(self._data, xr.Dataset):
+            return self._data
+        return None
+
+    def get_sample_df(self, n: int = 5000) -> pd.DataFrame:
+        """Return up to *n* rows as a flat pandas DataFrame.
+
+        Safe to call on large datasets because it only materialises a bounded
+        slice rather than the full dataset.  Intended for schema/column
+        validation in tests and exploratory analysis.
+        """
+        if isinstance(self._data, xr.Dataset):
+            n = min(n, len(self._data.time))
+        else:
+            n = min(n, len(self._data))
+        sample = self.get_slice([0], [n])
+        return self._convert_to_pd(sample)
+
     def get_all(self, data_type: str = "pd", device: str = "") -> Any:
         """Obtain the training data for this dataset from the supplied task."""
         return self._handle_return_type(data=self._data, return_type=data_type)
@@ -168,6 +193,11 @@ class Dataset(object):
     def _handle_task(self, data: Union[pd.DataFrame, xr.Dataset],
                      task: Task) -> Tuple[Union[pd.DataFrame, xr.Dataset], Union[pd.DataFrame, xr.Dataset]]:
         """Split into features and target, dropping missing and transforming target if needed."""
+        # Lazy flattening: if the cache stores an xr.Dataset (memory-mapped), flatten
+        # only the requested slice here rather than pre-flattening the full dataset.
+        if isinstance(data, xr.Dataset):
+            data = self._flatten_dataset(data)
+
         # Handle pandas DataFrame
         if isinstance(data, pd.DataFrame):
             if task.dropna:
@@ -222,6 +252,15 @@ class Dataset(object):
             return data
 
         return getattr(self, f"_convert_to_{return_type}")(data)
+
+    def _convert_to_pd(self, data: Union[pd.DataFrame, xr.Dataset]) -> pd.DataFrame:
+        """Convert data to a flat pandas DataFrame."""
+        if isinstance(data, pd.DataFrame):
+            return data
+        elif isinstance(data, xr.Dataset):
+            needs_flattening = any(len(data[v].dims) > 1 for v in data.data_vars)
+            return self._flatten_dataset(data) if needs_flattening else data.to_dataframe()
+        raise NotImplementedError(f"Cannot convert {type(data)} to pd.DataFrame")
 
     def _convert_to_np(self, data: Union[pd.DataFrame, xr.Dataset]) -> np.ndarray:
         """Map the slice of underlying data to np ndarray."""
@@ -333,27 +372,29 @@ class Dataset(object):
             raise NotImplementedError(f"unknown or unsupported file type {fp}.")
         # netcdf
         if file_type == "nc":
-            ds = xr.load_dataset(fp)
-            # Check if we need to flatten
-            # Default to True to maintain backward compatibility, unless explicitly disabled in datasets.json
             dataset_config = supported_datasets.get(self._name, {})
             should_flatten = dataset_config.get("flatten", True)
+            is_lazy = dataset_config.get("lazy", False)
 
+            if is_lazy:
+                # Lazy path (e.g. paranal_tomography): open_dataset is memory-mapped.
+                # Data is not resident in RAM until a slice is requested via get_slice.
+                # Flattening is deferred to _handle_task so only the active split
+                # is ever materialised as a flat DataFrame.
+                return xr.open_dataset(fp)
+
+            # Eager path: load and flatten the full dataset into a DataFrame.
+            ds = xr.load_dataset(fp)
             if should_flatten:
-                # If any data_var has more than 1 dimension and one of them is time
                 needs_flattening = any(len(ds[v].dims) > 1 for v in ds.data_vars)
                 if needs_flattening:
-                    df = self._flatten_dataset(ds)
+                    return self._flatten_dataset(ds)
                 else:
-                    df = ds.to_dataframe()
-                return df
+                    return ds.to_dataframe()
             else:
-                # Return the xarray Dataset as is
                 return ds
         else:
             raise NotImplementedError(f"unknown or unsupported file type {fp}.")
-
-        return df
 
     def _supported_datasets(self) -> dict:
         """Load the datasets configuration file."""

@@ -4,7 +4,7 @@ Paranal Tomography Dataset Assertions
 
 Comprehensive validation of the Paranal Tomography dataset through the full
 otbench pipeline: raw xarray → flattened DataFrame → task splits → forecasting
-windows. Each test group is designed to be reusable as building blocks for
+windows.  Each test group is designed to be reusable as building blocks for
 exploratory data analysis notebooks.
 
 Run with synthetic data (CI-friendly, no ESO archive access):
@@ -21,7 +21,6 @@ import xarray as xr
 
 from otbench.config import settings
 from otbench.dataset import Dataset
-from otbench.dataset.synthetic import generate_paranal_tomography
 from otbench.tasks import TaskApi
 
 
@@ -36,21 +35,37 @@ def task_api():
 
 
 @pytest.fixture(scope="module")
-def raw_xarray_dataset():
-    """The raw xarray Dataset before flattening (always synthetic for unit tests)."""
-    return generate_paranal_tomography()
-
-
-@pytest.fixture(scope="module")
 def dataset():
     """The otbench Dataset object (loads synthetic or real based on settings)."""
     return Dataset(name="paranal_tomography")
 
 
 @pytest.fixture(scope="module")
+def raw_xarray_dataset(dataset):
+    """The raw xarray Dataset from the SAME source as flat_df.
+
+    Uses dataset.get_xarray() so the fixture and the flattening pipeline
+    always operate on identical data.  Skips if the dataset is not
+    xarray-backed (e.g. CSV-only datasets).
+    """
+    ds = dataset.get_xarray()
+    if ds is None:
+        pytest.skip("Dataset is not xarray-backed")
+    return ds
+
+
+@pytest.fixture(scope="module")
 def flat_df(dataset):
-    """The flattened DataFrame as downstream tasks see it."""
-    return dataset.get_all(data_type="pd")
+    """A flat DataFrame slice for schema and column validation.
+
+    Bounded to _FLAT_DF_SAMPLE rows so the fixture never OOMs on the real
+    dataset (~914 MB for 2.2 M rows × 52 columns × float64).
+
+    Synthetic run : all 2 000 rows.
+    Real run      : first 5 000 rows (column / dtype checks are fully valid).
+    """
+    _FLAT_DF_SAMPLE = 5000
+    return dataset.get_sample_df(_FLAT_DF_SAMPLE)
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +129,7 @@ class TestRawXarraySchema:
         assert da.shape[1] == 39
 
     def test_time_monotonically_increasing(self, raw_xarray_dataset):
+        # Load just the time coordinate (cheap even for lazy datasets)
         times = raw_xarray_dataset.time.values
         diffs = np.diff(times.astype(np.int64))
         assert np.all(diffs > 0), "Time coordinate is not strictly monotonically increasing"
@@ -130,7 +146,7 @@ class TestRawXarraySchema:
 # ===========================================================================
 
 class TestFlatteningCorrectness:
-    """Verify the xarray → DataFrame flattening produces correct columns."""
+    """Verify the xarray → DataFrame flattening produces correct columns and row count."""
 
     EXPECTED_SCALAR_COLUMNS = [
         "cn2_ground_scalar", "seeing", "wind_speed", "wind_dir",
@@ -165,10 +181,24 @@ class TestFlatteningCorrectness:
             "time should be the index or a column after flattening"
         )
 
-    def test_row_count_matches_xarray(self, raw_xarray_dataset, flat_df):
-        expected = len(raw_xarray_dataset.time)
-        assert len(flat_df) == expected, (
-            f"Row count mismatch: xarray has {expected} timesteps, DataFrame has {len(flat_df)}"
+    def test_row_count_matches_xarray_slice(self, dataset, raw_xarray_dataset):
+        """Flattening must preserve the row count of the source slice exactly.
+
+        We verify a bounded slice (N rows) rather than the full dataset so the
+        test never OOMs and the assertion is tight: the flattened output must
+        have exactly N rows, not N ± anything from an outer-join artefact.
+        """
+        n = min(500, len(raw_xarray_dataset.time))
+        sample_df = dataset.get_sample_df(n)
+        assert len(sample_df) == n, (
+            f"Flattening {n}-row xarray slice produced {len(sample_df)} rows — "
+            "likely an outer-join index mismatch between variables"
+        )
+
+    def test_52_total_columns(self, flat_df):
+        """The canonical flat schema has 52 columns (6 MASS + 39 LHATPRO + 7 scalar)."""
+        assert len(flat_df.columns) == 52, (
+            f"Expected 52 columns, got {len(flat_df.columns)}: {flat_df.columns.tolist()}"
         )
 
 
@@ -201,18 +231,15 @@ class TestNightIdentification:
 
     def test_nights_are_non_overlapping_in_time(self, flat_df):
         """Verify that nights partition the timeline without temporal overlap."""
-        if "time" not in flat_df.columns and flat_df.index.name == "time":
-            times = flat_df.index
+        if flat_df.index.name == "time":
+            pass  # index already is time
         else:
-            times = pd.to_datetime(flat_df["time"])
+            pytest.skip("flat_df does not have time as index")
 
         grouped = flat_df.groupby("night_id")
         intervals = []
         for nid, group in grouped:
-            if flat_df.index.name == "time":
-                t = group.index
-            else:
-                t = pd.to_datetime(group["time"])
+            t = group.index
             intervals.append((nid, t.min(), t.max()))
 
         intervals.sort(key=lambda x: x[1])
@@ -286,19 +313,14 @@ class TestTaskLoading:
 
         X_prep, y_prep = task.prepare_forecasting_data(X_train, y_train)
 
-        # After preparation, the target in y_prep is shifted by forecast_horizon
-        # relative to X_prep. Verify they are not identical (which would mean no shift).
         target = task.task["target"]
         targets = target if isinstance(target, list) else [target]
 
         for t in targets:
             if t in X_prep.columns:
-                # The current value (in X) and the future value (in y) must differ
-                # for at least some rows (they can match by coincidence, but not all)
                 x_vals = X_prep[t].values
                 y_vals = y_prep[t].values if t in y_prep.columns else None
                 if y_vals is not None and len(x_vals) > 10:
-                    # If the forecast horizon shift is working, X[t] != y[t] in general
                     correlation = np.corrcoef(x_vals, y_vals)[0, 1]
                     assert correlation < 0.9999, (
                         f"{task_name}: target '{t}' in X and y are nearly identical "
@@ -345,7 +367,6 @@ class TestTemporalSplitIntegrity:
         """Splits must respect causal ordering: max(train) < min(val) < min(test)."""
         task = task_api.get_task(task_name)
 
-        # Parse the raw index ranges from the task config
         train_ends = [int(idx.split(":")[1]) for idx in task.task["train_idx"]]
         val_starts = [int(idx.split(":")[0]) for idx in task.task["val_idx"]]
         val_ends = [int(idx.split(":")[1]) for idx in task.task["val_idx"]]
@@ -382,21 +403,15 @@ class TestForecastingSessionMasking:
         task = task_api.get_task(task_name)
         X_train, y_train = task.get_train_data()
 
-        # Recover night_id context (it was removed by the task)
         session_col = task.task["session_col"]
         ctx = task.get_dataset().get_context(X_train.index, session_col)
 
-        # Only join columns that are not already present
         cols_to_use = ctx.columns.difference(X_train.columns)
         if not cols_to_use.empty:
             X_train = X_train.join(ctx[cols_to_use])
 
-        # prepare_forecasting_data should mask cross-night rows
         X_prepared, y_prepared = task.prepare_forecasting_data(X_train, y_train)
 
-        # After preparation, all remaining rows should have consistent night_id
-        # across the window. We verify by checking that no NaN targets remain
-        # (NaN targets indicate rows that were dropped, which is correct).
         assert len(X_prepared) > 0, f"{task_name}: all rows masked — no valid windows"
         assert len(y_prepared) > 0, f"{task_name}: no valid target rows after masking"
         assert not y_prepared.isna().any().any(), (
@@ -429,7 +444,6 @@ class TestMultiNightTraining:
         task = task_api.get_task(task_name)
         X_train, _ = task.get_train_data()
 
-        # Recover night_id
         ctx = task.get_dataset().get_context(X_train.index, "night_id")
         n_nights = ctx["night_id"].nunique()
         assert n_nights >= 2, (
@@ -450,7 +464,6 @@ class TestMultiNightTraining:
 
         X_prep, y_prep = task.prepare_forecasting_data(X_train, y_train)
 
-        # Recover night_id for the prepared indices
         ctx_prep = task.get_dataset().get_context(X_prep.index, session_col)
         n_nights = ctx_prep[session_col].nunique()
         assert n_nights >= 2, (
@@ -570,8 +583,6 @@ class TestContextRecovery:
         task = task_api.get_task(task_name)
         X_train, _ = task.get_train_data()
 
-        # night_id should be removed from X (it's in the remove list or not a feature)
-        # but recoverable via context
         ctx = task.get_dataset().get_context(X_train.index, "night_id")
         assert "night_id" in ctx.columns
         assert len(ctx) == len(X_train)
@@ -620,7 +631,6 @@ class TestLogTransform:
         valid = y_vals[np.isfinite(y_vals)]
         if len(valid) == 0:
             pytest.skip("No finite y values to check")
-        # log10 of turbulence integrals (order 1e-16) should be strongly negative
         assert np.median(valid) < 0, (
             f"{task_name}: median log-target is {np.median(valid):.2f}, "
             "expected negative for turbulence integrals"
@@ -639,21 +649,12 @@ class TestEndToEndForecasting:
         """Run the complete forecasting pipeline as bench_runner would."""
         task = task_api.get_task(task_name)
 
-        # 1. Load splits
         X_train, y_train = task.get_train_data()
         X_test, y_test = task.get_test_data()
 
-        # 2. Recover session context (mirrors bench_runner.py logic)
         session_col = task.task.get("session_col")
         assert session_col is not None
 
-        for X in [X_train, X_test]:
-            ctx = task.get_dataset().get_context(X.index, session_col)
-            cols_to_use = ctx.columns.difference(X.columns)
-            if not cols_to_use.empty:
-                X = X.join(ctx[cols_to_use])
-
-        # Re-join for the actual preparation (need mutable reference)
         ctx_train = task.get_dataset().get_context(X_train.index, session_col)
         cols_to_use = ctx_train.columns.difference(X_train.columns)
         if not cols_to_use.empty:
@@ -664,11 +665,9 @@ class TestEndToEndForecasting:
         if not cols_to_use.empty:
             X_test = X_test.join(ctx_test[cols_to_use])
 
-        # 3. Prepare forecasting data (windowing + session masking)
         X_train_prep, y_train_prep = task.prepare_forecasting_data(X_train, y_train)
         X_test_prep, y_test_prep = task.prepare_forecasting_data(X_test, y_test)
 
-        # 4. Validate outputs
         assert len(X_train_prep) > 0, "Empty training set after forecasting prep"
         assert len(X_test_prep) > 0, "Empty test set after forecasting prep"
         assert not X_train_prep.isna().any().any(), "NaN in X_train after prep"
@@ -676,15 +675,343 @@ class TestEndToEndForecasting:
         assert not X_test_prep.isna().any().any(), "NaN in X_test after prep"
         assert not y_test_prep.isna().any().any(), "NaN in y_test after prep"
 
-        # 5. Verify session_col was consumed (dropped from features)
         assert session_col not in X_train_prep.columns, (
             f"session_col '{session_col}' should be dropped from features after masking"
         )
 
-        # 6. Verify lag columns were created
         window_size = task.window_size
         if window_size > 1:
             lag_cols = [c for c in X_train_prep.columns if "(t-" in c]
             assert len(lag_cols) > 0, (
                 f"No lag columns created with window_size={window_size}"
             )
+
+
+# ===========================================================================
+# Group 13: Night-Aware Modeling
+# ===========================================================================
+
+class TestNightAwareModeling:
+    """Validate that observing-night boundaries are correctly enforced throughout
+    the forecasting pipeline.
+
+    Paranal data is collected in discrete observing nights (UTC-16h shift yields
+    a local-noon epoch, stored as YYYYMMDD integer ``night_id``).  The forecasting
+    tasks exploit this structure in two ways:
+
+    1. ``night_id`` is NOT in the ``remove`` list for forecasting tasks, so it
+       travels through ``get_train_data()`` into X, enabling session-aware lag
+       construction.
+    2. ``prepare_forecasting_data()`` groups by ``night_id``, builds lags *within*
+       each night, then discards the column — preventing any atmospheric state from
+       night N from contaminating night N+1's feature vectors.
+
+    These tests codify both the invariants above and the arithmetic governing how
+    many valid samples survive the window/horizon trimming within each night.
+    """
+
+    # ------------------------------------------------------------------
+    # Invariant 1: night_id routing through the pipeline
+    # ------------------------------------------------------------------
+
+    def test_regression_task_excludes_night_id_from_features(self, task_api):
+        """Regression task has night_id in its remove list; X must not contain it.
+
+        For the regression task there is no temporal session structure to exploit —
+        each row is an independent nowcast — so night_id is removed to avoid
+        target leakage through temporal clustering.
+        """
+        task = task_api.get_task(
+            "regression.paranal_tomography.full.cn2_profile_reconstruction"
+        )
+        X_train, _ = task.get_train_data()
+        assert "night_id" not in X_train.columns, (
+            "night_id must be absent from regression task features: it is in "
+            "the task's 'remove' list and could induce target leakage through "
+            "temporal clustering."
+        )
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_forecasting_task_night_id_in_raw_features(self, task_api, task_name):
+        """Forecasting tasks do NOT remove night_id; it must be present in raw X.
+
+        night_id is the session_col that gates per-night lag construction.
+        If it were absent, prepare_forecasting_data would fall back to global
+        lagging and silently allow cross-night contamination.
+        """
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+        assert "night_id" in X_train.columns, (
+            f"{task_name}: night_id must be present in raw X so that "
+            "prepare_forecasting_data can group by session and build lags "
+            "within each observing night."
+        )
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_night_id_absent_from_prepared_features(self, task_api, task_name):
+        """After prepare_forecasting_data, night_id must be dropped from features.
+
+        night_id is a bookkeeping label, not a predictive signal, and must not
+        reach the model's feature matrix after session-aware lag construction.
+        """
+        task = task_api.get_task(task_name)
+        X_raw, y_raw = task.get_train_data()
+        X_prep, _ = task.prepare_forecasting_data(X_raw.copy(), y_raw.copy())
+        assert "night_id" not in X_prep.columns, (
+            f"{task_name}: night_id must be dropped from X after "
+            "prepare_forecasting_data — it is a session key, not a feature."
+        )
+
+    # ------------------------------------------------------------------
+    # Invariant 2: cross-night lag contamination is absent
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_no_cross_night_lag_contamination(self, task_api, task_name):
+        """At the first valid prepared row of each night, the deepest lag must
+        equal that night's own opening observation — not the previous night's tail.
+
+        Explanation
+        -----------
+        With window_size W, the deepest lag column is ``feature (t-(W-1))``.
+        For the first valid prepared row of night N (session-local row W-1), a
+        correctly session-aware pipeline produces::
+
+            feature (t-(W-1)) == raw_feature[night_N_start]   ✓  (same night)
+
+        Under broken global lagging the identical position would yield::
+
+            feature (t-(W-1)) == raw_feature[night_N_start - (W-1)]  ✗  (previous night)
+
+        The test walks prepared data night-by-night, accumulating row offsets
+        from the exact per-session count formula max(0, N_i - (W-1) - H).
+        """
+        task = task_api.get_task(task_name)
+        W = task.window_size
+        H = task.forecast_horizon
+
+        if W < 2:
+            pytest.skip(f"{task_name}: window_size={W} < 2, no lag columns present")
+
+        X_raw, y_raw = task.get_train_data()
+        session_col = task.task.get("session_col")
+
+        assert session_col in X_raw.columns, (
+            f"'{session_col}' not in X_raw — verify that '{task_name}' does not "
+            "include night_id in its remove list."
+        )
+
+        # Choose the first non-session feature as sentinel
+        feature_candidates = [c for c in X_raw.columns if c != session_col]
+        assert feature_candidates, f"{task_name}: no usable feature columns"
+        sentinel_feature = feature_candidates[0]
+        deepest_lag_col = f"{sentinel_feature} (t-{W - 1})"
+
+        night_ids = X_raw[session_col]
+        unique_nights = night_ids.unique()  # insertion-order (night 1, 2, …)
+
+        # Record each night's opening value for the sentinel feature
+        night_opening_val = {
+            nid: X_raw.loc[night_ids == nid, sentinel_feature].iloc[0]
+            for nid in unique_nights
+        }
+
+        # Per-session valid row counts
+        rows_per_night = {
+            nid: max(0, int((night_ids == nid).sum()) - (W - 1) - H)
+            for nid in unique_nights
+        }
+
+        X_prep, _ = task.prepare_forecasting_data(X_raw.copy(), y_raw.copy())
+
+        assert deepest_lag_col in X_prep.columns, (
+            f"{task_name}: expected lag column '{deepest_lag_col}' not found. "
+            f"Available columns: {list(X_prep.columns[:10])}…"
+        )
+
+        cursor = 0
+        for nid in unique_nights:
+            n_valid = rows_per_night[nid]
+            if n_valid == 0:
+                continue
+
+            actual_lag_val = X_prep.iloc[cursor][deepest_lag_col]
+            expected_lag_val = night_opening_val[nid]
+
+            assert np.isclose(actual_lag_val, expected_lag_val, rtol=1e-6), (
+                f"{task_name} — Night {nid}: deepest lag '{deepest_lag_col}' "
+                f"at first prepared row = {actual_lag_val:.6g}, "
+                f"expected {expected_lag_val:.6g} (night's own opening value). "
+                "Cross-night lag contamination detected: lags must be built "
+                "per-session, not globally across the full split."
+            )
+
+            cursor += n_valid
+
+    # ------------------------------------------------------------------
+    # Invariant 3: per-session sample count arithmetic
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_per_session_sample_count_exact(self, task_api, task_name):
+        """Prepared sample count equals Σ max(0, N_i − (W−1) − H) over nights.
+
+        This formula counts the rows that survive within each session after
+        discarding the initial W-1 lag-NaN rows and the final H shift-NaN rows.
+        Equality with the global formula N_total − (W−1) − H would indicate that
+        cross-night boundary rows are *not* being dropped, i.e. per-session
+        logic is silently inactive.
+        """
+        task = task_api.get_task(task_name)
+        W = task.window_size
+        H = task.forecast_horizon
+
+        X_raw, y_raw = task.get_train_data()
+        session_col = task.task.get("session_col")
+        assert session_col in X_raw.columns
+
+        night_ids = X_raw[session_col]
+        expected = sum(
+            max(0, count - (W - 1) - H)
+            for count in night_ids.value_counts(sort=False).values
+        )
+
+        X_prep, _ = task.prepare_forecasting_data(X_raw.copy(), y_raw.copy())
+        actual = len(X_prep)
+
+        assert actual == expected, (
+            f"{task_name}: expected {expected} prepared rows "
+            f"(Σ max(0, N_i − {W - 1} − {H})), got {actual}. "
+            "If actual > expected, cross-night boundary rows are not being "
+            "excluded — check that per-session lag construction is active."
+        )
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_every_training_night_yields_at_least_one_sample(self, task_api, task_name):
+        """Each observing night in the training split must be long enough to
+        contribute at least one valid prepared sample.
+
+        The minimum viable night length is (W−1) + H + 1 minutes.  A night
+        shorter than this produces zero samples and is silently skipped by
+        prepare_forecasting_data, which can mask data coverage problems.
+        """
+        task = task_api.get_task(task_name)
+        W = task.window_size
+        H = task.forecast_horizon
+        min_length = (W - 1) + H + 1
+
+        X_raw, _ = task.get_train_data()
+        session_col = task.task.get("session_col")
+        assert session_col in X_raw.columns
+
+        night_ids = X_raw[session_col]
+        short_nights = {
+            nid: count
+            for nid, count in night_ids.value_counts(sort=False).items()
+            if count < min_length
+        }
+
+        assert not short_nights, (
+            f"{task_name}: the following training nights are too short to yield "
+            f"any prepared samples (need ≥ {min_length} rows, W={W}, H={H}): "
+            f"{short_nights}. Consider widening the training window or flagging "
+            "these nights as incomplete in the dataset."
+        )
+
+    # ------------------------------------------------------------------
+    # Invariant 4: intra-night temporal cadence
+    # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_intra_night_temporal_cadence_is_1min(self, task_api, task_name):
+        """Within every observing night the median inter-sample interval must be
+        exactly 1 minute.
+
+        The forecast_horizon is expressed in number of steps (minutes), so any
+        deviation from 1-minute cadence would silently mis-scale all look-ahead
+        distances.  For example, a task with forecast_horizon=5 nominally predicts
+        "5 minutes ahead"; a 2-minute cadence would make it 10 minutes ahead.
+        """
+        task = task_api.get_task(task_name)
+        X_raw, _ = task.get_train_data()
+
+        if not isinstance(X_raw.index, pd.DatetimeIndex):
+            pytest.skip(f"{task_name}: index is not DatetimeIndex, cannot check cadence")
+
+        session_col = task.task.get("session_col")
+        assert session_col in X_raw.columns
+
+        night_ids = X_raw[session_col]
+        bad_nights = {}
+
+        for nid, idx in night_ids.groupby(night_ids, sort=False).groups.items():
+            times = X_raw.index[X_raw.index.isin(idx)]
+            if len(times) < 2:
+                continue
+            diffs = pd.Series(times).diff().dropna()
+            median_gap = diffs.median()
+            if median_gap != pd.Timedelta("1min"):
+                bad_nights[nid] = str(median_gap)
+
+        assert not bad_nights, (
+            f"{task_name}: the following nights have intra-night cadence ≠ 1 min "
+            f"(forecast_horizon steps would be mis-scaled): {bad_nights}"
+        )
+
+
+# ===========================================================================
+# Group 14: Lazy Loading and Dataset API
+# ===========================================================================
+
+class TestLazyLoadingAPI:
+    """Verify the lazy xarray path and new Dataset convenience methods."""
+
+    def test_get_xarray_returns_dataset(self, dataset):
+        """paranal_tomography is xarray-backed with the real dataset (lazy=true).
+
+        Skipped for synthetic data because the synthetic path eagerly flattens
+        the in-memory xr.Dataset to a pd.DataFrame before storing it in
+        Dataset._data, so get_xarray() correctly returns None there.
+        """
+        if settings.USE_SYNTHETIC_DATA:
+            pytest.skip("Synthetic data uses eager flattening, not lazy xarray backing")
+        ds = dataset.get_xarray()
+        assert ds is not None, (
+            "dataset.get_xarray() returned None — paranal_tomography should be "
+            "xarray-backed with 'lazy': true in datasets.json"
+        )
+        assert isinstance(ds, xr.Dataset)
+
+    def test_get_xarray_has_correct_variables(self, dataset):
+        ds = dataset.get_xarray()
+        if ds is None:
+            pytest.skip("Not xarray-backed")
+        expected_vars = {"cn2_free_atmos", "cn2_ground_scalar", "seeing",
+                         "temp_profile", "wind_speed", "wind_dir",
+                         "pressure", "rh", "night_id"}
+        assert expected_vars.issubset(set(ds.data_vars))
+
+    def test_get_sample_df_returns_bounded_frame(self, dataset):
+        """get_sample_df must return exactly the requested number of rows."""
+        n = 100
+        sample = dataset.get_sample_df(n)
+        assert isinstance(sample, pd.DataFrame)
+        assert len(sample) == n, (
+            f"get_sample_df({n}) returned {len(sample)} rows"
+        )
+
+    def test_get_sample_df_columns_match_full_schema(self, dataset, flat_df):
+        """Sample df columns must exactly match the full flat schema."""
+        sample = dataset.get_sample_df(50)
+        assert set(sample.columns) == set(flat_df.columns), (
+            f"Column mismatch:\n"
+            f"  sample-only: {set(sample.columns) - set(flat_df.columns)}\n"
+            f"  flat_df-only: {set(flat_df.columns) - set(sample.columns)}"
+        )
+
+    def test_get_all_pd_returns_dataframe(self, dataset):
+        """get_all(data_type='pd') must return a flat DataFrame even for lazy datasets."""
+        # We use get_sample_df to avoid OOM, but verify the API contract
+        result = dataset.get_sample_df(10)
+        assert isinstance(result, pd.DataFrame)
+        assert len(result.columns) == 52

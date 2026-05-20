@@ -12,12 +12,21 @@ __all__ = [
     "mean_absolute_percentage_error", "integrated_seeing"
 ]
 
+# Canonical set of callable metric names.  Kept separate from __all__ so that
+# is_implemented_metric (a utility function, not a metric) is not mistakenly
+# treated as a metric name.
+_METRIC_NAMES = frozenset({
+    "coefficient_of_determination",
+    "root_mean_square_error",
+    "mean_absolute_error",
+    "mean_absolute_percentage_error",
+    "integrated_seeing",
+})
+
 
 def is_implemented_metric(metric_name: str) -> bool:
-    """Check that the metric is implemented"""
-    if metric_name in __all__:
-        return True
-    return False
+    """Return True if metric_name is a callable metric in this module."""
+    return metric_name in _METRIC_NAMES
 
 
 def coefficient_of_determination(y_true: Sequence, y_pred: Sequence, detailed: bool = False) -> dict:
@@ -72,7 +81,14 @@ def mean_absolute_error(y_true: Sequence, y_pred: Sequence, detailed: bool = Fal
 
 
 def mean_absolute_percentage_error(y_true: Sequence, y_pred: Sequence, detailed: bool = False) -> dict:
-    """An alias for `sklearn.metrics.mean_absolute_percentage_error`."""
+    """Compute mean absolute percentage error via `sklearn.metrics.mean_absolute_percentage_error`.
+
+    Note: for tasks that apply a base-10 log transform to the target (``log_transform: true``
+    in the task specification), both ``y_true`` and ``y_pred`` are in log10 space.  MAPE
+    computed in log10 space is *not* the standard percentage error on the raw values — it
+    measures the relative error of the log10 quantities.  Use with care when comparing
+    across tasks with different transform settings.
+    """
     y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
     if len(y_pred) == 0:
         return _format_metric(np.nan, 0)

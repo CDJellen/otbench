@@ -278,7 +278,7 @@
             "full": {
                 "seeing_nowcast": {
                     "description": "Scalar Nowcasting (Operational)",
-                    "description_long": "Predicting scalar seeing 10 minutes ahead to optimize queue scheduling.",
+                    "description_long": "Predicting scalar seeing 5 minutes ahead to optimize queue scheduling.",
                     "ds_name": "paranal_tomography",
                     "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
@@ -299,7 +299,7 @@
                         "root_mean_square_error",
                         "mean_absolute_error"
                     ],
-                    "window_size": 30,
+                    "window_size": 20,
                     "forecast_horizon": 5,
                     "target": "seeing",
                     "remove": [

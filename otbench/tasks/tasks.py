@@ -10,7 +10,6 @@ import pandas as pd
 
 import otbench.eval as eval_metrics
 from otbench.dataset import Dataset
-from otbench.dataset import Dataset
 from otbench.config import BENCHMARK_FP, settings
 
 
@@ -252,6 +251,17 @@ class RegressionTask(BaseTask):
         # obtain evaluation data
         X_test, y_test = self.get_test_data(data_type=data_type)
 
+        # Exclude rows where the ground truth is absent — metrics are undefined
+        # on those rows and including them would silently corrupt aggregate
+        # statistics (e.g. NaN propagation into RMSE).  The filtered count
+        # matches bench_runner's possible_predictions exactly.
+        if isinstance(y_test, pd.DataFrame):
+            valid = y_test.notna().all(axis=1)
+        else:
+            valid = y_test.notna()
+        X_test = X_test[valid]
+        y_test = y_test[valid]
+
         # apply x_transforms if present
         if x_transforms is not None:
             if x_transform_kwargs is not None:
@@ -303,73 +313,95 @@ class ForecastingTask(BaseTask):
                                  y: Union[pd.DataFrame, pd.Series],
                                  window_size: Union[int, None] = None,
                                  forecast_horizon: Union[int, None] = None):
-        """Prepare data for forecasting, respecting session boundaries."""
+        """
+        Prepare data for forecasting, respecting session boundaries.
+
+        When a session_col is set (e.g. night_id), lags are built *within each
+        session* rather than across the full split.  This bounds peak memory to
+        O(session_length × n_features × window_size) instead of
+        O(N_total × n_features × window_size), and prevents lag values from
+        bleeding across observing-night boundaries.
+        """
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
-        
-        # 1. Session Masking (Prevent Night-to-Night leakage)
-        # ---------------------------------------------------
         session_col = self.task.get("session_col")
-        valid_session_mask = None
 
         if session_col and session_col in X.columns:
-            # Check if session at T is same as session at T-Window
-            current_session = X[session_col]
-            past_session = X[session_col].shift(window_size)
-            
-            # Mask valid rows
-            valid_session_mask = (current_session == past_session)
-            
-            # Clean up feature set
+            # -----------------------------------------------------------
+            # Per-session lag construction
+            # Build lags independently for each contiguous session block,
+            # then concatenate.  Cross-session rows are naturally excluded
+            # because _add_lags shifts within the session only.
+            # -----------------------------------------------------------
+            sessions = X[session_col]
             X = X.drop(columns=[session_col])
 
-        # 2. Feature Engineering (Lags) on DENSE GRID
-        # ---------------------------------------------------
-        if window_size > 1:
-            X = self._add_lags(X, (window_size - 1))
+            X_parts: list = []
+            y_parts: list = []
 
-        # 3. Target Alignment
-        # ---------------------------------------------------
-        # Shift y back by horizon (Direct Forecasting)
-        y = self._shift_target(y, forecast_horizon)
+            for _session_id, idx in sessions.groupby(sessions, sort=False).groups.items():
+                X_sess = X.loc[idx]
+                y_sess = y.loc[idx]
 
-        # 4. Collision-Safe Join
-        # ---------------------------------------------------
-        # We enforce unique names for Y to avoid implicit pandas suffixes (e.g. _x, _y)
-        # causing KeyErrors when we try to extract them later.
+                if window_size > 1:
+                    X_sess = self._add_lags(X_sess, window_size - 1)
+                y_sess = self._shift_target(y_sess, forecast_horizon)
+
+                combined = self._join_and_clean(X_sess, y_sess)
+                if combined is None:
+                    continue
+
+                target_cols, original_y_cols = combined.attrs["_target_cols"], combined.attrs["_orig_y_cols"]
+                y_out = combined[target_cols].copy()
+                y_out.columns = original_y_cols
+                X_parts.append(combined.drop(columns=target_cols))
+                y_parts.append(y_out)
+
+            if not X_parts:
+                return pd.DataFrame(), pd.DataFrame()
+
+            return pd.concat(X_parts), pd.concat(y_parts)
+
+        else:
+            # -----------------------------------------------------------
+            # No session boundary: contiguous split (original behaviour)
+            # -----------------------------------------------------------
+            if window_size > 1:
+                X = self._add_lags(X, window_size - 1)
+            y = self._shift_target(y, forecast_horizon)
+
+            combined = self._join_and_clean(X, y)
+            if combined is None:
+                return pd.DataFrame(), pd.DataFrame()
+
+            target_cols, original_y_cols = combined.attrs["_target_cols"], combined.attrs["_orig_y_cols"]
+            y_out = combined[target_cols].copy()
+            y_out.columns = original_y_cols
+            return combined.drop(columns=target_cols), y_out
+
+    def _join_and_clean(self, X: pd.DataFrame,
+                        y: Union[pd.DataFrame, pd.Series]) -> Union[pd.DataFrame, None]:
+        """
+        Collision-safe join of X and shifted y, followed by dropna.
+        Returns the combined DataFrame with target column names stored in
+        .attrs so the caller can split them back out, or None if empty.
+        """
         if isinstance(y, pd.Series):
             y_temp = y.to_frame()
         else:
             y_temp = y.copy()
-            
-        # Create unique temporary keys for targets
+
         temp_suffix = "_TEMP_TARGET_XYZ"
         original_y_cols = y_temp.columns.tolist()
         y_temp.columns = [str(c) + temp_suffix for c in y_temp.columns]
-        
-        # Join (No suffixes needed, keys are guaranteed unique)
-        combined = X.join(y_temp)
-        
-        # Apply Session Mask
-        if valid_session_mask is not None:
-            combined = combined[valid_session_mask]
 
-        # 5. The Late Drop (Atomic Cleanup)
-        # ---------------------------------------------------
-        # Drop rows where inputs (X) or targets (y) are NaN.
-        combined = combined.dropna()
-        
-        # 6. Extraction & Restoration
-        # ---------------------------------------------------
-        # Extract using the known temp keys
-        target_cols = y_temp.columns 
-        y_out = combined[target_cols].copy()
-        X_out = combined.drop(columns=target_cols).copy()
-        
-        # Restore original target names
-        y_out.columns = original_y_cols
+        combined = X.join(y_temp).dropna()
+        if combined.empty:
+            return None
 
-        return X_out, y_out
+        combined.attrs["_target_cols"] = y_temp.columns.tolist()
+        combined.attrs["_orig_y_cols"] = original_y_cols
+        return combined
 
     def evaluate_model(self,
                        predict_call: Callable,
@@ -448,12 +480,19 @@ class ForecastingTask(BaseTask):
 
         return X
 
-    def _add_lags(self, X, window_size):
-        """Lag all feature columns from 1 to lags inclusive."""
+    def _add_lags(self, X: pd.DataFrame, n_lags: int) -> pd.DataFrame:
+        """Add lag columns for every feature column (1 … n_lags inclusive)."""
+        if n_lags < 1:
+            return X
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", pd.errors.PerformanceWarning)
-            X = X.assign(
-                **{f'{col} (t-{lag})': X[col].shift(lag) for lag in range(1, window_size + 1) for col in X.columns})
+            lag_dict = {
+                f'{col} (t-{lag})': X[col].shift(lag)
+                for lag in range(1, n_lags + 1)
+                for col in X.columns
+            }
+            X = X.assign(**lag_dict)
 
         return X
 

@@ -6,6 +6,7 @@ from otbench.eval import metrics
 from otbench.eval.integrated_metrics import integrated_seeing
 from otbench.tasks.tasks import TaskABC
 
+
 def test_metrics_detailed_return():
     """Verify that metrics return detailed info when requested."""
     y_true = np.array([[1.0, 2.0], [3.0, 4.0]])
@@ -44,19 +45,65 @@ def test_integrated_seeing_metric():
     assert res["seeing_true"][0] > res["seeing_pred"][0]
     assert np.isclose(res['metric_value'], res['seeing_true'][0] - res['seeing_pred'][0])
 
-def test_evaluate_model_detailed_propagation():
-    """Mock test to check if evaluate_model propagates detailed flag."""
-    # We mock Task to avoid loading full dataset
-    class MockTask:
-        def __init__(self):
-            self.task = {"eval_metrics": ["root_mean_square_error"]}
-            
-        def get_test_data(self, data_type="pd"):
-            X = pd.DataFrame({"f1": [1, 2]})
-            y = pd.DataFrame({"t1": [1, 2], "t2": [3, 4]})
-            return X, y
-            
-    # We can't easily instantiate TaskABC directly or use the real classes without config.
-    # But we can import the class and patch get_test_data if we instance it.
-    # However, creating a real regression task requires tasks.json entry.
-    pass
+def test_get_valid_indices_partial_nan_vector():
+    """Vector targets with partial NaN rows must be dropped entirely."""
+    from otbench.eval.utils import _get_valid_indices
+
+    y_true = np.array([[1.0, 2.0], [np.nan, 3.0], [4.0, 5.0]])
+    y_pred = np.array([[1.0, 2.0], [3.0, 3.0], [4.0, 5.0]])
+
+    yt, yp = _get_valid_indices(y_true, y_pred)
+    # Row 1 has a NaN in y_true → must be dropped
+    assert yt.shape == (2, 2)
+    assert yp.shape == (2, 2)
+    np.testing.assert_array_equal(yt, [[1.0, 2.0], [4.0, 5.0]])
+
+
+def test_get_valid_indices_all_nan_row():
+    """Rows where all values are NaN are still dropped."""
+    from otbench.eval.utils import _get_valid_indices
+
+    y_true = np.array([[np.nan, np.nan], [1.0, 2.0]])
+    y_pred = np.array([[1.0, 1.0], [1.0, 2.0]])
+
+    yt, yp = _get_valid_indices(y_true, y_pred)
+    assert yt.shape == (1, 2)
+
+
+def test_integrated_seeing_values_are_integrals():
+    """When values_are_integrals=True, heights are ignored and values are summed."""
+    # Two identical profiles → RMSE should be 0
+    profile = np.array([[1e-14, 2e-14, 3e-14]])
+    heights = np.array([500, 1000, 2000])
+
+    res_integrals = integrated_seeing(
+        profile, profile, heights=heights, values_are_integrals=True
+    )
+    assert np.isclose(res_integrals["metric_value"], 0.0)
+
+    # With values_are_integrals=False, trapz integration should give a different
+    # total J than simple sum → seeing values differ if we compare the two modes
+    res_density = integrated_seeing(
+        profile, profile, heights=heights, values_are_integrals=False
+    )
+    assert np.isclose(res_density["metric_value"], 0.0)
+
+
+def test_integrated_seeing_sum_vs_trapz():
+    """Verify that sum (integrals mode) and trapz (density mode) give different seeing."""
+    profile = np.array([[1e-14, 2e-14, 3e-14]])
+    heights = np.array([500, 1000, 2000])
+
+    res_sum = integrated_seeing(profile, profile * 0.5, heights=heights,
+                                values_are_integrals=True, detailed=True)
+    res_trapz = integrated_seeing(profile, profile * 0.5, heights=heights,
+                                  values_are_integrals=False, detailed=True)
+    # The total J differs between sum and trapz, so derived seeing should differ
+    assert res_sum["seeing_true"][0] != res_trapz["seeing_true"][0]
+
+
+def test_integrated_seeing_density_without_heights_raises():
+    """values_are_integrals=False with heights=None must raise ValueError."""
+    profile = np.array([[1e-14, 2e-14, 3e-14]])
+    with pytest.raises(ValueError, match="heights must be provided"):
+        integrated_seeing(profile, profile, heights=None, values_are_integrals=False)

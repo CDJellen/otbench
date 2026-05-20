@@ -60,27 +60,30 @@ def plot_profile_comparison(y_true: Union[np.ndarray, pd.DataFrame],
             heights = _parse_heights(feature_names)
         else:
             heights = np.arange(y_true.shape[1])
+    heights = np.asarray(heights, dtype=float)
 
     # 2. Physics Conversion: Integral (J) -> Density (Cn2)
     # We must apply this BEFORE log/mean to get physically correct density
     if convert_to_density:
-        # Heuristic Thicknesses for MASS (dh ~= 0.5 * h)
-        # For Ground (0m), we assume a nominal surface layer thickness (e.g., 500m for MASS L0)
-        dh = np.array([h * 0.5 if h > 0 else 500.0 for h in heights])
+        # Geometric-mean layer boundaries for MASS restoration layers.
+        # Boundary between adjacent layers i and i+1 is sqrt(h_i * h_{i+1}).
+        # Ground layer (h=0) uses a nominal 250 m thickness (surface to ~250 m).
+        h_arr = np.array(heights, dtype=float)
+        h_sorted_tmp = np.sort(h_arr[h_arr > 0])  # positive heights only
+        dh = np.empty_like(h_arr)
+        for i, h in enumerate(h_arr):
+            if h <= 0:
+                dh[i] = 250.0
+            else:
+                idx = np.searchsorted(h_sorted_tmp, h)
+                lo = np.sqrt(h_sorted_tmp[idx - 1] * h) if idx > 0 else h / np.sqrt(2)
+                hi = np.sqrt(h * h_sorted_tmp[idx + 1]) if idx < len(h_sorted_tmp) - 1 else h * np.sqrt(2)
+                dh[i] = hi - lo
 
-        # Avoid division by zero warnings if thickness is weird
         dh = np.maximum(dh, 1.0)
 
-        # Normalize (Input data is likely linear scale 1e-13... or log scale?)
-        # NOTE: If input y_true is ALREADY log-scale (from task.log_transform=True),
-        # we must unlog -> divide -> relog.
-
-        # Assuming input is Linear (if log_transform was False in task)
-        # OR assuming we handle the un-logging outside.
-        # Let's assume the user passes LINEAR data (un-transformed predictions) for plotting.
-
-        # If data is clearly Log10 (values < 0), we unlog first
-        is_log = np.mean(y_true) < 0
+        # If data is log10-scale (values predominantly < 0), unlog first
+        is_log = np.nanmedian(y_true) < 0
         if is_log:
             y_true = 10**y_true
             y_pred = 10**y_pred
@@ -103,11 +106,12 @@ def plot_profile_comparison(y_true: Union[np.ndarray, pd.DataFrame],
 
     # 4. Reference Physics (Hufnagel-Valley 5/7)
     if add_hv_reference:
-        h_ref = np.linspace(0, max(h_sorted) * 1.1, 100)
-        # Standard HV-5/7 approximation
-        hv = 5.94e-53 * (h_ref/10)**10 * np.exp(-h_ref/1000) + \
-             2.7e-16 * np.exp(-h_ref/1500) + \
-             1.7e-14 * np.exp(-h_ref/100)
+        h_ref = np.linspace(1, max(h_sorted) * 1.1, 200)  # start at 1m to avoid h=0
+        # Standard HV-5/7: v_rms = 21 m/s, A = 1.7e-14
+        v_rms = 21.0
+        hv = (5.94e-53 * (v_rms / 27.0)**2 * h_ref**10 * np.exp(-h_ref / 1000.0) +
+              2.7e-16 * np.exp(-h_ref / 1500.0) +
+              1.7e-14 * np.exp(-h_ref / 100.0))
         ax.plot(np.log10(hv), h_ref, 'k--', alpha=0.4, label='Hufnagel-Valley 5/7 (Theory)')
 
     # 5. Plotting
@@ -161,6 +165,7 @@ def plot_time_series_heatmap(data: Union[np.ndarray, pd.DataFrame],
 
     if heights is None:
         heights = _parse_heights(feature_names) if feature_names else np.arange(data_arr.shape[1])
+    heights = np.asarray(heights, dtype=float)
 
     sort_idx = np.argsort(heights)
     h_sorted = heights[sort_idx]

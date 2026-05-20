@@ -65,14 +65,19 @@ The current dependencies are listed in `requirements.txt`. We strongly recommend
 
 _Requirements_:
 ```text
-numpy>=1.22
-pandas==1.3.5
-scikit-learn>=1.0.1
-xarray>=2022.3.0
-netcdf4>=1.6.0
-matplotlib==3.5.3
-requests==2.22.0
-astral==2.2
+numpy
+pandas
+scikit-learn
+lightgbm
+xarray
+netcdf4
+matplotlib
+requests
+astral
+cmocean
+tqdm
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
 ```
 
 You can install them using `pip`:
@@ -127,7 +132,7 @@ mlo_cn2.evaluate_model(
         )
 ```
 
-The full set of tasks, along with their complete definition and metadata, is available as a [JSON file](./otb/config/tasks.json).
+The full set of tasks, along with their complete definition and metadata, is available as a [JSON file](./otbench/config/tasks.json).
 
 #### Regression
 
@@ -147,11 +152,11 @@ All contributions are welcome! We are especially interested in contributions tha
 
 #### Adding new datasets
 
-New datasets can be added by following the instructions in the [data documentation](./otb/data/README.md). We strongly prefer datasets to conform to the NetCDF4 format, and to be stored in the `data/` directory. If you have a dataset that you would like to add, but are unable to convert it to NetCDF4, please reach out to the maintainers.
+New datasets can be added by following the instructions in the [data documentation](./otbench/data/README.md). We strongly prefer datasets to conform to the NetCDF4 format (readable by `xarray.open_dataset`), and to be stored in the `data/` directory. If you have a dataset that you would like to add, but are unable to convert it to NetCDF4, please reach out to the maintainers.
 
 #### Adding new tasks
 
-New tasks, if they are based on existing datasets, can be added directly to [the task specifications file](./otb/config/tasks.json).  If you would like to add a new task which uses a new dataset, please include the new dataset first or on the same pull request. The existing tasks provide a good template for how to specify a new task. More information is available in the [data documentation](./otb/data/README.md). If you have any questions, please reach out to the maintainers.
+New tasks, if they are based on existing datasets, can be added directly to [the task specifications file](./otbench/config/tasks.json).  If you would like to add a new task which uses a new dataset, please include the new dataset first or on the same pull request. The existing tasks provide a good template for how to specify a new task. More information is available in the [data documentation](./otbench/data/README.md). If you have any questions, please reach out to the maintainers.
 
 We strive to avoid a combinatorial explosion of tasks, and to ensure that the tasks are representative of the broader optical turbulence modeling problem. If you have any questions about whether a new task is appropriate, please reach out to the maintainers.
 
@@ -168,11 +173,11 @@ The set of evaluation metrics and plotting functions is relatively sparse, and w
 If you use `otbench` in your research, please cite the package using the following BibTeX entry:
 
 ```bibtex
-@misc{jellen2023otbench,
-    author = {Jellen, Christopher and Nelson, Charles and Burkhardt, John and Brownell, Cody}.
+@misc{jellen2026otbench,
+    author = {Jellen, Christopher and Nelson, Charles and Burkhardt, John and Brownell, Cody},
     title = {otbench: Effective Benchmarks for Optical Turbulence Modeling},
     howpublished = {\url{github.com/CDJellen/otbench}},
-    year = {2023},
+    year = {2026},
 }
 ```
 

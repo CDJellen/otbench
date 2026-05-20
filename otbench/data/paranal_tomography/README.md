@@ -79,6 +79,20 @@ The dataset conforms to the following `xarray.Dataset` specification:
 *   **description**: `Optical Turbulence Tomography Benchmark (MASS + LHATPRO + Meteo)`
 *   **processing**: Causal backward merge with per-instrument tolerances; 1-min regularization.
 
+## Dataset Scale
+
+The full benchmark corpus contains approximately **2 million one-minute samples** spanning multiple years of continuous ESO site-monitoring. After daylight pruning (LHATPRO off during daytime), the effective sample count is roughly 30–40% of calendar minutes. The flattened DataFrame has **52 numeric columns** (1 time index + 6 MASS layers + 1 ground CN2 + 1 seeing + 39 LHATPRO temperature levels + 4 surface meteo variables).
+
+| Property | Value |
+|---|---|
+| Temporal cadence | 1 minute |
+| Columns (flattened) | 52 |
+| Approx. in-memory size (float64) | ~914 MB |
+| Approximate night count | >500 observing nights |
+| Task train/val/test split | 0–400k / 400k–500k / 500k–620k rows |
+
+> **Note on backward-merge tolerance**: a row at time *T* contains the most recent MASS, LHATPRO, or meteorology observation within its per-instrument tolerance window (see §Processing Methodology) that occurred **at or before** *T*. If no observation exists within that window, the cell is NaN. The "backward" direction guarantees strict causal ordering.
+
 ## Reproducing the Dataset
 
 ```bash

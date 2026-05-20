@@ -16,7 +16,7 @@ def _get_valid_indices(y_true: Sequence, y_pred: Sequence) -> Tuple[Sequence, Se
     - Converts inputs to numpy arrays
     - Normalizes (N, 1) shapes to (N,) for scalar targets
     - Ensures y_true and y_pred have compatible shapes
-    - Creates a mask excluding rows where any (for scalar) or all (for vector) values are NaN
+    - Creates a mask excluding rows where any value is NaN (for both scalar and vector targets)
     - Returns masked arrays of identical shape
     """
     # Convert to numpy arrays
@@ -43,8 +43,8 @@ def _get_valid_indices(y_true: Sequence, y_pred: Sequence) -> Tuple[Sequence, Se
         # Scalar target: drop samples where either value is NaN
         mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
     elif y_true.ndim == 2:
-        # Vector target: drop samples where all values in the row are NaN
-        mask = ~np.isnan(y_true).all(axis=1) & ~np.isnan(y_pred).all(axis=1)
+        # Vector target: drop samples where any value in the row is NaN
+        mask = ~np.isnan(y_true).any(axis=1) & ~np.isnan(y_pred).any(axis=1)
     else:
         raise ValueError(f"Unsupported dimensionality for y_true: ndim={y_true.ndim}. "
                          f"Expected 1 (scalar) or 2 (vector) dimensions.")

@@ -75,8 +75,14 @@ class RNNModel(BasePyTorchForecastingModel):
         if len(X) == 0:
             return
 
-        # 1. Calculate actual features per timestep in the data
-        n_features_in_data = len(X.columns) // self.window_size
+        # 1. Calculate actual features per timestep in the data.
+        # Matches reshape logic in _set_dataloader_from_data:
+        # temporal mode when columns divide evenly, flat mode otherwise.
+        n_cols = len(X.columns)
+        if self.window_size > 1 and n_cols % self.window_size == 0:
+            n_features_in_data = n_cols // self.window_size
+        else:
+            n_features_in_data = n_cols  # flat/single-step mode
 
         # 2. Validate against initialized architecture
         if n_features_in_data != self.input_size:
@@ -85,7 +91,9 @@ class RNNModel(BasePyTorchForecastingModel):
                              f"(Total columns: {len(X.columns)}, Window: {self.window_size}).")
 
         if self.verbose:
-            print(f"training data contains {n_features_in_data} features per timestep.")
+            mode = "temporal" if (self.window_size > 1 and n_cols % self.window_size == 0) else "flat"
+            print(f"training data: {mode} mode, {n_features_in_data} features per timestep, "
+                  f"{self.window_size} timestep(s) per sample.")
 
         # 3. Proceed with standard training
         self.set_training_data(X=X, y=y)
@@ -108,9 +116,11 @@ class RNNModel(BasePyTorchForecastingModel):
         if len(X) == 0:
             return np.empty((0, self.num_classes))
 
-        n_features = len(X.columns) // self.window_size
+        n_cols = len(X.columns)
+        n_features = n_cols // self.window_size if (self.window_size > 1 and n_cols % self.window_size == 0) else n_cols
         if self.verbose:
-            print(f"validation data contains {n_features} features.")
+            mode = "temporal" if (self.window_size > 1 and n_cols % self.window_size == 0) else "flat"
+            print(f"validation data: {mode} mode, {n_features} features per timestep.")
         self.set_validation_data(X=X, y=None)
 
         pred = []

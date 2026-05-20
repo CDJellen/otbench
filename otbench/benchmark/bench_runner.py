@@ -119,56 +119,51 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         obs_lon = task_info["obs_lon"]
         use_log10 = task_info["log_transform"]
 
-        # Data Loading & Context Recovery
-        # We load Train/Val to train benchmark models, and Test to evaluate.
+        # Data Loading
+        # Train + Val combined gives models the most pre-test data for benchmarking.
         X_train, y_train = task.get_train_data(data_type="pd")
         X_val, y_val = task.get_validation_data(data_type="pd")
-
-        # Combine Train+Val for full benchmark training
         X_combined = pd.concat([X_train, X_val])
         y_combined = pd.concat([y_train, y_val])
 
-        # Load Test Data
         X_test, y_test = task.get_test_data(data_type="pd")
 
-        # Select Model Class
-        if type(task) == tasks.RegressionTask:
+        # Select model class and prepare training data.
+        # session_col (e.g. night_id) is already present in X because it is
+        # not in the task's remove list; prepare_forecasting_data handles it
+        # internally — no explicit context recovery is needed here.
+        if isinstance(task, tasks.RegressionTask):
             models = reg_models
-            X_bench, y_bench = X_combined, y_combined
-            X_eval, y_eval = X_test, y_test
+            # Exclude rows where any target is NaN.  These carry no training
+            # signal and are rejected by sklearn MultiOutputRegressor; they
+            # also cause NaN-gradient poisoning in PyTorch when normalize_data
+            # is False.  LightGBM handles NaN *features* natively so we only
+            # filter on the target mask, preserving all X-NaN rows that tree
+            # models can use.
+            valid_rows = y_combined.notna().all(axis=1)
+            X_bench = X_combined[valid_rows]
+            y_bench = y_combined[valid_rows]
 
-        elif type(task) == tasks.ForecastingTask:
+        elif isinstance(task, tasks.ForecastingTask):
             models = fcn_models
-
-            # CRITICAL FIX: Recover Session Context for Masking
-            session_col = task.task.get("session_col")
-            if session_col:
-                if verbose:
-                    print(f"Recovering context '{session_col}' for masking...")
-                # Recover for Train/Val
-                ctx_train = task.get_dataset().get_context(X_combined.index, session_col)
-                # Only join columns that are not already present
-                cols_to_use = ctx_train.columns.difference(X_combined.columns)
-                if not cols_to_use.empty:
-                    X_combined = X_combined.join(ctx_train[cols_to_use])
-
-                # Recover for Test
-                ctx_test = task.get_dataset().get_context(X_test.index, session_col)
-                cols_to_use_test = ctx_test.columns.difference(X_test.columns)
-                if not cols_to_use_test.empty:
-                    X_test = X_test.join(ctx_test[cols_to_use_test])
-
-            # Apply Windowing (Masking happens here using the recovered column)
             X_bench, y_bench = task.prepare_forecasting_data(X_combined, y_combined)
-            X_eval, y_eval = task.prepare_forecasting_data(X_test, y_test)
 
         else:
             raise ValueError(f"unknown task type {type(task)}.")
 
-        # Initialize Results Container
+        # possible_predictions: ground-truth rows available in the evaluation
+        # split, after applying the same windowing that evaluate_model uses.
+        # .all(axis=1) correctly handles both scalar (1-col) and vector targets:
+        # a row is "possible" only when every target value is non-NaN.
+        if isinstance(task, tasks.ForecastingTask):
+            _, y_eval = task.prepare_forecasting_data(X_test, y_test)
+        else:
+            y_eval = y_test
+
         benchmark_results[task_name] = {}
         benchmark_results[task_name]["possible_predictions"] = int(
-            y_eval.notna().sum().values[0]) if y_eval.ndim == 1 else int(y_eval.notna().sum().sum())
+            y_eval.notna().all(axis=1).sum()
+        )
 
         # Feature Mapping (Hardcoded Physics)
         if "mlo_cn2" in task_name:
@@ -255,8 +250,16 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
-                # Input size for RNN/Transformer is Features per Step
-                model_kwargs["input_size"] = len(X_bench.columns) // task.window_size
+                # Input size for RNN/Transformer is Features per Step.
+                # _add_lags uniformly lags every feature, so total columns must be
+                # an exact multiple of window_size.
+                n_cols = len(X_bench.columns)
+                assert n_cols % task.window_size == 0, (
+                    f"X_bench has {n_cols} columns which is not divisible by "
+                    f"window_size={task.window_size}. Check that _add_lags was "
+                    f"called with uniform lag depth across all features."
+                )
+                model_kwargs["input_size"] = n_cols // task.window_size
                 model_kwargs["in_channels"] = task.window_size
 
             # Override epochs
