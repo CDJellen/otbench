@@ -1,13 +1,22 @@
 [project]
 name = "otbench"
-version = "0.3.0"
-description = ""
+version = "0.4.0"
+description = "Consistent benchmarks for evaluating optical turbulence strength models."
 authors = [
-    {name = "Christopher David Jellen"}
+    {name = "Christopher David Jellen", email = "cdjellen@gmail.com"}
 ]
 license = {text = "MIT License"}
 readme = "README.md"
 requires-python = ">=3.10"
+keywords = ["optics", "turbulence", "benchmark", "python3"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
 dependencies = [
     "numpy",
     "pandas",
@@ -24,7 +33,28 @@ dependencies = [
     "pydantic-settings>=2.0.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "coveralls",
+    "pytest",
+    "pytest-cov",
+    "yapf",
+]
+torch = [
+    "torch",
+]
+
+[project.urls]
+Homepage = "https://github.com/CDJellen/otbench"
+Repository = "https://github.com/CDJellen/otbench"
+Issues = "https://github.com/CDJellen/otbench/issues"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: long-running tests (use --run-slow to include)",
+    "private: tests for private methods (use --run-private to include)",
+]

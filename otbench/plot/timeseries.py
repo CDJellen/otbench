@@ -23,7 +23,9 @@ def plot_predictions(y_true: Union[pd.Series, pd.DataFrame], y_pred: Union[pd.Se
         "Time",
         fontsize=15,
     )
-    if y_pred[0] < 0:
+    # Detect log-space target: if median prediction is negative, assume log10.
+    y_pred_arr = np.asarray(y_pred).ravel()
+    if len(y_pred_arr) > 0 and np.nanmedian(y_pred_arr) < 0:
         ax.set_ylabel(r"$\log_{10} C_n^2$", fontsize=12)
     else:
         ax.set_ylabel(r"$C_n^2$", fontsize=12)

@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 from otbench.tasks import TaskApi, tasks
-from otbench.config import BENCHMARK_FP
+from otbench.config import BENCHMARK_FP, settings
 import otbench.benchmark.models.regression as regression_models
 import otbench.benchmark.models.forecasting as forecasting_models
 
@@ -18,18 +18,17 @@ class NumpyEncoder(json.JSONEncoder):
     """Custom encoder for numpy data types"""
 
     def default(self, obj):
-        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8, np.int16, np.int32, np.int64, np.uint8, np.uint16,
-                            np.uint32, np.uint64)):
+        if isinstance(obj, np.integer):
             return int(obj)
-        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+        elif isinstance(obj, np.floating):
             return float(obj)
-        elif isinstance(obj, (np.complex_, np.complex64, np.complex128)):
+        elif isinstance(obj, np.complexfloating):
             return {'real': obj.real, 'imag': obj.imag}
-        elif isinstance(obj, (np.ndarray,)):
+        elif isinstance(obj, np.ndarray):
             return obj.tolist()
-        elif isinstance(obj, (np.bool_)):
+        elif isinstance(obj, np.bool_):
             return bool(obj)
-        elif isinstance(obj, (np.void)):
+        elif isinstance(obj, np.void):
             return None
         return json.JSONEncoder.default(self, obj)
 
@@ -46,7 +45,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
     if benchmark_regression_models is None:
         reg_models = {n: getattr(regression_models, n) for n in regression_models.__all__}
     else:
-        if type(benchmark_regression_models) == str:
+        if isinstance(benchmark_regression_models, str):
             benchmark_regression_models = [benchmark_regression_models]
         reg_models = {
             n: getattr(regression_models, n) for n in benchmark_regression_models if n in regression_models.__all__
@@ -54,7 +53,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
     if benchmark_forecasting_models is None:
         fcn_models = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
     else:
-        if type(benchmark_forecasting_models) == str:
+        if isinstance(benchmark_forecasting_models, str):
             benchmark_forecasting_models = [benchmark_forecasting_models]
         fcn_models = {
             n: getattr(forecasting_models, n) for n in benchmark_forecasting_models if n in forecasting_models.__all__
@@ -96,7 +95,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
     task_api = TaskApi()
     if benchmark_tasks is None:
         benchmark_tasks = sorted(task_api.list_tasks())
-    elif type(benchmark_tasks) == str:
+    elif isinstance(benchmark_tasks, str):
         benchmark_tasks = [benchmark_tasks]
 
     benchmark_results = {}
@@ -165,34 +164,23 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             y_eval.notna().all(axis=1).sum()
         )
 
-        # Feature Mapping (Hardcoded Physics)
-        if "mlo_cn2" in task_name:
-            height_of_observation = 15.0
-            air_temperature_col_name = "T_2m"
-            water_temperature_col_name = None
-            humidity_col_name = "RH_2m"
-            wind_speed_col_name = "Spd_10m"
-            time_col_name = "time"
-        elif "usna" in task_name:
-            if "sm" in task_name:
-                air_temperature_col_name = "T_5m"
-                wind_speed_col_name = "Spd_10m"
-            else:
-                air_temperature_col_name = "T_3m"
-                wind_speed_col_name = "Spd_3m"
-            height_of_observation = 3.0
-            water_temperature_col_name = "T_0m"
-            humidity_col_name = "RH_3m"
-            time_col_name = "time"
-        elif "paranal_tomography" in task_name:
-            height_of_observation = 0.0  # Ground level reference
-            air_temperature_col_name = "temp_profile_0"
-            water_temperature_col_name = None  # No water temp at Paranal
-            humidity_col_name = "rh"
-            wind_speed_col_name = "wind_speed"
-            time_col_name = "time"
-        else:
-            raise ValueError(f"benchmarks not configured for task {task_name}.")
+        # Feature Mapping (declarative, from datasets.json)
+        ds_name = task_info["ds_name"]
+        with open(settings.DATASETS_FP, 'r') as f:
+            datasets_config = json.load(f)
+        feature_map = datasets_config.get(ds_name, {}).get("feature_map")
+        if not feature_map:
+            raise ValueError(
+                f"No feature_map configured for dataset '{ds_name}' in datasets.json. "
+                f"Cannot run benchmarks for task '{task_name}'."
+            )
+
+        height_of_observation = feature_map["height_of_observation"]
+        air_temperature_col_name = feature_map["air_temperature_col_name"]
+        water_temperature_col_name = feature_map.get("water_temperature_col_name")
+        humidity_col_name = feature_map["humidity_col_name"]
+        wind_speed_col_name = feature_map["wind_speed_col_name"]
+        time_col_name = feature_map["time_col_name"]
 
         # Determine Vector Status
         # Check output dimensionality to filter incompatible models

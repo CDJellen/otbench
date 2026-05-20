@@ -1,13 +1,14 @@
-numpy
-pandas
-scikit-learn
-lightgbm
-xarray
-netcdf4
-matplotlib
-requests
-astral
-cmocean
-tqdm
+# Convenience lockfile — canonical deps are in pyproject.toml
+numpy>=1.23
+pandas>=1.5
+scikit-learn>=1.2
+lightgbm>=3.3
+xarray>=2022.12
+netcdf4>=1.6
+matplotlib>=3.6
+requests>=2.28
+astral>=3.2
+cmocean>=3.0
+tqdm>=4.64
 pydantic>=2.0.0
 pydantic-settings>=2.0.0

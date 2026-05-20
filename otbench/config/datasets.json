@@ -2,22 +2,54 @@
     "mlo_cn2": {
         "local_data_path": "mlo_cn2.nc",
         "citation_path": "citation.md",
-        "remove_data_path": "https://data.eol.ucar.edu/cgi-bin/codiac/fgr_form/id=160.007"
+        "remote_data_path": "https://data.eol.ucar.edu/cgi-bin/codiac/fgr_form/id=160.007",
+        "feature_map": {
+            "height_of_observation": 15.0,
+            "air_temperature_col_name": "T_2m",
+            "water_temperature_col_name": null,
+            "humidity_col_name": "RH_2m",
+            "wind_speed_col_name": "Spd_10m",
+            "time_col_name": "time"
+        }
     },
     "usna_cn2_lg": {
         "local_data_path": "usna_cn2_lg.nc",
         "citation_path": "citation.md",
-        "remove_data_path": "google.drive"
+        "remote_data_path": "google.drive",
+        "feature_map": {
+            "height_of_observation": 3.0,
+            "air_temperature_col_name": "T_3m",
+            "water_temperature_col_name": "T_0m",
+            "humidity_col_name": "RH_3m",
+            "wind_speed_col_name": "Spd_3m",
+            "time_col_name": "time"
+        }
     },
     "usna_cn2_sm": {
         "local_data_path": "usna_cn2_sm.nc",
         "citation_path": "citation.md",
-        "remove_data_path": "google.drive"
+        "remote_data_path": "google.drive",
+        "feature_map": {
+            "height_of_observation": 3.0,
+            "air_temperature_col_name": "T_5m",
+            "water_temperature_col_name": "T_0m",
+            "humidity_col_name": "RH_3m",
+            "wind_speed_col_name": "Spd_10m",
+            "time_col_name": "time"
+        }
     },
     "paranal_tomography": {
         "local_data_path": "paranal_tomography.nc",
         "citation_path": "citation.md",
-        "remove_data_path": "https://www.eso.org/sci/facilities/paranal/astroclimate/site-monitor/asm_data.html",
-        "lazy": true
+        "remote_data_path": "https://www.eso.org/sci/facilities/paranal/astroclimate/site-monitor/asm_data.html",
+        "lazy": true,
+        "feature_map": {
+            "height_of_observation": 0.0,
+            "air_temperature_col_name": "temp_profile_0",
+            "water_temperature_col_name": null,
+            "humidity_col_name": "rh",
+            "wind_speed_col_name": "wind_speed",
+            "time_col_name": "time"
+        }
     }
 }

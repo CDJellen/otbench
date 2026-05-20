@@ -398,6 +398,7 @@ class Dataset(object):
 
     def _supported_datasets(self) -> dict:
         """Load the datasets configuration file."""
-        supported_datasets = json.load(open(self._datasets_fp, 'rb'))
+        with open(self._datasets_fp, 'r') as f:
+            supported_datasets = json.load(f)
 
         return supported_datasets

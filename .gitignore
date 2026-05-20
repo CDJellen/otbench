@@ -15,4 +15,4 @@ doc/
 !notebooks/regression/*.ipynb
 !notebooks/pytorch/*.ipynb
 !notebooks/tomography_analysis.ipynb
-!notebooks/datasets/paranal.ipynb
+!notebooks/datasets/paranal.ipynbdist/

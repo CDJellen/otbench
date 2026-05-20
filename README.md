@@ -38,7 +38,7 @@ Comparing different models can be difficult, especially when the models are trai
 
 You can install `otbench` using a Python package manager such as `pip`.
 
-The package is available on PyPi, versioned using the date of release. We will work to ensure compatibility with the last three major versions of Python, but have designed the package to be compatible with Python 3.6 and above.
+The package is available on PyPI. We maintain compatibility with the last three major versions of Python (currently **3.10, 3.11, and 3.12**).
 
 
 #### From PyPi

@@ -29,11 +29,16 @@ class InMemoryCache:
         return list(self._cache.keys())
 
     def get_dataset(self, key: str) -> Any:
-        """Get a dataset from memory or disk"""
+        """Get a dataset from memory or disk."""
         if key not in self.available_datasets():
-            raise NotImplementedError
+            raise KeyError(f"Dataset '{key}' not found in cache or on disk.")
         if self._is_in_memory(key):
             return self._cache[key]
+        # Key exists on disk but not in memory — load it.
+        self._load_dataset(key)
+        if self._is_in_memory(key):
+            return self._cache[key]
+        raise RuntimeError(f"Failed to load dataset '{key}' from disk cache.")
 
     def _is_in_memory(self, key: str) -> bool:
         """Check if a dataset is available in memory."""
@@ -57,20 +62,24 @@ class InMemoryCache:
             pickle.dump(data, f)
 
     def _load_dataset(self, key) -> None:
-        """Load a dataset from disk to memory"""
+        """Load a dataset from disk to memory."""
+        fp = os.path.join(self._cache_dir, f"{key}.pickle")
         try:
-            with open(os.path.join(self._cache_dir, f"{key}.pickle"), "rb") as f:
+            with open(fp, "rb") as f:
                 data = pickle.load(f)
             self._cache[key] = data
-        except Exception as e:  # @TODO narrow scope
-            print(f"failed to load dataset with key '{key}' from cache at {self._cache_dir} with error {e}.")
-            return
+        except FileNotFoundError:
+            raise
+        except (pickle.UnpicklingError, EOFError, ModuleNotFoundError) as e:
+            import warnings
+            warnings.warn(
+                f"Corrupted cache entry for '{key}' at {fp}: {e}. "
+                f"Delete the file and re-run to regenerate."
+            )
 
     def __iter__(self) -> pd.DataFrame:
-        i = 0
-        keys = list(self._cache.keys())
-        while i < len(keys):
-            yield self._cache[keys[i]]
+        for key in list(self._cache.keys()):
+            yield self._cache[key]
 
     def __len__(self) -> int:
         return len(self._cache)

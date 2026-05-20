@@ -1,7 +1,7 @@
 import os
 import json
 import warnings
-from abc import ABC
+from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, List, Tuple, Union
@@ -20,67 +20,84 @@ class TaskTypes(Enum):
 
 class TaskABC(ABC):
 
+    @abstractmethod
     def get_info(self, keys: Union[List[str], None] = None) -> dict:
         """Returns the full task information dictionary."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_description(self) -> str:
-        """Return the description of the task."""
-        raise NotImplementedError
+        """Return the short description of the task."""
+        ...
 
+    @abstractmethod
     def get_long_description(self) -> str:
-        """Return the description of the task."""
-        raise NotImplementedError
+        """Return the long-form description of the task."""
+        ...
 
+    @abstractmethod
     def get_benchmark_info(self, task_name: Union[str, None]) -> dict:
         """Returns the benchmark information dictionary."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def top_models(self, n: int = 5, metric: str = "") -> List[str]:
         """Returns the top n models for this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_transforms(self) -> dict:
         """Return the description of the transforms applied to the X and y data."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_target_name(self) -> str:
         """Return the target feature name for this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_unavailable_features(self) -> List[str]:
         """Return the names of features which are unavailable for training and inference in this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_metric_names(self) -> List[str]:
-        """Return the target feature name for this task."""
-        raise NotImplementedError
+        """Return the evaluation metric names for this task."""
+        ...
 
+    @abstractmethod
     def get_dataset(self) -> Dataset:
         """Return the underlying dataset."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_df(self) -> pd.DataFrame:
         """Return the underlying pd.DataFrame for this task's dataset."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_data(self, data_type: str) -> Any:
         """Return the underlying data."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_train_data(self, data_type: str) -> Any:
         """Return the underlying training data for this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_test_data(self, data_type: str) -> Any:
         """Return the underlying test data for this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_validation_data(self, data_type: str) -> Any:
         """Return the underlying validation data for this task."""
-        raise NotImplementedError
+        ...
 
-    def evaluate_model(predict_call: Callable,
+    @abstractmethod
+    def evaluate_model(self,
+                       predict_call: Callable,
                        data_type: str,
                        x_transforms: Union[Callable, None] = None,
                        x_transform_kwargs: Union[dict, None] = None,
@@ -90,8 +107,8 @@ class TaskABC(ABC):
                        model_name: Union[str, None] = None,
                        detailed_metrics: bool = False,
                        overwrite: bool = False,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
-        """Evaluate a model against this task's transformed validation set, default against all metrics."""
-        raise NotImplementedError
+        """Evaluate a model against this task's transformed test set, default against all metrics."""
+        ...
 
 
 class BaseTask(TaskABC):
@@ -286,13 +303,7 @@ class RegressionTask(BaseTask):
                 val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics)
                 model_metrics[m] = val
             else:
-                try:
-                    val = getattr(eval_metrics, m)(y_test, y_test_pred)
-                    model_metrics[m] = val
-                except TypeError:
-                    # fallback if some metric doesn't support detailed
-                    val = getattr(eval_metrics, m)(y_test, y_test_pred)
-                    model_metrics[m] = val
+                warnings.warn(f"Metric '{m}' is not in the implemented metrics registry. Skipping.")
 
         if include_as_benchmark:
             self._add_experiment_to_benchmarks(model_name=model_name, model_metrics=model_metrics, overwrite=overwrite)
@@ -461,12 +472,7 @@ class ForecastingTask(BaseTask):
                 val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics)
                 model_metrics[m] = val
             else:
-                try:
-                    val = getattr(eval_metrics, m)(y_test, y_test_pred)
-                    model_metrics[m] = val
-                except TypeError:
-                    val = getattr(eval_metrics, m)(y_test, y_test_pred)
-                    model_metrics[m] = val
+                warnings.warn(f"Metric '{m}' is not in the implemented metrics registry. Skipping.")
 
         if include_as_benchmark:
             self._add_experiment_to_benchmarks(model_name=model_name, model_metrics=model_metrics, overwrite=overwrite)
@@ -520,7 +526,8 @@ class TaskApi(object):
         if root_dir is None:
             root_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))  # obtain root path
         tasks_path = os.path.join(root_dir, 'config', 'tasks.json')
-        tasks = json.load(open(tasks_path, 'rb'))
+        with open(tasks_path, 'r') as f:
+            tasks = json.load(f)
 
         self.tasks = tasks
 
