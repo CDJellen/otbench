@@ -1,5 +1,5 @@
 import sys
-from typing import Tuple, Union
+from typing import Tuple, Union, List
 
 import numpy as np
 import pandas as pd
@@ -16,7 +16,7 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
     def __init__(
         self,
         name: str,
-        target_name: str,
+        target_name: Union[str, List[str]],
         window_size: int,
         forecast_horizon: int,
         batch_size: int = 32,
@@ -26,8 +26,10 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         optimizer: 'torch.optim' = optim.SGD,
         random_state: int = 2020,
         verbose: bool = False,
+        **kwargs
     ):
-        super().__init__(name=name, target_name=target_name, window_size=window_size, forecast_horizon=forecast_horizon)
+        # Pass kwargs (predict_residuals, use_log10, etc.) to BaseForecastingModel
+        super().__init__(name=name, target_name=target_name, window_size=window_size, forecast_horizon=forecast_horizon, **kwargs)
         self.batch_size = batch_size
         self.random_state = random_state
         self.n_epochs = n_epochs
@@ -40,6 +42,7 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         self.train_dataloader = None
         self.test_dataloader = None
         self.val_dataloader = None
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def set_model(self,
                   model: 'torch.nn.Module',
@@ -55,6 +58,9 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
                 print("will normalize data before training")
             else:
                 print("will not normalize data before training.")
+
+        self.model.to(self.device)
+
         if set_optimizer_callable_params:
             self.optimizer = self._optimizer_callable(self.model.parameters(), lr=self.learning_rate)
         else:
@@ -64,20 +70,24 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="train")
 
-    def set_test_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
+    def set_test_data(self,
+                      X: Union[pd.DataFrame, np.ndarray],
+                      y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="test")
 
-    def set_validation_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
+    def set_validation_data(self,
+                            X: Union[pd.DataFrame, np.ndarray],
+                            y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="val")
 
-    def train(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray]):
-        # maintain the same interface as the other models
+    def _train(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray]):
+        # Implementation hook required by BaseForecastingModel
         raise NotImplementedError
 
-    def predict(self, X: Union[pd.DataFrame, np.ndarray]):
-        # maintain the same interface as the other models
+    def _predict(self, X: Union[pd.DataFrame, np.ndarray]):
+        # Implementation hook required by BaseForecastingModel
         raise NotImplementedError
 
     def _set_dataloader_from_data(self,
@@ -93,11 +103,25 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
             raise ValueError("y must be supplied if X is not a pd.DataFrame  or np.ndarray object.")
 
         if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
-            # reshape to apply window size
-            n_features = len(X.columns) // self.window_size
+            n_cols = len(X.columns)
             X = X.to_numpy()
             y = y.to_numpy()
-            X = X.reshape(-1, self.window_size, n_features)
+            # Temporal mode: columns were built by lagging *all* features, so
+            # len(columns) == window_size × n_features_per_step exactly.
+            # Flat mode: selective lag_features produces a mixed contemporaneous +
+            # lag column layout that doesn't divide evenly; treat the full feature
+            # vector as a single-step sequence (seq_len=1) instead.
+            if self.window_size > 1 and n_cols % self.window_size == 0:
+                n_features = n_cols // self.window_size
+                X = X.reshape(-1, self.window_size, n_features)
+                # _add_lags produces columns ordered [feat(t-0), feat(t-1), ..., feat(t-W+1)],
+                # so after reshape step-0 = newest and step-(W-1) = oldest.  Reverse the time
+                # axis so the sequence is chronological: step-0 = oldest, step-(W-1) = current.
+                # This ensures the RNN final hidden state and Transformer output[:, -1, :] both
+                # encode the most recent observation rather than the oldest one.
+                X = np.ascontiguousarray(X[:, ::-1, :])
+            else:
+                X = X.reshape(-1, 1, n_cols)
 
             if self.normalize_data:
                 if mode == "train":
@@ -107,7 +131,9 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         else:
             if not isinstance(X, np.ndarray) and isinstance(y, np.ndarray):
                 raise ValueError("X and y must be both be pd.DataFrame objects or np.ndarray objects.")
+        
         X, y = self._map_to_tensor(X, y)
+        
         if mode == "train":
             dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=True)
             self.train_dataloader = dataloader
@@ -120,11 +146,14 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
 
     def _normalize_data(self, X: 'pd.DataFrame', y: 'pd.DataFrame') -> Tuple[np.ndarray, np.ndarray]:
         """Normalize the data before training."""
-        # normalize the training data
+        # X is 3-D [samples, window, features]: compute one mean/std per feature,
+        # averaged over both the sample and time-step axes.  Shape: (n_features,).
         X_mean = np.nanmean(X, axis=(0, 1))
         X_std = np.nanstd(X, axis=(0, 1)) + sys.float_info.epsilon
-        y_mean = np.nanmean(y, axis=(0, 1))
-        y_std = np.nanstd(y, axis=(0, 1)) + sys.float_info.epsilon
+        # y is 2-D [samples, n_targets]: compute per-target mean/std over samples.
+        # Using axis=0 preserves the target dimension → shape (n_targets,).
+        y_mean = np.nanmean(y, axis=0)
+        y_std = np.nanstd(y, axis=0) + sys.float_info.epsilon
 
         # save the mean and std
         self.X_mean = X_mean
@@ -137,9 +166,15 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
     def _apply_normalization(self, X: Union['pd.DataFrame', np.ndarray],
                              y: Union['pd.DataFrame', np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
         """Apply normalization learned during training for test or validation."""
-        # replace missing values with the mean of that column
-        X[np.isnan(X)] = np.take(self.X_mean, np.where(np.isnan(X))[1])
-        y[np.isnan(y)] = np.take(self.y_mean, np.where(np.isnan(y))[1])
+        # Replace NaN with training mean before normalizing.
+        # X may be 3-D [samples, window, features] — broadcast X_mean (shape [features])
+        # over the sample and window axes so each feature gets the correct fill value.
+        if np.any(np.isnan(X)):
+            X = np.where(np.isnan(X), self.X_mean, X)
+
+        # y is 2-D [samples, n_targets] — broadcast y_mean (shape [n_targets]).
+        if np.any(np.isnan(y)):
+            y = np.where(np.isnan(y), self.y_mean, y)
 
         # normalize the data before training
         X = (X - self.X_mean) / self.X_std

@@ -17,18 +17,32 @@ class MinuteClimatologyRegressionModel(BaseRegressionModel):
 
     def train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         """Determine the mean value of the target variable seen during training for each time."""
+        # Ensure y is proper format matching X index
         if isinstance(y, np.ndarray):
-            y = pd.Series(y, name=self.target_name, index=X.index)
+            if y.ndim > 1:
+                y = pd.DataFrame(y, index=X.index)
+            else:
+                y = pd.DataFrame(y, columns=[self.target_name], index=X.index)
 
-        self.global_mean = np.nanmean(y.values.flatten())
+        if isinstance(y, pd.Series):
+            y = y.to_frame()
+
+        y = y.copy()
+
+        # Compute global mean
+        if isinstance(y, pd.DataFrame):
+            self.global_mean = np.nanmean(y.values, axis=0)
+        else:
+            self.global_mean = np.nanmean(y.values)
 
         # compute the mean for each interval in X across all days
         y["time_of_day"] = y.index.time
         y_means = y.groupby("time_of_day").mean()
 
-        # iterate through the rows in X_means
-        for i in range(len(y_means)):
-            self.means[y_means.index[i]] = np.nanmean(y_means.iloc[i, :].values)
+        # Store means
+        self.means = {}
+        for t in y_means.index:
+            self.means[t] = y_means.loc[t].values
 
     def predict(self, X: 'pd.DataFrame'):
         """Predict the mean seen during training at the time of day for inference."""
@@ -38,8 +52,13 @@ class MinuteClimatologyRegressionModel(BaseRegressionModel):
         preds = []
 
         for time in times:
-            if time in self.means and not np.isnan(self.means[time]):
-                preds.append(self.means[time])
+            if time in self.means:
+                val = self.means[time]
+                # Check for NaNs in the mean (if time step existed but all values were NaN)
+                if np.isnan(val).all():
+                    preds.append(self.global_mean)
+                else:
+                    preds.append(val)
             else:
                 preds.append(self.global_mean)
 

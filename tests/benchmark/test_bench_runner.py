@@ -63,3 +63,24 @@ def test_run_benchmarks_all_multiple_models():
                          include_pytorch_models=True)
 
     assert isinstance(got, dict)
+
+
+@pytest.mark.slow
+def test_run_benchmark_vector():
+    """Test running benchmarks for vector task (Paranal Profile)."""
+    # This task produces vector outputs.
+    # We expect bench_runner to filter scalar-only models and handle JSON serialization of vector results.
+    got = run_benchmarks(benchmark_tasks="regression.paranal_tomography.full.cn2_profile_reconstruction",
+                         verbose=True,
+                         write_metrics=False,
+                         include_pytorch_models=False)
+    
+    assert isinstance(got, dict)
+    assert "regression.paranal_tomography.full.cn2_profile_reconstruction" in got
+    results = got["regression.paranal_tomography.full.cn2_profile_reconstruction"]
+    
+    # Check that compatible models ran
+    assert "ClimatologyRegressionModel" in results
+    assert "PersistenceRegressionModel" in results
+    # Check that incompatible models were filtered (not present)
+    assert "MacroMeteorologicalModel" not in results

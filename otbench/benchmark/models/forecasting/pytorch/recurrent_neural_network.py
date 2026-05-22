@@ -20,7 +20,7 @@ class RNN(nn.Module):
         self.fc = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x):
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).requires_grad_()
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size, device=x.device).requires_grad_()
         out, _ = self.rnn(x, h0.detach())
         out = self.fc(out[:, -1, :])
         return out
@@ -38,6 +38,7 @@ class RNNModel(BasePyTorchForecastingModel):
                  hidden_size: int = 512,
                  num_layers: int = 2,
                  num_classes: int = 1,
+                 output_size: int = None,
                  batch_size: int = 32,
                  n_epochs: int = 500,
                  learning_rate: float = 0.025,
@@ -57,52 +58,87 @@ class RNNModel(BasePyTorchForecastingModel):
                          criterion=criterion,
                          optimizer=optimizer,
                          random_state=random_state,
-                         verbose=verbose)
+                         verbose=verbose,
+                         **kwargs)
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.num_classes = num_classes
+        self.num_classes = output_size if output_size is not None else num_classes
 
         # create and set the model
-        model = RNN(input_size, hidden_size, num_layers, num_classes)
+        model = RNN(input_size, hidden_size, num_layers, self.num_classes)
         self.set_model(model=model, normalize_data=normalize_data,
                        set_optimizer_callable_params=True)  # apply model params to SGD
 
-    def train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
-        # maintain the same interface as the other models
-        n_features = len(X.columns) // self.window_size
+    def _train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
+        # Guard against empty data
+        if len(X) == 0:
+            return
+
+        # 1. Calculate actual features per timestep in the data.
+        # Matches reshape logic in _set_dataloader_from_data:
+        # temporal mode when columns divide evenly, flat mode otherwise.
+        n_cols = len(X.columns)
+        if self.window_size > 1 and n_cols % self.window_size == 0:
+            n_features_in_data = n_cols // self.window_size
+        else:
+            n_features_in_data = n_cols  # flat/single-step mode
+
+        # 2. Validate against initialized architecture
+        if n_features_in_data != self.input_size:
+            raise ValueError(f"Dimension Mismatch: Model initialized with input_size={self.input_size}, "
+                             f"but training data has {n_features_in_data} features per timestep "
+                             f"(Total columns: {len(X.columns)}, Window: {self.window_size}).")
+
         if self.verbose:
-            print(f"training data contains {n_features} features.")
-        # set train dataloader
+            mode = "temporal" if (self.window_size > 1 and n_cols % self.window_size == 0) else "flat"
+            print(f"training data: {mode} mode, {n_features_in_data} features per timestep, "
+                  f"{self.window_size} timestep(s) per sample.")
+
+        # 3. Proceed with standard training
         self.set_training_data(X=X, y=y)
-        # train the model
+
         torch.manual_seed(self.random_state)
         for i in range(self.n_epochs):
-            for _, (X, y) in enumerate(self.train_dataloader):
+            for _, (X_batch, y_batch) in enumerate(self.train_dataloader):
                 self.optimizer.zero_grad()
-                outputs = self.model(X.float())
-                loss = self.criterion(outputs, y.float())
+                X_batch, y_batch = X_batch.to(self.device).float(), y_batch.to(self.device).float()
+                outputs = self.model(X_batch)
+                loss = self.criterion(outputs, y_batch)
                 loss.backward()
                 self.optimizer.step()
-            if self.verbose and self.n_epochs >= 10 and (i % (self.n_epochs // 10) == 0):
-                print(f"at epoch {i}. loss: {loss}")
 
-    def predict(self, X: 'pd.DataFrame'):
+            if self.verbose and self.n_epochs >= 10 and (i % (self.n_epochs // 10) == 0):
+                print(f"at epoch {i}. loss: {loss.item():.6f}")
+
+    def _predict(self, X: 'pd.DataFrame'):
         """Generate predictions from the RNNModel."""
-        n_features = len(X.columns) // self.window_size
+        if len(X) == 0:
+            return np.empty((0, self.num_classes))
+
+        n_cols = len(X.columns)
+        n_features = n_cols // self.window_size if (self.window_size > 1 and n_cols % self.window_size == 0) else n_cols
         if self.verbose:
-            print(f"validation data contains {n_features} features.")
+            mode = "temporal" if (self.window_size > 1 and n_cols % self.window_size == 0) else "flat"
+            print(f"validation data: {mode} mode, {n_features} features per timestep.")
         self.set_validation_data(X=X, y=None)
 
         pred = []
         with torch.no_grad():
             for _, (X, _) in enumerate(self.val_dataloader):
-                y_pred = self.model(X.float())
+                X = X.to(self.device).float()
+                y_pred = self.model(X)
                 if self.normalize_data:
+                    # y_std and y_mean are numpy arrays, need to move y_pred to cpu
+                    y_pred = y_pred.cpu()
                     y_pred = y_pred * self.y_std + self.y_mean
-                y_pred = y_pred.numpy()
+
+                y_pred = y_pred.cpu().numpy()
 
                 # add the prediction value to the list
-                pred.append(y_pred[0][0])
+                if self.num_classes == 1:
+                    pred.append(y_pred[0][0])
+                else:
+                    pred.append(y_pred[0])
 
         return np.array(pred)

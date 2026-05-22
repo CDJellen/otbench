@@ -1,16 +1,16 @@
 import os
 import json
 import warnings
-from abc import ABC
+from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
 from typing import Any, Callable, List, Tuple, Union
 
 import pandas as pd
 
-import otbench.eval.metrics as eval_metrics
+import otbench.eval as eval_metrics
 from otbench.dataset import Dataset
-from otbench.config import BENCHMARK_FP
+from otbench.config import BENCHMARK_FP, settings
 
 
 class TaskTypes(Enum):
@@ -20,67 +20,84 @@ class TaskTypes(Enum):
 
 class TaskABC(ABC):
 
+    @abstractmethod
     def get_info(self, keys: Union[List[str], None] = None) -> dict:
         """Returns the full task information dictionary."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_description(self) -> str:
-        """Return the description of the task."""
-        raise NotImplementedError
+        """Return the short description of the task."""
+        ...
 
+    @abstractmethod
     def get_long_description(self) -> str:
-        """Return the description of the task."""
-        raise NotImplementedError
+        """Return the long-form description of the task."""
+        ...
 
+    @abstractmethod
     def get_benchmark_info(self, task_name: Union[str, None]) -> dict:
         """Returns the benchmark information dictionary."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def top_models(self, n: int = 5, metric: str = "") -> List[str]:
         """Returns the top n models for this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_transforms(self) -> dict:
         """Return the description of the transforms applied to the X and y data."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_target_name(self) -> str:
         """Return the target feature name for this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_unavailable_features(self) -> List[str]:
         """Return the names of features which are unavailable for training and inference in this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_metric_names(self) -> List[str]:
-        """Return the target feature name for this task."""
-        raise NotImplementedError
+        """Return the evaluation metric names for this task."""
+        ...
 
+    @abstractmethod
     def get_dataset(self) -> Dataset:
         """Return the underlying dataset."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_df(self) -> pd.DataFrame:
         """Return the underlying pd.DataFrame for this task's dataset."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_data(self, data_type: str) -> Any:
         """Return the underlying data."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_train_data(self, data_type: str) -> Any:
         """Return the underlying training data for this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_test_data(self, data_type: str) -> Any:
         """Return the underlying test data for this task."""
-        raise NotImplementedError
+        ...
 
+    @abstractmethod
     def get_validation_data(self, data_type: str) -> Any:
         """Return the underlying validation data for this task."""
-        raise NotImplementedError
+        ...
 
-    def evaluate_model(predict_call: Callable,
+    @abstractmethod
+    def evaluate_model(self,
+                       predict_call: Callable,
                        data_type: str,
                        x_transforms: Union[Callable, None] = None,
                        x_transform_kwargs: Union[dict, None] = None,
@@ -88,9 +105,10 @@ class TaskABC(ABC):
                        return_predictions: bool = False,
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
-                       overwrite: bool = False) -> Union[dict, Tuple[dict, 'np.ndarray']]:
-        """Evaluate a model against this task's transformed validation set, default against all metrics."""
-        raise NotImplementedError
+                       detailed_metrics: bool = False,
+                       overwrite: bool = False,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+        """Evaluate a model against this task's transformed test set, default against all metrics."""
+        ...
 
 
 class BaseTask(TaskABC):
@@ -182,7 +200,7 @@ class BaseTask(TaskABC):
 
     def get_df(self) -> pd.DataFrame:
         """Return the underlying pd.DataFrame for this task's dataset."""
-        return self._ds._df
+        return self._ds.get_all(data_type="pd")
 
     def get_data(self, data_type: str = "pd") -> Any:
         """Return the underlying data."""
@@ -209,7 +227,8 @@ class BaseTask(TaskABC):
                        return_predictions: bool = False,
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
-                       overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+                       detailed_metrics: bool = False,
+                       overwrite: bool = True,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         raise NotImplementedError
 
@@ -227,6 +246,84 @@ class BaseTask(TaskABC):
         with open(self.benchmark_fp, "w") as f:
             json.dump(benchmark_info, f, indent=4)
 
+    # Metrics requiring profile context (heights, wind speed, layer names).
+    _PROFILE_METRICS = frozenset({
+        "integrated_seeing", "isoplanatic_angle", "coherence_time",
+        "greenwood_frequency", "per_layer_rmse",
+    })
+
+    # Subset of profile metrics that accept a 'heights' parameter.
+    _HEIGHT_METRICS = frozenset({
+        "integrated_seeing", "isoplanatic_angle", "coherence_time",
+        "greenwood_frequency",
+    })
+
+    def _build_metric_kwargs(self, metric_name: str) -> dict:
+        """Build additional kwargs for profile-aware metrics.
+
+        Injects ``heights``, ``wind_speed``, and ``layer_names`` from the
+        task/dataset configuration so that profile metrics can be used
+        declaratively in ``eval_metrics`` lists without custom code.
+
+        Each kwarg is only injected for metrics whose signature accepts it:
+          - ``heights``: AO metrics (integrated_seeing, isoplanatic_angle, etc.)
+          - ``layer_names``: per_layer_rmse
+          - ``wind_speed``: coherence_time, greenwood_frequency
+        """
+        if metric_name not in self._PROFILE_METRICS:
+            return {}
+
+        kwargs: dict = {}
+
+        # Resolve heights from dataset xarray coords or target column names.
+        ds = self.get_dataset()
+        xr_ds = ds.get_xarray()
+
+        ds_config = ds._supported_datasets().get(self._name_to_ds(), {})
+        feature_map = ds_config.get("feature_map", {})
+        height_coord = feature_map.get("height_mass_coord", "height_mass")
+
+        if xr_ds is not None and height_coord in xr_ds.coords:
+            heights = xr_ds.coords[height_coord].values.tolist()
+        else:
+            # Derive heights from target column names (e.g. cn2_free_atmos_500)
+            target = self.task.get("target", [])
+            heights = []
+            if isinstance(target, list):
+                has_ground = False
+                for t in target:
+                    if t == "cn2_ground_scalar":
+                        has_ground = True
+                        continue
+                    parts = t.rsplit("_", 1)
+                    if len(parts) == 2 and parts[1].isdigit():
+                        heights.append(int(parts[1]))
+                # Prepend ground layer at h=0 if target includes it.
+                if has_ground:
+                    heights = [0] + heights
+
+        # Inject heights only for metrics that accept them.
+        if heights and metric_name in self._HEIGHT_METRICS:
+            kwargs["heights"] = heights
+
+        # Layer names for per_layer_rmse (derived from heights).
+        if metric_name == "per_layer_rmse" and heights:
+            kwargs["layer_names"] = [f"{h}m" for h in heights]
+
+        # Wind speed: best-effort from dataset feature_map.
+        if metric_name in ("coherence_time", "greenwood_frequency"):
+            wind_col = feature_map.get("wind_speed_col_name")
+            if wind_col:
+                # Use the Paranal median wind speed as a scalar default.
+                # Future: accept per-sample wind array from the DataFrame.
+                kwargs["wind_speed"] = 10.0
+
+        return kwargs
+
+    def _name_to_ds(self) -> str:
+        """Return the dataset name from the task config."""
+        return self.task["ds_name"]
+
 
 class RegressionTask(BaseTask):
 
@@ -243,10 +340,22 @@ class RegressionTask(BaseTask):
                        return_predictions: bool = False,
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
-                       overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+                       detailed_metrics: bool = False,
+                       overwrite: bool = True,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         # obtain evaluation data
         X_test, y_test = self.get_test_data(data_type=data_type)
+
+        # Exclude rows where the ground truth is absent — metrics are undefined
+        # on those rows and including them would silently corrupt aggregate
+        # statistics (e.g. NaN propagation into RMSE).  The filtered count
+        # matches bench_runner's possible_predictions exactly.
+        if isinstance(y_test, pd.DataFrame):
+            valid = y_test.notna().all(axis=1)
+        else:
+            valid = y_test.notna()
+        X_test = X_test[valid]
+        y_test = y_test[valid]
 
         # apply x_transforms if present
         if x_transforms is not None:
@@ -266,8 +375,12 @@ class RegressionTask(BaseTask):
         model_metrics = {k: -1 for k in eval_metric_names}
 
         for m in eval_metric_names:
-            val = getattr(eval_metrics, m)(y_test, y_test_pred)
-            model_metrics[m] = val
+            if eval_metrics.is_implemented_metric(m):
+                extra_kwargs = self._build_metric_kwargs(m)
+                val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics, **extra_kwargs)
+                model_metrics[m] = val
+            else:
+                warnings.warn(f"Metric '{m}' is not in the implemented metrics registry. Skipping.")
 
         if include_as_benchmark:
             self._add_experiment_to_benchmarks(model_name=model_name, model_metrics=model_metrics, overwrite=overwrite)
@@ -288,17 +401,95 @@ class ForecastingTask(BaseTask):
                                  y: Union[pd.DataFrame, pd.Series],
                                  window_size: Union[int, None] = None,
                                  forecast_horizon: Union[int, None] = None):
-        """Prepare data for forecasting."""
+        """
+        Prepare data for forecasting, respecting session boundaries.
+
+        When a session_col is set (e.g. night_id), lags are built *within each
+        session* rather than across the full split.  This bounds peak memory to
+        O(session_length × n_features × window_size) instead of
+        O(N_total × n_features × window_size), and prevents lag values from
+        bleeding across observing-night boundaries.
+        """
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
+        session_col = self.task.get("session_col")
 
-        X = self._join_target(X, y)
-        if window_size > 1:
-            X = self._add_lags(X, (window_size - 1))
-        y = self._shift_target(y, forecast_horizon)
-        X, y = self._obtain_valid_data(X, y, (window_size - 1), forecast_horizon)
+        if session_col and session_col in X.columns:
+            # -----------------------------------------------------------
+            # Per-session lag construction
+            # Build lags independently for each contiguous session block,
+            # then concatenate.  Cross-session rows are naturally excluded
+            # because _add_lags shifts within the session only.
+            # -----------------------------------------------------------
+            sessions = X[session_col]
+            X = X.drop(columns=[session_col])
 
-        return X, y
+            X_parts: list = []
+            y_parts: list = []
+
+            for _session_id, idx in sessions.groupby(sessions, sort=False).groups.items():
+                X_sess = X.loc[idx]
+                y_sess = y.loc[idx]
+
+                if window_size > 1:
+                    X_sess = self._add_lags(X_sess, window_size - 1)
+                y_sess = self._shift_target(y_sess, forecast_horizon)
+
+                combined = self._join_and_clean(X_sess, y_sess)
+                if combined is None:
+                    continue
+
+                target_cols, original_y_cols = combined.attrs["_target_cols"], combined.attrs["_orig_y_cols"]
+                y_out = combined[target_cols].copy()
+                y_out.columns = original_y_cols
+                X_parts.append(combined.drop(columns=target_cols))
+                y_parts.append(y_out)
+
+            if not X_parts:
+                return pd.DataFrame(), pd.DataFrame()
+
+            return pd.concat(X_parts), pd.concat(y_parts)
+
+        else:
+            # -----------------------------------------------------------
+            # No session boundary: contiguous split (original behaviour)
+            # -----------------------------------------------------------
+            if window_size > 1:
+                X = self._add_lags(X, window_size - 1)
+            y = self._shift_target(y, forecast_horizon)
+
+            combined = self._join_and_clean(X, y)
+            if combined is None:
+                return pd.DataFrame(), pd.DataFrame()
+
+            target_cols, original_y_cols = combined.attrs["_target_cols"], combined.attrs["_orig_y_cols"]
+            y_out = combined[target_cols].copy()
+            y_out.columns = original_y_cols
+            return combined.drop(columns=target_cols), y_out
+
+    def _join_and_clean(self, X: pd.DataFrame,
+                        y: Union[pd.DataFrame, pd.Series]) -> Union[pd.DataFrame, None]:
+        """
+        Collision-safe join of X and shifted y, followed by dropna.
+        Returns the combined DataFrame with target column names stored in
+        .attrs so the caller can split them back out, or None if empty.
+        """
+        if isinstance(y, pd.Series):
+            y_temp = y.to_frame()
+        else:
+            y_temp = y.copy()
+
+        temp_suffix = "_TEMP_TARGET_XYZ"
+        original_y_cols = y_temp.columns.tolist()
+        y_temp.columns = [str(c) + temp_suffix for c in y_temp.columns]
+
+        combined = X.join(y_temp).dropna()
+        if combined.empty:
+            return None
+
+        combined.attrs["_target_cols"] = y_temp.columns.tolist()
+        combined.attrs["_orig_y_cols"] = original_y_cols
+        return combined
 
     def evaluate_model(self,
                        predict_call: Callable,
@@ -314,13 +505,24 @@ class ForecastingTask(BaseTask):
                        return_predictions: bool = False,
                        include_as_benchmark: bool = False,
                        model_name: Union[str, None] = None,
-                       overwrite: bool = True) -> Union[dict, Tuple[dict, 'np.ndarray']]:
+                       detailed_metrics: bool = False,
+                       overwrite: bool = True,) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         window_size = window_size if window_size is not None else self.window_size
         forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
 
         # obtain evaluation data
         X_test, y_test = self.get_test_data(data_type=data_type)
+
+        # Ensure session_col is available for per-session lag construction.
+        # If the task's 'remove' list excludes it from features, recover it
+        # from the underlying dataset so prepare_forecasting_data can group
+        # by session and prevent cross-night contamination.
+        session_col = self.task.get("session_col")
+        if session_col and session_col not in X_test.columns:
+            ctx = self.get_dataset().get_context(X_test.index, session_col)
+            X_test = X_test.join(ctx)
+
         assert forecast_horizon + window_size < len(
             X_test
         ), f"window_size and forecast_horizon must be less than the length of the evaluation set ({len(X_test)})."
@@ -353,8 +555,12 @@ class ForecastingTask(BaseTask):
         model_metrics = {k: -1 for k in eval_metric_names}
 
         for m in eval_metric_names:
-            val = getattr(eval_metrics, m)(y_test, y_test_pred)
-            model_metrics[m] = val
+            if eval_metrics.is_implemented_metric(m):
+                extra_kwargs = self._build_metric_kwargs(m)
+                val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics, **extra_kwargs)
+                model_metrics[m] = val
+            else:
+                warnings.warn(f"Metric '{m}' is not in the implemented metrics registry. Skipping.")
 
         if include_as_benchmark:
             self._add_experiment_to_benchmarks(model_name=model_name, model_metrics=model_metrics, overwrite=overwrite)
@@ -368,12 +574,19 @@ class ForecastingTask(BaseTask):
 
         return X
 
-    def _add_lags(self, X, window_size):
-        """Lag all feature columns from 1 to lags inclusive."""
+    def _add_lags(self, X: pd.DataFrame, n_lags: int) -> pd.DataFrame:
+        """Add lag columns for every feature column (1 … n_lags inclusive)."""
+        if n_lags < 1:
+            return X
+
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", pd.errors.PerformanceWarning)
-            X = X.assign(
-                **{f'{col} (t-{lag})': X[col].shift(lag) for lag in range(1, window_size + 1) for col in X.columns})
+            lag_dict = {
+                f'{col} (t-{lag})': X[col].shift(lag)
+                for lag in range(1, n_lags + 1)
+                for col in X.columns
+            }
+            X = X.assign(**lag_dict)
 
         return X
 
@@ -401,10 +614,29 @@ class TaskApi(object):
         if root_dir is None:
             root_dir = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))  # obtain root path
         tasks_path = os.path.join(root_dir, 'config', 'tasks.json')
-        tasks = json.load(open(tasks_path, 'rb'))
+        with open(tasks_path, 'r') as f:
+            tasks = json.load(f)
 
         self.tasks = tasks
+
+        if settings.USE_SYNTHETIC_DATA:
+            self._patch_tasks_for_synthetic_data(self.tasks)
+
         self._build_task_names()
+
+    def _patch_tasks_for_synthetic_data(self, d: dict) -> None:
+        """Recursively patch task indices to fit within the small synthetic dataset."""
+        if isinstance(d, dict):
+            if "train_idx" in d and "val_idx" in d and "test_idx" in d:
+                # Found a task definition, patch it
+                # Ensure these indices fit within the 2000-step synthetic dataset
+                d["train_idx"] = ["0:1000"]
+                d["val_idx"] = ["1000:1500"]
+                d["test_idx"] = ["1500:2000"]
+            else:
+                # Recurse
+                for k, v in d.items():
+                    self._patch_tasks_for_synthetic_data(v)
 
     def get_task(self, task_name: str, benchmark_fp: str = BENCHMARK_FP) -> Union[RegressionTask, ForecastingTask]:
         """Get a task by name."""
@@ -415,7 +647,7 @@ class TaskApi(object):
                                       task=self._get_task(key=task_name),
                                       benchmark_fp=benchmark_fp)
             elif task_name.split(".")[0] == TaskTypes.FORECASTING.value:
-                return ForecastingTask(task_type=TaskTypes.REGRESSION,
+                return ForecastingTask(task_type=TaskTypes.FORECASTING,
                                        task_name=task_name,
                                        task=self._get_task(key=task_name),
                                        benchmark_fp=benchmark_fp)
@@ -426,7 +658,7 @@ class TaskApi(object):
 
     def list_tasks(self) -> List[str]:
         """List all currently supported tasks."""
-        return list(self.task_names)
+        return sorted(list(self.task_names))
 
     def _get_task(self, key: str) -> dict:
         """Traverse a task key, returning bottom-level data."""

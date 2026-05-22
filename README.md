@@ -22,9 +22,23 @@ The package currently covers regression and forecasting for modeling the strengt
 
 ### Features
 
-*Environmentally Diverse Datasets* 
+*Environmentally Diverse Datasets*
 
-`otbench` includes a variety of datasets from different operational studies. These datasets include measurements of optical turbulence strength, as well as environmental data such as wind speed, temperature, and relative humidity. The datasets are stored as `xarray` objects, which provide a consistent interface for working with the data.
+`otbench` includes datasets from diverse operational studies. v0.4.0 adds the **ESO Paranal Tomographic Benchmark** — the first community-standard, causally-ordered, multi-instrument benchmarking corpus for optical turbulence profiling. It combines MASS turbulence profiles (6 free-atmosphere layers + ground), LHATPRO thermodynamic profiles (39 levels), and surface meteorology across >500 observing nights at Paranal Observatory.
+
+*Domain-Complete Evaluation Metrics*
+
+Beyond standard regression metrics (RMSE, MAE, R², MAPE), `otbench` provides **physics-derived evaluation metrics** for turbulence profile assessment:
+
+| Metric | Physical Quantity | Unit |
+|--------|------------------|------|
+| `integrated_seeing` | Fried parameter → FWHM | arcsec |
+| `isoplanatic_angle` | AO correction field of view (θ₀) | arcsec |
+| `coherence_time` | AO loop timing (τ₀) | ms |
+| `greenwood_frequency` | AO bandwidth requirement (f_G) | Hz |
+| `per_layer_rmse` | Per-layer error decomposition | — |
+
+These metrics are **declaratively composable** — add them to any task's `eval_metrics` list and the dispatch adapter injects the required physical context (layer heights, wind speed) automatically.
 
 *Consistent Interface for Model Evaluation*
 
@@ -38,7 +52,7 @@ Comparing different models can be difficult, especially when the models are trai
 
 You can install `otbench` using a Python package manager such as `pip`.
 
-The package is available on PyPi, versioned using the date of release. We will work to ensure compatibility with the last three major versions of Python, but have designed the package to be compatible with Python 3.6 and above.
+The package is available on PyPI. We maintain compatibility with the last three major versions of Python (currently **3.10, 3.11, and 3.12**).
 
 
 #### From PyPi
@@ -65,14 +79,19 @@ The current dependencies are listed in `requirements.txt`. We strongly recommend
 
 _Requirements_:
 ```text
-numpy>=1.22
-pandas==1.3.5
-scikit-learn>=1.0.1
-xarray>=2022.3.0
-netcdf4>=1.6.0
-matplotlib==3.5.3
-requests==2.22.0
-astral==2.2
+numpy
+pandas
+scikit-learn
+lightgbm
+xarray
+netcdf4
+matplotlib
+requests
+astral
+cmocean
+tqdm
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
 ```
 
 You can install them using `pip`:
@@ -127,7 +146,7 @@ mlo_cn2.evaluate_model(
         )
 ```
 
-The full set of tasks, along with their complete definition and metadata, is available as a [JSON file](./otb/config/tasks.json).
+The full set of tasks, along with their complete definition and metadata, is available as a [JSON file](./otbench/config/tasks.json).
 
 #### Regression
 
@@ -141,17 +160,43 @@ We provide a similar overview for the process of developing a forecasting model 
 
 [![forecasting.usna_cn2_sm.full.Cn2_3m](./doc/img/usna_cn2_sm_forecasting.png)](./notebooks/forecasting/usna_cn2_sm.ipynb)
 
+#### Paranal Tomographic Profiling (v0.4.0)
+
+The ESO Paranal Tomographic Benchmark provides three tasks for turbulence profile modeling:
+
+| Task | Type | Description |
+|------|------|-------------|
+| `regression.paranal_tomography.full.cn2_profile_reconstruction` | Regression | Zero-shot 7-layer profile reconstruction from thermodynamics |
+| `forecasting.paranal_tomography.full.seeing_nowcast` | Forecasting | Scalar seeing prediction 5 minutes ahead |
+| `forecasting.paranal_tomography.full.cn2_profile_forecast` | Forecasting | 7-layer profile prediction 10 minutes ahead |
+
+Profile tasks automatically evaluate using AO-derived metrics (integrated seeing, isoplanatic angle) alongside standard RMSE. See the [Paranal dataset documentation](./otbench/data/paranal_tomography/README.md) for schema details and physical quantities.
+
+```python
+from otbench import TaskApi
+
+task_api = TaskApi()
+profile_task = task_api.get_task(
+    "regression.paranal_tomography.full.cn2_profile_reconstruction"
+)
+
+# Evaluate a model — AO metrics are injected automatically
+results = profile_task.evaluate_model(predict_call=model.predict)
+# results includes: root_mean_square_error, per_layer_rmse,
+#                   integrated_seeing, isoplanatic_angle
+```
+
 ### Contributing
 
 All contributions are welcome! We are especially interested in contributions that add new datasets, tasks, and benchmark models. We are also interested in contributions that improve the documentation, add new examples, or improve the codebase. When contributing, please follow the [contributing guidelines](./CONTRIBUTING.md), and ensure that your code passes the tests and linting. If you have any questions, please feel free to open an issue or reach out to the maintainers.
 
 #### Adding new datasets
 
-New datasets can be added by following the instructions in the [data documentation](./otb/data/README.md). We strongly prefer datasets to conform to the NetCDF4 format, and to be stored in the `data/` directory. If you have a dataset that you would like to add, but are unable to convert it to NetCDF4, please reach out to the maintainers.
+New datasets can be added by following the instructions in the [data documentation](./otbench/data/README.md). We strongly prefer datasets to conform to the NetCDF4 format (readable by `xarray.open_dataset`), and to be stored in the `data/` directory. If you have a dataset that you would like to add, but are unable to convert it to NetCDF4, please reach out to the maintainers.
 
 #### Adding new tasks
 
-New tasks, if they are based on existing datasets, can be added directly to [the task specifications file](./otb/config/tasks.json).  If you would like to add a new task which uses a new dataset, please include the new dataset first or on the same pull request. The existing tasks provide a good template for how to specify a new task. More information is available in the [data documentation](./otb/data/README.md). If you have any questions, please reach out to the maintainers.
+New tasks, if they are based on existing datasets, can be added directly to [the task specifications file](./otbench/config/tasks.json).  If you would like to add a new task which uses a new dataset, please include the new dataset first or on the same pull request. The existing tasks provide a good template for how to specify a new task. More information is available in the [data documentation](./otbench/data/README.md). If you have any questions, please reach out to the maintainers.
 
 We strive to avoid a combinatorial explosion of tasks, and to ensure that the tasks are representative of the broader optical turbulence modeling problem. If you have any questions about whether a new task is appropriate, please reach out to the maintainers.
 
@@ -168,11 +213,11 @@ The set of evaluation metrics and plotting functions is relatively sparse, and w
 If you use `otbench` in your research, please cite the package using the following BibTeX entry:
 
 ```bibtex
-@misc{jellen2023otbench,
-    author = {Jellen, Christopher and Nelson, Charles and Burkhardt, John and Brownell, Cody}.
+@misc{jellen2026otbench,
+    author = {Jellen, Christopher and Nelson, Charles and Burkhardt, John and Brownell, Cody},
     title = {otbench: Effective Benchmarks for Optical Turbulence Modeling},
     howpublished = {\url{github.com/CDJellen/otbench}},
-    year = {2023},
+    year = {2026},
 }
 ```
 

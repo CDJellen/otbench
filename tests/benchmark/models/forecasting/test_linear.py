@@ -9,11 +9,12 @@ from otbench.benchmark.models.forecasting.linear import LinearForecastingModel
 def test_linear_forecasting_model(task_api):
     """Test the LinearForecastingModel."""
     # create a DataFrame with the required columns
+    dates = pd.date_range(start="2024-01-01", periods=50, freq="min")
     X = pd.DataFrame({
         "T_10m": [10 for _ in range(50)],
         "T_0m": [10 for _ in range(50)],
-    })
-    y = pd.DataFrame({"Cn2_15m": [1.58e-16 for _ in range(50)]})
+    }, index=dates)
+    y = pd.DataFrame({"Cn2_15m": [1.58e-16 for _ in range(50)]}, index=dates)
 
     # we need a task to prepare forecasting data
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m")

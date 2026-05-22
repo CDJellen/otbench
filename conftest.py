@@ -3,19 +3,25 @@ from os import path
 import pandas as pd
 import pytest
 
+from otbench.config import settings
 from otbench.tasks import TaskApi
+
 
 
 def pytest_addoption(parser):
     """Add custom command line options to pytest."""
     parser.addoption('--run-slow', action='store_true', default=False, help='execute long-running tests.')
     parser.addoption('--run-private', action='store_true', default=False, help='run tests for private methods.')
+    parser.addoption('--use-synthetic-data', action='store_true', default=False, help='use synthetic data for testing.')
 
 
 def pytest_configure(config):
     """Add custom markers to pytest."""
     config.addinivalue_line('markers', 'slow: flag tests as slow to run')
     config.addinivalue_line('markers', 'private: flag tests for private methods')
+    
+    if config.getoption('--use-synthetic-data'):
+        settings.USE_SYNTHETIC_DATA = True
 
 
 def pytest_collection_modifyitems(config, items):

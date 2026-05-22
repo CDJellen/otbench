@@ -15,11 +15,8 @@ def apply_fried_height_adjustment(cn2: Union['pd.DataFrame', 'pd.Series', np.nda
     Returns:
         pd.Series: The adjusted Cn2 values.
     """
-    try:
-        assert observed >= 0.0
-        assert desired > 0.0
-    except AssertionError:
-        raise ValueError('The observed and desired heights must be positive.')
+    if observed < 0.0 or desired <= 0.0:
+        raise ValueError('The observed height must be non-negative and the desired height must be positive.')
 
     if observed > 0:
         cn2 /= ((observed**(-1 / 3)) * np.exp(-1 * observed / 3200))
@@ -43,11 +40,8 @@ def apply_oermann_height_adjustment(
     Returns:
         pd.Series: The adjusted Cn2 values.
     """
-    try:
-        assert observed > 0.0
-        assert desired > 0.0
-    except AssertionError:
-        raise ValueError('The observed and desired heights must be positive.')
+    if observed <= 0.0 or desired <= 0.0:
+        raise ValueError('Both observed and desired heights must be positive.')
 
     cn2 *= (desired / observed)**(power_law_scaling)
 

@@ -1,6 +1,6 @@
 import os
 import pickle
-from typing import List, Union
+from typing import List, Union, Any
 
 import pandas as pd
 
@@ -13,7 +13,7 @@ class InMemoryCache:
         self._cache = dict()
         self._cache_dir = cache_dir
 
-    def add_dataset(self, name: str, dataset: pd.DataFrame) -> None:
+    def add_dataset(self, name: str, dataset: Any) -> None:
         """Adds a new dataset to the cache, persisting to disk if needed."""
         self._cache[name] = dataset
         self._cache_dataset(key=name)
@@ -28,12 +28,17 @@ class InMemoryCache:
         """List the datasets available in memory."""
         return list(self._cache.keys())
 
-    def get_dataset(self, key: str) -> pd.DataFrame:
-        """Get a dataset from memory or disk"""
+    def get_dataset(self, key: str) -> Any:
+        """Get a dataset from memory or disk."""
         if key not in self.available_datasets():
-            raise NotImplementedError
+            raise KeyError(f"Dataset '{key}' not found in cache or on disk.")
         if self._is_in_memory(key):
             return self._cache[key]
+        # Key exists on disk but not in memory — load it.
+        self._load_dataset(key)
+        if self._is_in_memory(key):
+            return self._cache[key]
+        raise RuntimeError(f"Failed to load dataset '{key}' from disk cache.")
 
     def _is_in_memory(self, key: str) -> bool:
         """Check if a dataset is available in memory."""
@@ -52,23 +57,29 @@ class InMemoryCache:
         """Save a dataset from memory to disk."""
         if key not in self._cache:
             raise KeyError(f"no dataset named {key}.")
-        df = self._cache[key]
-        df.to_pickle(os.path.join(self._cache_dir, f"{key}.pickle"))
+        data = self._cache[key]
+        with open(os.path.join(self._cache_dir, f"{key}.pickle"), "wb") as f:
+            pickle.dump(data, f)
 
     def _load_dataset(self, key) -> None:
-        """Load a dataset from disk to memory"""
+        """Load a dataset from disk to memory."""
+        fp = os.path.join(self._cache_dir, f"{key}.pickle")
         try:
-            df = pd.read_pickle(os.path.join(self._cache_dir, f"{key}.pickle"))
-            self._cache[key] = df
-        except Exception as e:  # @TODO narrow scope
-            print(f"failed to load dataset with key '{key}' from cache at {self._cache_dir} with error {e}.")
-            return
+            with open(fp, "rb") as f:
+                data = pickle.load(f)
+            self._cache[key] = data
+        except FileNotFoundError:
+            raise
+        except (pickle.UnpicklingError, EOFError, ModuleNotFoundError) as e:
+            import warnings
+            warnings.warn(
+                f"Corrupted cache entry for '{key}' at {fp}: {e}. "
+                f"Delete the file and re-run to regenerate."
+            )
 
     def __iter__(self) -> pd.DataFrame:
-        i = 0
-        keys = list(self._cache.keys())
-        while i < len(keys):
-            yield self._cache[keys[i]]
+        for key in list(self._cache.keys()):
+            yield self._cache[key]
 
     def __len__(self) -> int:
         return len(self._cache)

@@ -33,7 +33,7 @@ def test_get_dataset(in_memory_cache):
     """Test getting a dataset from the cache."""
     in_memory_cache.add_dataset(name='test', dataset=pd.DataFrame())
     assert isinstance(in_memory_cache.get_dataset(key='test'), pd.DataFrame)
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(KeyError):
         in_memory_cache.get_dataset(key='not_in_cache')
     remove_from_cache(name='test')
 
@@ -71,9 +71,8 @@ def test_load_dataset(in_memory_cache, capfd):
     in_memory_cache._load_dataset(key='test')
     assert in_memory_cache._is_in_memory(key='test')
     # assert notification in capfd.readouterr().out
-    in_memory_cache._load_dataset(key='not_in_cache')
-    out, _ = capfd.readouterr()
-    assert f"failed to load dataset with key 'not_in_cache'" in out
+    with pytest.raises(FileNotFoundError):
+        in_memory_cache._load_dataset(key='not_in_cache')
     remove_from_cache(name='test')
 
 

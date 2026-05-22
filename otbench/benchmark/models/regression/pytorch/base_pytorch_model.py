@@ -40,6 +40,7 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         self.train_dataloader = None
         self.test_dataloader = None
         self.val_dataloader = None
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def set_model(self,
                   model: 'torch.nn.Module',
@@ -55,6 +56,9 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
                 print("will normalize data before training")
             else:
                 print("will not normalize data before training.")
+
+        self.model.to(self.device)
+
         if set_optimizer_callable_params:
             self.optimizer = self._optimizer_callable(self.model.parameters(), lr=self.learning_rate)
         else:
@@ -64,11 +68,15 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="train")
 
-    def set_test_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
+    def set_test_data(self,
+                      X: Union[pd.DataFrame, np.ndarray],
+                      y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="test")
 
-    def set_validation_data(self, X: Union[pd.DataFrame, np.ndarray], y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
+    def set_validation_data(self,
+                            X: Union[pd.DataFrame, np.ndarray],
+                            y: Union[pd.DataFrame, np.ndarray, None] = None) -> None:
         """Pass training data to set model's DataLoader."""
         self._set_dataloader_from_data(X=X, y=y, mode="val")
 
@@ -121,10 +129,10 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
     def _normalize_data(self, X: 'pd.DataFrame', y: 'pd.DataFrame') -> Tuple[np.ndarray, np.ndarray]:
         """Normalize the data before training."""
         # normalize the training data
-        X_mean = np.nanmean(X, axis=(0, 1))
-        X_std = np.nanstd(X, axis=(0, 1)) + sys.float_info.epsilon
-        y_mean = np.nanmean(y, axis=(0, 1))
-        y_std = np.nanstd(y, axis=(0, 1)) + sys.float_info.epsilon
+        X_mean = np.nanmean(X, axis=0)
+        X_std = np.nanstd(X, axis=0) + sys.float_info.epsilon
+        y_mean = np.nanmean(y, axis=0)
+        y_std = np.nanstd(y, axis=0) + sys.float_info.epsilon
 
         # save the mean and std
         self.X_mean = X_mean
@@ -137,9 +145,15 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
     def _apply_normalization(self, X: Union['pd.DataFrame', np.ndarray],
                              y: Union['pd.DataFrame', np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
         """Apply normalization learned during training for test or validation."""
-        # replace missing values with the mean of that column
-        X[np.isnan(X)] = np.take(self.X_mean, np.where(np.isnan(X))[1])
-        y[np.isnan(y)] = np.take(self.y_mean, np.where(np.isnan(y))[1])
+        # Replace NaN with training mean before normalizing.
+        # X may be 3-D [samples, window, features] — broadcast X_mean over the
+        # sample axis so that each (window, feature) position is filled correctly.
+        if np.any(np.isnan(X)):
+            X = np.where(np.isnan(X), self.X_mean, X)
+
+        # y is 2-D [samples, output_size]; broadcast y_mean over sample axis.
+        if np.any(np.isnan(y)):
+            y = np.where(np.isnan(y), self.y_mean, y)
 
         # normalize the data before training
         X = (X - self.X_mean) / self.X_std

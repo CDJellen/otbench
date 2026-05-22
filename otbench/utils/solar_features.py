@@ -66,7 +66,7 @@ def add_temporal_hour_weight(X: pd.DataFrame, temporal_hour_col_name: str, tempo
         99: 0.13
     }
 
-    X[temporal_hour_weight_col_name] = 0
+    X[temporal_hour_weight_col_name] = 0.0
     keys = list(TEMPORAL_HOUR_DICT.keys())
 
     for idx in range(len(keys) - 1):

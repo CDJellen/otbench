@@ -182,39 +182,6 @@ def test_is_supported_task(task_api):
 
 
 def test_task_abc():
-    """Test the TaskABC."""
-    task = TaskABC()
-    with pytest.raises(NotImplementedError):
-        task.get_info()
-    with pytest.raises(NotImplementedError):
-        task.get_target_name()
-    with pytest.raises(NotImplementedError):
-        task.get_description()
-    with pytest.raises(NotImplementedError):
-        task.get_long_description()
-    with pytest.raises(NotImplementedError):
-        task.get_transforms()
-    with pytest.raises(NotImplementedError):
-        task.get_metric_names()
-    with pytest.raises(NotImplementedError):
-        task.get_unavailable_features()
-    with pytest.raises(NotImplementedError):
-        task.get_dataset()
-    with pytest.raises(NotImplementedError):
-        task.get_df()
-    with pytest.raises(NotImplementedError):
-        task.get_data("foo")
-    with pytest.raises(NotImplementedError):
-        task.get_train_data("foo")
-    with pytest.raises(NotImplementedError):
-        task.get_test_data("foo")
-    with pytest.raises(NotImplementedError):
-        task.get_validation_data("foo")
-    with pytest.raises(NotImplementedError):
-        task.evaluate_model(lambda x: x, "foo")
-    with pytest.raises(NotImplementedError):
-        task.get_benchmark_info("foo")
-    with pytest.raises(NotImplementedError):
-        task.top_models()
-    with pytest.raises(NotImplementedError):
-        task.get_metric_names()
+    """Test that TaskABC cannot be instantiated directly (enforced by @abstractmethod)."""
+    with pytest.raises(TypeError):
+        TaskABC()

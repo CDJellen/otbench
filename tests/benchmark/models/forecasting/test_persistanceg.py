@@ -56,6 +56,12 @@ def test_with_forecasting_evaluation(task_api):
         old_experiments = json.load(f)
 
     task = task_api.get_task("forecasting.mlo_cn2.dropna.Cn2_15m", benchmark_fp=TESTS_BENCHMARK_FP)
+    
+    # Train the model before evaluation
+    X_train, y_train = task.get_train_data(data_type="pd")
+    X_train, y_train = task.prepare_forecasting_data(X_train, y_train)
+    model.train(X_train, y_train)
+
     # test model evaluation
     _ = task.evaluate_model(model.predict, return_predictions=True)
     # test model evaluation with transforms
