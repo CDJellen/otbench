@@ -10,9 +10,11 @@ coverage.xml
 otbench/cache/processed/*.pickle
 otbench/data/paranal_tomography/raw*/*
 doc/
+dist/
+
 !notebooks/overview.ipynb
 !notebooks/forecasting/*.ipynb
 !notebooks/regression/*.ipynb
 !notebooks/pytorch/*.ipynb
 !notebooks/tomography_analysis.ipynb
-!notebooks/datasets/paranal.ipynbdist/
+!notebooks/datasets/paranal.ipynb

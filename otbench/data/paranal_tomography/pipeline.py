@@ -1,4 +1,6 @@
 import sys
+from glob import glob
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -59,7 +61,8 @@ def validate_dataset(ds) -> bool:
             valid = vals[~np.isnan(vals)]
             if len(valid) > 0 and np.any(valid < 0):
                 n_neg = np.sum(valid < 0)
-                print(f"  [WARN] {turb_var} has {n_neg} negative values (physically impossible)")
+                print(f"  [FAIL] {turb_var} has {n_neg} negative values (physically impossible)")
+                ok = False
 
     # Check seeing is positive where not NaN
     if "seeing" in ds.data_vars:
@@ -89,6 +92,13 @@ def run_pipeline(output_dir: str = OUTPUT_DIR, dataset_filename: str = NC_FILENA
             fetcher.fetch_campaign(instrument, start_date=START, end_date=END, freq="MS")
         except Exception as e:
             print(f"Critical Download Failure for {instrument}: {e}")
+
+    # Verify critical instruments produced at least one file before proceeding.
+    for required in ["mass_paranal", "lhatpro_paranal"]:
+        files = sorted(glob(str(Path(output_dir) / f"{required}_*.csv")))
+        if not files:
+            print(f"[FATAL] Zero files for {required}. Cannot build dataset.")
+            sys.exit(1)
 
     print("\n-- Phase 2: Transformation")
     try:

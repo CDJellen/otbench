@@ -246,6 +246,84 @@ class BaseTask(TaskABC):
         with open(self.benchmark_fp, "w") as f:
             json.dump(benchmark_info, f, indent=4)
 
+    # Metrics requiring profile context (heights, wind speed, layer names).
+    _PROFILE_METRICS = frozenset({
+        "integrated_seeing", "isoplanatic_angle", "coherence_time",
+        "greenwood_frequency", "per_layer_rmse",
+    })
+
+    # Subset of profile metrics that accept a 'heights' parameter.
+    _HEIGHT_METRICS = frozenset({
+        "integrated_seeing", "isoplanatic_angle", "coherence_time",
+        "greenwood_frequency",
+    })
+
+    def _build_metric_kwargs(self, metric_name: str) -> dict:
+        """Build additional kwargs for profile-aware metrics.
+
+        Injects ``heights``, ``wind_speed``, and ``layer_names`` from the
+        task/dataset configuration so that profile metrics can be used
+        declaratively in ``eval_metrics`` lists without custom code.
+
+        Each kwarg is only injected for metrics whose signature accepts it:
+          - ``heights``: AO metrics (integrated_seeing, isoplanatic_angle, etc.)
+          - ``layer_names``: per_layer_rmse
+          - ``wind_speed``: coherence_time, greenwood_frequency
+        """
+        if metric_name not in self._PROFILE_METRICS:
+            return {}
+
+        kwargs: dict = {}
+
+        # Resolve heights from dataset xarray coords or target column names.
+        ds = self.get_dataset()
+        xr_ds = ds.get_xarray()
+
+        ds_config = ds._supported_datasets().get(self._name_to_ds(), {})
+        feature_map = ds_config.get("feature_map", {})
+        height_coord = feature_map.get("height_mass_coord", "height_mass")
+
+        if xr_ds is not None and height_coord in xr_ds.coords:
+            heights = xr_ds.coords[height_coord].values.tolist()
+        else:
+            # Derive heights from target column names (e.g. cn2_free_atmos_500)
+            target = self.task.get("target", [])
+            heights = []
+            if isinstance(target, list):
+                has_ground = False
+                for t in target:
+                    if t == "cn2_ground_scalar":
+                        has_ground = True
+                        continue
+                    parts = t.rsplit("_", 1)
+                    if len(parts) == 2 and parts[1].isdigit():
+                        heights.append(int(parts[1]))
+                # Prepend ground layer at h=0 if target includes it.
+                if has_ground:
+                    heights = [0] + heights
+
+        # Inject heights only for metrics that accept them.
+        if heights and metric_name in self._HEIGHT_METRICS:
+            kwargs["heights"] = heights
+
+        # Layer names for per_layer_rmse (derived from heights).
+        if metric_name == "per_layer_rmse" and heights:
+            kwargs["layer_names"] = [f"{h}m" for h in heights]
+
+        # Wind speed: best-effort from dataset feature_map.
+        if metric_name in ("coherence_time", "greenwood_frequency"):
+            wind_col = feature_map.get("wind_speed_col_name")
+            if wind_col:
+                # Use the Paranal median wind speed as a scalar default.
+                # Future: accept per-sample wind array from the DataFrame.
+                kwargs["wind_speed"] = 10.0
+
+        return kwargs
+
+    def _name_to_ds(self) -> str:
+        """Return the dataset name from the task config."""
+        return self.task["ds_name"]
+
 
 class RegressionTask(BaseTask):
 
@@ -298,9 +376,8 @@ class RegressionTask(BaseTask):
 
         for m in eval_metric_names:
             if eval_metrics.is_implemented_metric(m):
-                # check if metric accepts detailed arg?
-                # metrics.py functions now all accept detailed.
-                val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics)
+                extra_kwargs = self._build_metric_kwargs(m)
+                val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics, **extra_kwargs)
                 model_metrics[m] = val
             else:
                 warnings.warn(f"Metric '{m}' is not in the implemented metrics registry. Skipping.")
@@ -436,6 +513,16 @@ class ForecastingTask(BaseTask):
 
         # obtain evaluation data
         X_test, y_test = self.get_test_data(data_type=data_type)
+
+        # Ensure session_col is available for per-session lag construction.
+        # If the task's 'remove' list excludes it from features, recover it
+        # from the underlying dataset so prepare_forecasting_data can group
+        # by session and prevent cross-night contamination.
+        session_col = self.task.get("session_col")
+        if session_col and session_col not in X_test.columns:
+            ctx = self.get_dataset().get_context(X_test.index, session_col)
+            X_test = X_test.join(ctx)
+
         assert forecast_horizon + window_size < len(
             X_test
         ), f"window_size and forecast_horizon must be less than the length of the evaluation set ({len(X_test)})."
@@ -469,7 +556,8 @@ class ForecastingTask(BaseTask):
 
         for m in eval_metric_names:
             if eval_metrics.is_implemented_metric(m):
-                val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics)
+                extra_kwargs = self._build_metric_kwargs(m)
+                val = getattr(eval_metrics, m)(y_test, y_test_pred, detailed=detailed_metrics, **extra_kwargs)
                 model_metrics[m] = val
             else:
                 warnings.warn(f"Metric '{m}' is not in the implemented metrics registry. Skipping.")

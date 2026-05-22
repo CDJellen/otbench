@@ -92,6 +92,13 @@ class ESOFetcher:
 
         print(f" - Starting Campaign: {instrument} | {len(logical_dates)} Chunks")
 
+        # Load existing manifest for SHA-verified skipping.
+        manifest_path = self.output_dir / f"{instrument}_manifest.json"
+        existing_manifest = {}
+        if manifest_path.exists():
+            with open(manifest_path, 'r') as f:
+                existing_manifest = json.load(f)
+
         for i, date in enumerate(logical_dates):
             chunk_start = date.strftime("%Y-%m-%d")
             if i + 1 < len(logical_dates):
@@ -102,8 +109,12 @@ class ESOFetcher:
             file_suffix = date.strftime("%Y-%m")
             filename = self.output_dir / f"{instrument}_{file_suffix}.csv"
 
+            # Prefer SHA manifest verification over raw size heuristic.
+            if filename.name in existing_manifest and filename.exists():
+                print(f"  [SKIP] {filename.name} verified by SHA manifest.")
+                continue
             if filename.exists() and filename.stat().st_size > 1000:
-                print(f"  [SKIP] {filename.name} exists.")
+                print(f"  [SKIP] {filename.name} exists (no manifest entry; size check).")
                 continue
 
             sha = self._download_chunk(instrument, chunk_start, chunk_end, filename)

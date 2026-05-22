@@ -1015,3 +1015,218 @@ class TestLazyLoadingAPI:
         result = dataset.get_sample_df(10)
         assert isinstance(result, pd.DataFrame)
         assert len(result.columns) == 52
+
+
+# ============================================================================
+# Group 15: Audit Remediation Verification
+# ============================================================================
+
+class TestAuditRemediationVerification:
+    """Targeted tests for findings P-001, P-002, U-001, U-002, U-003."""
+
+    # --- P-001: integrated_seeing log-space guard ---
+
+    def test_integrated_seeing_log_space_equals_linear(self):
+        """integrated_seeing with log10 inputs must produce the same result
+        as passing the un-logged values directly.  This validates the P-001
+        auto-detection guard.
+        """
+        from otbench.eval.integrated_metrics import integrated_seeing
+
+        rng = np.random.default_rng(42)
+        # Physically representative J_i values: O(1e-15)
+        linear_vals = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        log_vals = np.log10(linear_vals)
+
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res_linear = integrated_seeing(
+            linear_vals, linear_vals * 0.9,  # 10% systematic under-prediction
+            heights=heights, values_are_integrals=True,
+        )
+        res_log = integrated_seeing(
+            log_vals, np.log10(linear_vals * 0.9),
+            heights=heights, values_are_integrals=True,
+        )
+
+        # They should produce the same RMSE to within floating point tolerance
+        assert abs(res_linear["metric_value"] - res_log["metric_value"]) < 1e-6, (
+            f"Linear={res_linear['metric_value']:.8f}, "
+            f"Log-guard={res_log['metric_value']:.8f}"
+        )
+
+    def test_integrated_seeing_positive_values_no_unlog(self):
+        """When inputs are already positive (linear space), the guard should NOT activate."""
+        from otbench.eval.integrated_metrics import integrated_seeing
+
+        rng = np.random.default_rng(42)
+        vals = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = integrated_seeing(vals, vals, heights=heights, values_are_integrals=True)
+        # Perfect prediction → RMSE should be 0
+        assert res["metric_value"] < 1e-10
+
+    # --- P-002: synthetic Cn2 magnitudes ---
+
+    def test_synthetic_cn2_magnitude_range(self, raw_xarray_dataset):
+        """Synthetic Cn2 values must be in a physically plausible range: O(1e-18) to O(1e-12)."""
+        cn2 = raw_xarray_dataset["cn2_free_atmos"].values
+        valid = cn2[~np.isnan(cn2)]
+        median_val = np.median(valid)
+        assert 1e-18 < median_val < 1e-12, (
+            f"Synthetic Cn2 median = {median_val:.2e} (expected O(1e-15))"
+        )
+
+    def test_synthetic_cn2_no_negative_values(self, raw_xarray_dataset):
+        """No negative turbulence values should exist in the dataset."""
+        for var in ["cn2_free_atmos", "cn2_ground_scalar"]:
+            vals = raw_xarray_dataset[var].values
+            valid = vals[~np.isnan(vals)]
+            assert np.all(valid >= 0), f"{var} contains negative values"
+
+    # --- U-001: AO-derived metrics ---
+
+    def test_isoplanatic_angle_basic(self):
+        """isoplanatic_angle must return a finite RMSE in arcseconds."""
+        from otbench.eval.integrated_metrics import isoplanatic_angle
+
+        rng = np.random.default_rng(42)
+        y_true = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        y_pred = y_true * rng.uniform(0.8, 1.2, size=y_true.shape)
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = isoplanatic_angle(y_true, y_pred, heights=heights)
+        assert np.isfinite(res["metric_value"])
+        assert res["metric_value"] > 0
+        assert res["valid_predictions"] == 50
+
+    def test_isoplanatic_angle_perfect_prediction(self):
+        """Perfect predictions → RMSE should be 0."""
+        from otbench.eval.integrated_metrics import isoplanatic_angle
+
+        rng = np.random.default_rng(42)
+        y = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = isoplanatic_angle(y, y, heights=heights)
+        assert res["metric_value"] < 1e-10
+
+    def test_coherence_time_basic(self):
+        """coherence_time must return a finite RMSE in milliseconds."""
+        from otbench.eval.integrated_metrics import coherence_time
+
+        rng = np.random.default_rng(42)
+        y_true = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        y_pred = y_true * rng.uniform(0.8, 1.2, size=y_true.shape)
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = coherence_time(y_true, y_pred, heights=heights, wind_speed=10.0)
+        assert np.isfinite(res["metric_value"])
+        assert res["metric_value"] > 0
+
+    def test_greenwood_frequency_basic(self):
+        """greenwood_frequency must return a finite RMSE in Hz."""
+        from otbench.eval.integrated_metrics import greenwood_frequency
+
+        rng = np.random.default_rng(42)
+        y_true = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        y_pred = y_true * rng.uniform(0.8, 1.2, size=y_true.shape)
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = greenwood_frequency(y_true, y_pred, heights=heights, wind_speed=10.0)
+        assert np.isfinite(res["metric_value"])
+        assert res["metric_value"] > 0
+
+    def test_ao_metrics_log_space_invariance(self):
+        """All AO metrics must handle log-space inputs via auto-detection."""
+        from otbench.eval.integrated_metrics import (
+            isoplanatic_angle, coherence_time, greenwood_frequency,
+        )
+
+        rng = np.random.default_rng(42)
+        linear = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        log = np.log10(linear)
+        pred_linear = linear * 0.9
+        pred_log = np.log10(pred_linear)
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        for metric_fn in [isoplanatic_angle, coherence_time, greenwood_frequency]:
+            res_lin = metric_fn(linear, pred_linear, heights=heights)
+            res_log = metric_fn(log, pred_log, heights=heights)
+            assert abs(res_lin["metric_value"] - res_log["metric_value"]) < 1e-6, (
+                f"{metric_fn.__name__}: linear={res_lin['metric_value']:.8f}, "
+                f"log={res_log['metric_value']:.8f}"
+            )
+
+    # --- U-002: per-layer RMSE ---
+
+    def test_per_layer_rmse_basic(self):
+        """per_layer_rmse must return named per-layer values."""
+        from otbench.eval.metrics import per_layer_rmse
+
+        rng = np.random.default_rng(42)
+        y_true = rng.normal(0, 1, size=(100, 4))
+        y_pred = y_true + rng.normal(0, 0.1, size=y_true.shape)
+        names = ["500m", "1000m", "2000m", "4000m"]
+
+        res = per_layer_rmse(y_true, y_pred, layer_names=names)
+        assert "per_layer" in res
+        assert set(res["per_layer"].keys()) == set(names)
+        for v in res["per_layer"].values():
+            assert np.isfinite(v)
+            assert v > 0
+
+    def test_per_layer_rmse_auto_numbering(self):
+        """Without layer_names, layers are numbered 0, 1, 2, ..."""
+        from otbench.eval.metrics import per_layer_rmse
+
+        rng = np.random.default_rng(42)
+        y = rng.normal(0, 1, size=(100, 3))
+
+        res = per_layer_rmse(y, y + 0.1)
+        assert set(res["per_layer"].keys()) == {"0", "1", "2"}
+
+    # --- U-003: bootstrap CI ---
+
+    def test_bootstrap_ci_returns_valid_interval(self):
+        """_bootstrap_ci must return (lower, upper) where lower < upper."""
+        from otbench.eval.utils import _bootstrap_ci
+
+        rng = np.random.default_rng(42)
+        y_true = rng.normal(0, 1, size=200)
+        y_pred = y_true + rng.normal(0, 0.5, size=200)
+
+        from sklearn.metrics import root_mean_squared_error
+        lo, hi = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, n_bootstrap=500)
+        assert lo < hi
+        assert np.isfinite(lo)
+        assert np.isfinite(hi)
+
+    def test_bootstrap_ci_covers_point_estimate(self):
+        """The 95% CI should typically contain the point estimate."""
+        from otbench.eval.utils import _bootstrap_ci
+
+        rng = np.random.default_rng(42)
+        y_true = rng.normal(0, 1, size=500)
+        y_pred = y_true + rng.normal(0, 0.3, size=500)
+
+        from sklearn.metrics import root_mean_squared_error
+        point = root_mean_squared_error(y_true, y_pred)
+        lo, hi = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, n_bootstrap=1000)
+        assert lo <= point <= hi, f"Point {point:.4f} outside CI [{lo:.4f}, {hi:.4f}]"
+
+    def test_bootstrap_ci_reproducible(self):
+        """Same seed must produce identical intervals."""
+        from otbench.eval.utils import _bootstrap_ci
+
+        rng = np.random.default_rng(42)
+        y_true = rng.normal(0, 1, size=100)
+        y_pred = y_true + 0.1
+
+        from sklearn.metrics import root_mean_squared_error
+        lo1, hi1 = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, seed=99)
+        lo2, hi2 = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, seed=99)
+        assert lo1 == lo2
+        assert hi1 == hi2
+

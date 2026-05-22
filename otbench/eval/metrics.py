@@ -1,15 +1,17 @@
-from typing import Sequence, Tuple
+from typing import Sequence, List, Optional
 
 import numpy as np
-import pandas as pd
 import sklearn.metrics as sk_m
-from scipy.stats import linregress
 
-from .integrated_metrics import integrated_seeing
+from .utils import _get_valid_indices, _format_metric
+from .integrated_metrics import (
+    integrated_seeing, isoplanatic_angle, coherence_time, greenwood_frequency
+)
 
 __all__ = [
     "is_implemented_metric", "coefficient_of_determination", "root_mean_square_error", "mean_absolute_error",
-    "mean_absolute_percentage_error", "integrated_seeing"
+    "mean_absolute_percentage_error", "integrated_seeing", "isoplanatic_angle", "coherence_time",
+    "greenwood_frequency", "per_layer_rmse"
 ]
 
 # Canonical set of callable metric names.  Kept separate from __all__ so that
@@ -21,6 +23,10 @@ _METRIC_NAMES = frozenset({
     "mean_absolute_error",
     "mean_absolute_percentage_error",
     "integrated_seeing",
+    "isoplanatic_angle",
+    "coherence_time",
+    "greenwood_frequency",
+    "per_layer_rmse",
 })
 
 
@@ -105,4 +111,53 @@ def mean_absolute_percentage_error(y_true: Sequence, y_pred: Sequence, detailed:
         len(y_pred))
 
 
-from .utils import _get_valid_indices, _format_metric
+
+
+def per_layer_rmse(
+    y_true: Sequence,
+    y_pred: Sequence,
+    layer_names: Optional[List[str]] = None,
+    detailed: bool = False,
+) -> dict:
+    """Per-layer RMSE for vector (profile) targets.
+
+    Returns the aggregate RMSE as ``metric_value`` and a ``per_layer``
+    dictionary mapping each layer name to its individual RMSE.  This
+    prevents a model that excels at one layer from masking failures at
+    another.
+
+    Args:
+        y_true: True profile (samples x layers).
+        y_pred: Predicted profile (samples x layers).
+        layer_names: Optional list of human-readable layer names
+            (e.g. ["500m", "1000m", ...]). If None, layers are
+            numbered 0, 1, 2, ...
+        detailed: If True, also return per-sample errors per layer.
+    """
+    y_true, y_pred = _get_valid_indices(y_true=y_true, y_pred=y_pred)
+    if len(y_pred) == 0:
+        return _format_metric(np.nan, 0)
+
+    y_true = np.asarray(y_true)
+    y_pred = np.asarray(y_pred)
+
+    if y_true.ndim == 1:
+        # Scalar target — degenerate case, just return RMSE
+        rmse = float(sk_m.root_mean_squared_error(y_true, y_pred))
+        return _format_metric(rmse, len(y_pred))
+
+    n_layers = y_true.shape[1]
+    if layer_names is None:
+        layer_names = [str(i) for i in range(n_layers)]
+
+    rmse_per = sk_m.root_mean_squared_error(y_true, y_pred, multioutput="raw_values")
+    rmse_avg = float(np.mean(rmse_per))
+
+    res = _format_metric(rmse_avg, len(y_pred))
+    res["per_layer"] = {name: float(val) for name, val in zip(layer_names, rmse_per)}
+
+    if detailed:
+        # Per-sample absolute error per layer
+        res["detailed_score"] = (np.abs(y_true - y_pred)).tolist()
+
+    return res

@@ -78,7 +78,7 @@ class ESOParanalLoader:
                     df["time"] = pd.to_datetime(df["time"], errors='coerce', utc=True)
                     df = df.dropna(subset=["time"])
                     dfs.append(df)
-            except Exception as e:
+            except (pd.errors.ParserError, ValueError, UnicodeDecodeError) as e:
                 print(f"[WARN] Failed to parse {f}: {e}")
                 continue
 
@@ -87,9 +87,15 @@ class ESOParanalLoader:
         return pd.concat(dfs, ignore_index=True).sort_values("time")
 
     def _regularize_time(self, df: pd.DataFrame, freq: str = "1min") -> pd.DataFrame:
-        """Round timestamps to the nearest minute and deduplicate."""
+        """Round timestamps to the nearest minute and deduplicate.
+
+        When multiple readings fall within the same minute, the first
+        observation (in original CSV ordering) is retained. This is a
+        deliberate design choice for 1-min cadence benchmarks.
+        """
         if df.empty:
             return df
+        df = df.copy()
         df["time"] = df["time"].dt.round(freq)
         return df.groupby("time").first().reset_index()
 
@@ -212,6 +218,8 @@ class ESOParanalLoader:
         if mass_cols[0] not in merged.columns:
             mass_cols = [f"Layer {i} Cn2" for i in range(1, 7)]
         cn2_mass_tensor = extract_numpy(merged, mass_cols) * 1e-15
+        # Negative turbulence integrals are physically impossible (instrument error).
+        cn2_mass_tensor[cn2_mass_tensor < 0] = np.nan
 
         # --- B. LHATPRO Profile (Thermodynamic Vertical Profile) ---
         temp_cols = [f"Temperature [K] at {h}[m]" for h in LHATPRO_HEIGHTS]
@@ -226,6 +234,7 @@ class ESOParanalLoader:
         if cn2_ground_arr is None:
             cn2_ground_arr = np.full(len(merged), np.nan)
         cn2_ground = cn2_ground_arr.astype(np.float64) * 1e-15
+        cn2_ground[cn2_ground < 0] = np.nan
 
         seeing_col = MASS_SCALAR_MAP["seeing"]
         seeing = self._resolve_column(merged, seeing_col)

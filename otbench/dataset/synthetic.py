@@ -32,14 +32,31 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
     ])
 
     def random_cn2(shape):
-        return rng.lognormal(mean=-16, sigma=1, size=shape)
+        # MASS layer integrals J_i ~ O(1e-15 m^{1/3}) in SI units.
+        # lognormal(mean=ln(1e-15), sigma=1.5) produces a distribution
+        # centered on 1e-15 with realistic heavy-tail structure.
+        return rng.lognormal(mean=np.log(1e-15), sigma=1.5, size=shape)
+
+    cn2_free = random_cn2((n_time, len(height_mass)))
+    cn2_ground = random_cn2(n_time)
+
+    # Derive seeing from the total turbulence profile (Fried parameter formula).
+    # J_total = ground + sum(free atmosphere layers)
+    j_total = cn2_ground + cn2_free.sum(axis=1)
+    k = 2 * np.pi / 500e-9
+    r0 = (0.423 * k**2 * j_total) ** (-3 / 5)
+    seeing = 0.98 * 500e-9 / r0 * 206265.0  # arcseconds
+
+    # Wind speed: uniform random, uncorrelated with turbulence.
+    # This is a CI simplification; real wind-turbulence coupling is complex.
+    wind_speed = rng.uniform(0, 20, n_time)
 
     data_vars = {
-        "cn2_free_atmos": (("time", "height_mass"), random_cn2((n_time, len(height_mass)))),
-        "cn2_ground_scalar": (("time",), random_cn2(n_time)),
-        "seeing": (("time",), rng.uniform(0.4, 1.5, n_time)),  # Arcseconds
+        "cn2_free_atmos": (("time", "height_mass"), cn2_free),
+        "cn2_ground_scalar": (("time",), cn2_ground),
+        "seeing": (("time",), seeing),
         "temp_profile": (("time", "height_lhatpro"), rng.normal(273, 5, (n_time, len(height_lhatpro)))),
-        "wind_speed": (("time",), rng.uniform(0, 20, n_time)),
+        "wind_speed": (("time",), wind_speed),
         "wind_dir": (("time",), rng.uniform(0, 360, n_time)),
         "pressure": (("time",), rng.normal(740, 5, n_time)),  # hPa at altitude
         "rh": (("time",), rng.uniform(0, 100, n_time)),

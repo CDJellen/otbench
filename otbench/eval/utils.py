@@ -50,3 +50,37 @@ def _get_valid_indices(y_true: Sequence, y_pred: Sequence) -> Tuple[Sequence, Se
                          f"Expected 1 (scalar) or 2 (vector) dimensions.")
 
     return y_true[mask], y_pred[mask]
+
+
+def _bootstrap_ci(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    metric_fn,
+    n_bootstrap: int = 1000,
+    ci: float = 0.95,
+    seed: int = 42,
+) -> Tuple[float, float]:
+    """Compute bootstrap confidence interval for a metric.
+
+    Args:
+        y_true: Ground truth array.
+        y_pred: Prediction array.
+        metric_fn: Callable(y_true, y_pred) -> float.
+        n_bootstrap: Number of bootstrap resamples.
+        ci: Confidence level (default 0.95 for 95% CI).
+        seed: Random seed for reproducibility.
+
+    Returns:
+        (ci_lower, ci_upper) as floats.
+    """
+    rng = np.random.default_rng(seed)
+    n = len(y_true)
+    scores = np.empty(n_bootstrap)
+
+    for i in range(n_bootstrap):
+        idx = rng.integers(0, n, size=n)
+        scores[i] = metric_fn(y_true[idx], y_pred[idx])
+
+    alpha = (1.0 - ci) / 2.0
+    return float(np.percentile(scores, 100 * alpha)), float(np.percentile(scores, 100 * (1.0 - alpha)))
+

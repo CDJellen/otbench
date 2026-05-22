@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 
 from otbench.tasks import TaskApi, tasks
-from otbench.config import BENCHMARK_FP, settings
+from otbench.config import BENCHMARK_FP
 import otbench.benchmark.models.regression as regression_models
 import otbench.benchmark.models.forecasting as forecasting_models
 
@@ -164,10 +164,9 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             y_eval.notna().all(axis=1).sum()
         )
 
-        # Feature Mapping (declarative, from datasets.json)
+        # Feature Mapping (from the task's dataset configuration — single source of truth)
         ds_name = task_info["ds_name"]
-        with open(settings.DATASETS_FP, 'r') as f:
-            datasets_config = json.load(f)
+        datasets_config = task.get_dataset()._supported_datasets()
         feature_map = datasets_config.get(ds_name, {}).get("feature_map")
         if not feature_map:
             raise ValueError(

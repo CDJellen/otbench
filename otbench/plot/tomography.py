@@ -65,15 +65,14 @@ def plot_profile_comparison(y_true: Union[np.ndarray, pd.DataFrame],
     # 2. Physics Conversion: Integral (J) -> Density (Cn2)
     # We must apply this BEFORE log/mean to get physically correct density
     if convert_to_density:
-        # Geometric-mean layer boundaries for MASS restoration layers.
-        # Boundary between adjacent layers i and i+1 is sqrt(h_i * h_{i+1}).
-        # Ground layer (h=0) uses a nominal 250 m thickness (surface to ~250 m).
+        # Ground layer (h=0) uses a nominal 500 m thickness.
+        # Paranal MASS Layer 0 integrates from the surface to ~500 m.
         h_arr = np.array(heights, dtype=float)
         h_sorted_tmp = np.sort(h_arr[h_arr > 0])  # positive heights only
         dh = np.empty_like(h_arr)
         for i, h in enumerate(h_arr):
             if h <= 0:
-                dh[i] = 250.0
+                dh[i] = 500.0
             else:
                 idx = np.searchsorted(h_sorted_tmp, h)
                 lo = np.sqrt(h_sorted_tmp[idx - 1] * h) if idx > 0 else h / np.sqrt(2)
@@ -122,7 +121,7 @@ def plot_profile_comparison(y_true: Union[np.ndarray, pd.DataFrame],
                      mu_true + std_true,
                      color='#00356B',
                      alpha=0.1,
-                     label='Atmospheric Variability ($1\sigma$)')
+                     label=r'Atmospheric Variability ($1\sigma$)')
 
     # Predicted Data
     ax.plot(mu_pred, h_sorted, 's--', color='#C90016', lw=2, label='Forecast')

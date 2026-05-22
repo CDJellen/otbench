@@ -22,9 +22,23 @@ The package currently covers regression and forecasting for modeling the strengt
 
 ### Features
 
-*Environmentally Diverse Datasets* 
+*Environmentally Diverse Datasets*
 
-`otbench` includes a variety of datasets from different operational studies. These datasets include measurements of optical turbulence strength, as well as environmental data such as wind speed, temperature, and relative humidity. The datasets are stored as `xarray` objects, which provide a consistent interface for working with the data.
+`otbench` includes datasets from diverse operational studies. v0.4.0 adds the **ESO Paranal Tomographic Benchmark** — the first community-standard, causally-ordered, multi-instrument benchmarking corpus for optical turbulence profiling. It combines MASS turbulence profiles (6 free-atmosphere layers + ground), LHATPRO thermodynamic profiles (39 levels), and surface meteorology across >500 observing nights at Paranal Observatory.
+
+*Domain-Complete Evaluation Metrics*
+
+Beyond standard regression metrics (RMSE, MAE, R², MAPE), `otbench` provides **physics-derived evaluation metrics** for turbulence profile assessment:
+
+| Metric | Physical Quantity | Unit |
+|--------|------------------|------|
+| `integrated_seeing` | Fried parameter → FWHM | arcsec |
+| `isoplanatic_angle` | AO correction field of view (θ₀) | arcsec |
+| `coherence_time` | AO loop timing (τ₀) | ms |
+| `greenwood_frequency` | AO bandwidth requirement (f_G) | Hz |
+| `per_layer_rmse` | Per-layer error decomposition | — |
+
+These metrics are **declaratively composable** — add them to any task's `eval_metrics` list and the dispatch adapter injects the required physical context (layer heights, wind speed) automatically.
 
 *Consistent Interface for Model Evaluation*
 
@@ -145,6 +159,32 @@ We provide an overview of the process for training a regression model on the [`m
 We provide a similar overview for the process of developing a forecasting model specific to the full `usna_cn2_sm` forecasting task. Under this task, the next measurement of $C_n^2$ is predicted using the prior 6 observations of $C_n^2$ and the available environmental variables. The example model and forecasting baseline are available in [this notebook](./notebooks/forecasting/usna_cn2_sm.ipynb).
 
 [![forecasting.usna_cn2_sm.full.Cn2_3m](./doc/img/usna_cn2_sm_forecasting.png)](./notebooks/forecasting/usna_cn2_sm.ipynb)
+
+#### Paranal Tomographic Profiling (v0.4.0)
+
+The ESO Paranal Tomographic Benchmark provides three tasks for turbulence profile modeling:
+
+| Task | Type | Description |
+|------|------|-------------|
+| `regression.paranal_tomography.full.cn2_profile_reconstruction` | Regression | Zero-shot 7-layer profile reconstruction from thermodynamics |
+| `forecasting.paranal_tomography.full.seeing_nowcast` | Forecasting | Scalar seeing prediction 5 minutes ahead |
+| `forecasting.paranal_tomography.full.cn2_profile_forecast` | Forecasting | 7-layer profile prediction 10 minutes ahead |
+
+Profile tasks automatically evaluate using AO-derived metrics (integrated seeing, isoplanatic angle) alongside standard RMSE. See the [Paranal dataset documentation](./otbench/data/paranal_tomography/README.md) for schema details and physical quantities.
+
+```python
+from otbench import TaskApi
+
+task_api = TaskApi()
+profile_task = task_api.get_task(
+    "regression.paranal_tomography.full.cn2_profile_reconstruction"
+)
+
+# Evaluate a model — AO metrics are injected automatically
+results = profile_task.evaluate_model(predict_call=model.predict)
+# results includes: root_mean_square_error, per_layer_rmse,
+#                   integrated_seeing, isoplanatic_angle
+```
 
 ### Contributing
 

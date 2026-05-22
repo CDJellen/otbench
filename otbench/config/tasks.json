@@ -150,8 +150,9 @@
             "full": {
                 "cn2_profile_reconstruction": {
                     "description": "Zero-Shot Profile Reconstruction",
-                    "description_long": "Inferring the full vertical profile solely from thermodynamics (LHATPRO) and surface meteo.",
+                    "description_long": "Inferring the full vertical profile solely from thermodynamics (LHATPRO) and surface meteo. Default metric is RMSE in log10 space. The integrated_seeing metric may be added for Fried parameter evaluation; it automatically detects and un-logs log-transformed profiles.",
                     "ds_name": "paranal_tomography",
+                    "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
                     "obs_lat": -24.62,
                     "obs_lon": -70.40,
@@ -167,7 +168,10 @@
                     "dropna": false,
                     "log_transform": true,
                     "eval_metrics": [
-                        "root_mean_square_error"
+                        "root_mean_square_error",
+                        "per_layer_rmse",
+                        "integrated_seeing",
+                        "isoplanatic_angle"
                     ],
                     "target": [
                         "cn2_ground_scalar",
@@ -278,7 +282,7 @@
             "full": {
                 "seeing_nowcast": {
                     "description": "Scalar Nowcasting (Operational)",
-                    "description_long": "Predicting scalar seeing 5 minutes ahead to optimize queue scheduling.",
+                    "description_long": "Predicting scalar seeing 5 minutes ahead to optimize queue scheduling. Features include lagged seeing history (autoregressive) and contemporaneous thermodynamic/meteorological context. Seeing is evaluated in linear arcseconds (log_transform=false) as the distribution spread is narrow enough for RMSE to be meaningful without transformation.",
                     "ds_name": "paranal_tomography",
                     "session_col": "night_id",
                     "obs_tz": "Chile/Continental",
@@ -311,8 +315,7 @@
                         "cn2_free_atmos_2000",
                         "cn2_free_atmos_4000",
                         "cn2_free_atmos_8000",
-                        "cn2_free_atmos_16000",
-                        "seeing"
+                        "cn2_free_atmos_16000"
                     ]
                 },
                 "cn2_profile_forecast": {
@@ -336,7 +339,10 @@
                     "log_transform": true,
                     "eval_metrics": [
                         "root_mean_square_error",
-                        "mean_absolute_error"
+                        "mean_absolute_error",
+                        "per_layer_rmse",
+                        "integrated_seeing",
+                        "isoplanatic_angle"
                     ],
                     "window_size": 60,
                     "forecast_horizon": 10,
