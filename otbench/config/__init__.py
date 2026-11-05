@@ -1,4 +1,5 @@
-from .settings import settings
+from otbench.config.settings import settings
+from otbench.models import Task, DatasetConfig
 
 # Re-exports for backward compatibility.  Internal and external code that
 # imports ``from otbench.config import CACHE_DIR`` etc. continues to work.
@@ -11,3 +12,17 @@ CACHE_DIR = str(settings.CACHE_DIR)
 DATA_DIR = str(settings.DATA_DIR)
 BENCHMARK_FP = str(settings.BENCHMARK_FP)
 RETURN_TYPES = settings.RETURN_TYPES
+
+__all__ = [
+    "settings",
+    "Task",
+    "DatasetConfig",
+    "CONFIG_DIR",
+    "TASKS_FP",
+    "DATASETS_FP",
+    "ROOT_DIR",
+    "CACHE_DIR",
+    "DATA_DIR",
+    "BENCHMARK_FP",
+    "RETURN_TYPES",
+]

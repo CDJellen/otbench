@@ -64,27 +64,30 @@ class Transformer(nn.Module):
 class TransformerModel(BasePyTorchForecastingModel):
     """A Transformer-based forecasting model compatible with otbench."""
 
-    def __init__(
-            self,
-            name: str,
-            window_size: int,
-            forecast_horizon: int,
-            target_name: str,
-            input_size: int,
-            d_model: int = 128,
-            nhead: int = 4,
-            num_layers: int = 2,
-            output_size: int = None,
-            dropout: float = 0.1,
-            batch_size: int = 32,
-            n_epochs: int = 100,
-            learning_rate: float = 0.001,
-            criterion: 'torch.nn.modules.loss' = nn.MSELoss(),
-            optimizer: 'torch.optim' = optim.Adam,
-            normalize_data: bool = True,
-            random_state: int = 2020,
-            verbose: bool = False,
-            **kwargs):
+    def __init__(self,
+                 name: str,
+                 window_size: int,
+                 forecast_horizon: int,
+                 target_name: str,
+                 input_size: int,
+                 d_model: int = 128,
+                 nhead: int = 4,
+                 num_layers: int = 2,
+                 output_size: int = None,
+                 dropout: float = 0.1,
+                 batch_size: int = 32,
+                 n_epochs: int = 100,
+                 learning_rate: float = 0.001,
+                 criterion: 'torch.nn.modules.loss' = nn.MSELoss(),
+                 optimizer: 'torch.optim' = optim.Adam,
+                 normalize_data: bool = True,
+                 random_state: int = 2020,
+                 verbose: bool = False,
+                 weight_decay: float = 0.0,
+                 patience: int = None,
+                 val_fraction: float = 0.0,
+                 use_scheduler: bool = False,
+                 **kwargs):
         super().__init__(name=name,
                          window_size=window_size,
                          forecast_horizon=forecast_horizon,
@@ -96,6 +99,10 @@ class TransformerModel(BasePyTorchForecastingModel):
                          optimizer=optimizer,
                          random_state=random_state,
                          verbose=verbose,
+                         weight_decay=weight_decay,
+                         patience=patience,
+                         val_fraction=val_fraction,
+                         use_scheduler=use_scheduler,
                          **kwargs)
 
         self.input_size = input_size
@@ -111,71 +118,8 @@ class TransformerModel(BasePyTorchForecastingModel):
         self.set_model(model=model, normalize_data=normalize_data, set_optimizer_callable_params=True)
 
     def _train(self, X: 'pd.DataFrame', y: 'pd.DataFrame'):
-        # Guard against empty data
-        if len(X) == 0:
-            return
-
-        # 1. Dimension Guard — matches the reshape logic in _set_dataloader_from_data:
-        # temporal mode when columns divide evenly, flat mode otherwise.
-        n_cols = len(X.columns)
-        if self.window_size > 1 and n_cols % self.window_size == 0:
-            n_features_in_data = n_cols // self.window_size
-        else:
-            n_features_in_data = n_cols  # flat/single-step mode
-        if n_features_in_data != self.input_size:
-            raise ValueError(f"Dimension Mismatch: Model initialized with input_size={self.input_size}, "
-                             f"but training data has {n_features_in_data} features per timestep.")
-
-        if self.verbose:
-            print(f"Training Transformer on {n_features_in_data} features with d_model={self.model.d_model}...")
-
-        # 2. Standard Training Loop
-        self.set_training_data(X=X, y=y)
-        torch.manual_seed(self.random_state)
-
-        for i in range(self.n_epochs):
-            total_loss = 0
-            for _, (X_batch, y_batch) in enumerate(self.train_dataloader):
-                self.optimizer.zero_grad()
-                X_batch, y_batch = X_batch.to(self.device).float(), y_batch.to(self.device).float()
-                outputs = self.model(X_batch)
-                loss = self.criterion(outputs, y_batch)
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
-                self.optimizer.step()
-                total_loss += loss.item()
-
-            if self.verbose and self.n_epochs >= 10 and (i % (self.n_epochs // 10) == 0):
-                avg_loss = total_loss / len(self.train_dataloader)
-                print(f"Epoch {i}: Avg Loss: {avg_loss:.6f}")
+        self._run_training_loop(X=X, y=y, input_size=self.input_size)
 
     def _predict(self, X: 'pd.DataFrame'):
-        if len(X) == 0:
-            return np.empty((0, self.output_size))
-
-        if self.verbose:
-            print(f"Generating predictions with Transformer...")
-
-        self.set_validation_data(X=X, y=None)
-        pred = []
-
-        with torch.no_grad():
-            self.model.eval()
-            for _, (X_batch, _) in enumerate(self.val_dataloader):
-                X_batch = X_batch.to(self.device).float()
-                y_pred = self.model(X_batch)
-
-                if self.normalize_data:
-                    y_pred = y_pred.cpu()
-                    y_pred = y_pred * self.y_std + self.y_mean
-
-                y_pred = y_pred.cpu().numpy()
-
-                # Handle Scalar vs Vector output format
-                if self.output_size == 1:
-                    pred.append(y_pred[0][0])
-                else:
-                    pred.append(y_pred[0])
-
-        self.model.train()  # Reset to train mode
-        return np.array(pred)
+        """Generate predictions from the TransformerModel."""
+        return self._run_prediction(X=X, output_dim=self.output_size)

@@ -26,9 +26,8 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
     height_mass = np.array([500, 1000, 2000, 4000, 8000, 16000])
     # Real LHATPRO non-uniform vertical grid (fine in boundary layer, coarser aloft)
     height_lhatpro = np.array([
-        0, 10, 30, 50, 75, 100, 125, 150, 200, 250, 325, 400, 475, 550, 625, 700,
-        800, 900, 1000, 1150, 1300, 1450, 1600, 1800, 2000, 2200, 2500, 2800,
-        3100, 3500, 3900, 4400, 5000, 5600, 6200, 7000, 8000, 9000, 10000
+        0, 10, 30, 50, 75, 100, 125, 150, 200, 250, 325, 400, 475, 550, 625, 700, 800, 900, 1000, 1150, 1300, 1450,
+        1600, 1800, 2000, 2200, 2500, 2800, 3100, 3500, 3900, 4400, 5000, 5600, 6200, 7000, 8000, 9000, 10000
     ])
 
     def random_cn2(shape):
@@ -44,7 +43,7 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
     # J_total = ground + sum(free atmosphere layers)
     j_total = cn2_ground + cn2_free.sum(axis=1)
     k = 2 * np.pi / 500e-9
-    r0 = (0.423 * k**2 * j_total) ** (-3 / 5)
+    r0 = (0.423 * k**2 * j_total)**(-3 / 5)
     seeing = 0.98 * 500e-9 / r0 * 206265.0  # arcseconds
 
     # Wind speed: uniform random, uncorrelated with turbulence.

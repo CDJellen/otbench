@@ -171,7 +171,9 @@
                         "root_mean_square_error",
                         "per_layer_rmse",
                         "integrated_seeing",
-                        "isoplanatic_angle"
+                        "isoplanatic_angle",
+                        "coherence_time",
+                        "greenwood_frequency"
                     ],
                     "target": [
                         "cn2_ground_scalar",
@@ -342,7 +344,9 @@
                         "mean_absolute_error",
                         "per_layer_rmse",
                         "integrated_seeing",
-                        "isoplanatic_angle"
+                        "isoplanatic_angle",
+                        "coherence_time",
+                        "greenwood_frequency"
                     ],
                     "window_size": 60,
                     "forecast_horizon": 10,

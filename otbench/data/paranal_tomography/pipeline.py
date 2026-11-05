@@ -4,14 +4,15 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import xarray as xr
 
 # Support both standalone execution (from this directory) and package import.
 try:
-    from otbench.data.paranal_tomography.fetch_eso import ESOFetcher
     from otbench.data.paranal_tomography.eso import ESOParanalLoader
+    from otbench.data.paranal_tomography.fetch_eso import ESOFetcher
 except ImportError:
-    from fetch_eso import ESOFetcher
     from eso import ESOParanalLoader
+    from fetch_eso import ESOFetcher
 
 START = "2017-01-01"
 END = "2022-01-01"
@@ -19,14 +20,21 @@ OUTPUT_DIR = "raw"
 NC_FILENAME = "paranal_tomography.nc"
 
 
-def validate_dataset(ds) -> bool:
+def validate_dataset(ds: xr.Dataset) -> bool:
     """Run basic sanity checks on the constructed dataset."""
     ok = True
 
     # Check required variables exist
     required_vars = [
-        "cn2_free_atmos", "cn2_ground_scalar", "seeing",
-        "temp_profile", "wind_speed", "wind_dir", "pressure", "rh", "night_id",
+        "cn2_free_atmos",
+        "cn2_ground_scalar",
+        "seeing",
+        "temp_profile",
+        "wind_speed",
+        "wind_dir",
+        "pressure",
+        "rh",
+        "night_id",
     ]
     for v in required_vars:
         if v not in ds.data_vars:
@@ -77,7 +85,8 @@ def validate_dataset(ds) -> bool:
     return ok
 
 
-def run_pipeline(output_dir: str = OUTPUT_DIR, dataset_filename: str = NC_FILENAME):
+def run_pipeline(output_dir: str = OUTPUT_DIR, dataset_filename: str = NC_FILENAME) -> None:
+    """Fetch raw ESO Paranal CSV archives, transform into a NetCDF dataset, and validate schema."""
     print("=" * 60)
     print("Paranal Tomography Dataset Pipeline")
     print("=" * 60)

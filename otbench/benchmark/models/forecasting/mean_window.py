@@ -45,20 +45,17 @@ class MeanWindowForecastingModel(BaseForecastingModel):
             if not cols:
                 # Target history not in X; fall back to training mean
                 if self._training_mean is not None:
-                    fallback = float(self._training_mean[i] if len(self._training_mean) > 1
-                                     else self._training_mean[0])
+                    fallback = float(self._training_mean[i] if len(self._training_mean) > 1 else self._training_mean[0])
                 else:
                     fallback = 0.0
                 all_preds.append(np.full(len(X), fallback))
                 continue
 
-            X_t = X[cols]
+            X_t = X[cols].values
+            if self.use_log10:
+                X_t = np.log10(np.maximum(X_t, 1e-19))
 
-            preds_t = []
-            for row_i in range(len(X_t)):
-                pred = np.nanmean(X_t.iloc[row_i, :].values)
-                preds_t.append(pred)
-
+            preds_t = np.nanmean(X_t, axis=1)
             all_preds.append(preds_t)
 
         return np.array(all_preds).T

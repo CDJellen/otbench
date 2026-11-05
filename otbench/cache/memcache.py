@@ -3,6 +3,7 @@ import pickle
 from typing import List, Union, Any
 
 import pandas as pd
+import xarray as xr
 
 from otbench.config import CACHE_DIR
 
@@ -58,6 +59,10 @@ class InMemoryCache:
         if key not in self._cache:
             raise KeyError(f"no dataset named {key}.")
         data = self._cache[key]
+        if isinstance(data, xr.Dataset):
+            # Lazy xarray datasets are already backed by NetCDF files on disk;
+            # pickling them would force eager materialisation into memory.
+            return
         with open(os.path.join(self._cache_dir, f"{key}.pickle"), "wb") as f:
             pickle.dump(data, f)
 
@@ -72,10 +77,8 @@ class InMemoryCache:
             raise
         except (pickle.UnpicklingError, EOFError, ModuleNotFoundError) as e:
             import warnings
-            warnings.warn(
-                f"Corrupted cache entry for '{key}' at {fp}: {e}. "
-                f"Delete the file and re-run to regenerate."
-            )
+            warnings.warn(f"Corrupted cache entry for '{key}' at {fp}: {e}. "
+                          f"Delete the file and re-run to regenerate.")
 
     def __iter__(self) -> pd.DataFrame:
         for key in list(self._cache.keys()):

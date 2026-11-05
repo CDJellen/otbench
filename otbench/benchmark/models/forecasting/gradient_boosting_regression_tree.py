@@ -1,10 +1,12 @@
-# otbench/benchmark/models/forecasting/gradient_boosting_regression_tree.py
 from typing import Union
+
 import pandas as pd
 import numpy as np
 import lightgbm as lgb
 from sklearn.multioutput import MultiOutputRegressor
+
 from otbench.benchmark.models.forecasting.base_model import BaseForecastingModel
+
 
 class GradientBoostingForecastingModel(BaseForecastingModel):
     """A model that uses gradient boosting regression trees for direct forecasting."""
@@ -12,17 +14,49 @@ class GradientBoostingForecastingModel(BaseForecastingModel):
     # Keys consumed by the framework (BaseForecastingModel, bench_runner, notebooks)
     # that must NOT be forwarded to LGBMRegressor.
     _NON_LGBM_KEYS = frozenset({
-        "verbose", "predict_residuals", "use_log10",
-        "input_size", "output_size", "in_channels",
-        "timezone", "obs_lat", "obs_lon", "obs_tz",
-        "air_temperature_col_name", "water_temperature_col_name",
-        "humidity_col_name", "wind_speed_col_name", "time_col_name",
-        "height_of_observation", "enforce_dynamic_range", "constant_adjustment",
-        "session_col", "d_model", "nhead", "num_layers", "dropout",
-        "batch_size", "n_epochs", "learning_rate", "hidden_size",
+        "verbose",
+        "predict_residuals",
+        "use_log10",
+        "input_size",
+        "output_size",
+        "timezone",
+        "obs_lat",
+        "obs_lon",
+        "obs_tz",
+        "air_temperature_col_name",
+        "water_temperature_col_name",
+        "humidity_col_name",
+        "wind_speed_col_name",
+        "time_col_name",
+        "height_of_observation",
+        "enforce_dynamic_range",
+        "constant_adjustment",
+        "session_col",
+        "d_model",
+        "nhead",
+        "num_layers",
+        "dropout",
+        "batch_size",
+        "n_epochs",
+        "learning_rate",
+        "hidden_size",
+        "weight_decay",
+        "patience",
+        "val_fraction",
+        "use_scheduler",
+        "normalize_data",
+        "cell_type",
+        "optimizer",
+        "criterion",
     })
 
-    def __init__(self, name: str, target_name: str, window_size: int, forecast_horizon: int, output_size: int = 1, **kwargs):
+    def __init__(self,
+                 name: str,
+                 target_name: str,
+                 window_size: int,
+                 forecast_horizon: int,
+                 output_size: int = 1,
+                 **kwargs):
         super().__init__(name, target_name, window_size, forecast_horizon, **kwargs)
 
         # Filter to only LGBM-compatible parameters
@@ -30,6 +64,8 @@ class GradientBoostingForecastingModel(BaseForecastingModel):
         lgb_estimator = lgb.LGBMRegressor(verbose=-1, **lgbm_kwargs)
 
         # Handle Vector vs Scalar
+        if output_size == 1 and isinstance(target_name, (list, tuple)) and len(target_name) > 1:
+            output_size = len(target_name)
         if output_size > 1:
             self._lgb_mdl = MultiOutputRegressor(lgb_estimator)
         else:
@@ -49,8 +85,7 @@ class GradientBoostingForecastingModel(BaseForecastingModel):
             valid = y.notna().values
         else:
             y_arr = np.asarray(y)
-            valid = (~np.isnan(y_arr).any(axis=1) if y_arr.ndim > 1
-                     else ~np.isnan(y_arr))
+            valid = (~np.isnan(y_arr).any(axis=1) if y_arr.ndim > 1 else ~np.isnan(y_arr))
         if not valid.all():
             X = X[valid]
             y = y[valid] if not isinstance(y, np.ndarray) else y[valid]
@@ -66,7 +101,7 @@ class GradientBoostingForecastingModel(BaseForecastingModel):
         if len(X) == 0:
             # Return empty array with correct dimensions
             if isinstance(self._lgb_mdl, MultiOutputRegressor):
-                # We can't ask the model for output dim easily if not fitted, 
+                # We can't ask the model for output dim easily if not fitted,
                 # so we rely on the target_name list length if available or fallback
                 n_targets = len(self.target_name) if isinstance(self.target_name, list) else 1
                 return np.empty((0, n_targets))

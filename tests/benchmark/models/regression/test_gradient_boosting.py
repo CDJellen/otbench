@@ -3,8 +3,7 @@ import numpy as np
 import pandas as pd
 
 from otbench.benchmark.models.regression.gradient_boosting_regression_tree import (
-    GradientBoostingRegressionModel,
-)
+    GradientBoostingRegressionModel,)
 
 
 def test_instantiation_with_extra_kwargs():
@@ -42,7 +41,9 @@ def test_scalar_train_predict():
     X_test = pd.DataFrame(rng.standard_normal((10, 5)), columns=[f"f{i}" for i in range(5)])
 
     model = GradientBoostingRegressionModel(
-        name="gbrt", target_name="target", output_size=1,
+        name="gbrt",
+        target_name="target",
+        output_size=1,
     )
     model.train(X_train, y_train)
     preds = model.predict(X_test)
@@ -57,7 +58,9 @@ def test_vector_train_predict():
     X_test = pd.DataFrame(rng.standard_normal((10, 5)), columns=[f"f{i}" for i in range(5)])
 
     model = GradientBoostingRegressionModel(
-        name="gbrt", target_name=["t0", "t1", "t2"], output_size=3,
+        name="gbrt",
+        target_name=["t0", "t1", "t2"],
+        output_size=3,
     )
     model.train(X_train, y_train)
     preds = model.predict(X_test)
@@ -67,7 +70,9 @@ def test_vector_train_predict():
 def test_empty_train_predict():
     """Empty input must not crash."""
     model = GradientBoostingRegressionModel(
-        name="gbrt", target_name="target", output_size=1,
+        name="gbrt",
+        target_name="target",
+        output_size=1,
     )
     X_empty = pd.DataFrame(columns=["f0", "f1"])
     model.train(X_empty, np.array([]))
@@ -102,7 +107,9 @@ def test_nan_in_y_vector_is_silently_dropped():
     y_train.iloc[30:33] = float("nan")
 
     model = GradientBoostingRegressionModel(
-        name="gbrt", target_name=["t0", "t1", "t2"], output_size=3,
+        name="gbrt",
+        target_name=["t0", "t1", "t2"],
+        output_size=3,
     )
     model.train(X_train, y_train)  # must not raise
 

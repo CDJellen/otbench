@@ -14,20 +14,54 @@ class GradientBoostingRegressionModel(BaseRegressionModel):
     # Keys consumed by the framework (BaseRegressionModel, bench_runner, notebooks)
     # that must NOT be forwarded to LGBMRegressor.
     _NON_LGBM_KEYS = frozenset({
-        "verbose", "predict_residuals", "use_log10",
-        "input_size", "output_size", "in_channels",
-        "timezone", "obs_lat", "obs_lon", "obs_tz",
-        "air_temperature_col_name", "water_temperature_col_name",
-        "humidity_col_name", "wind_speed_col_name", "time_col_name",
-        "height_of_observation", "enforce_dynamic_range", "constant_adjustment",
-        "session_col", "d_model", "nhead", "num_layers", "dropout",
-        "batch_size", "n_epochs", "learning_rate", "hidden_size",
-        "window_size", "forecast_horizon",
+        "verbose",
+        "predict_residuals",
+        "use_log10",
+        "input_size",
+        "output_size",
+        "timezone",
+        "obs_lat",
+        "obs_lon",
+        "obs_tz",
+        "air_temperature_col_name",
+        "water_temperature_col_name",
+        "humidity_col_name",
+        "wind_speed_col_name",
+        "time_col_name",
+        "height_of_observation",
+        "enforce_dynamic_range",
+        "constant_adjustment",
+        "session_col",
+        "d_model",
+        "nhead",
+        "num_layers",
+        "dropout",
+        "batch_size",
+        "n_epochs",
+        "learning_rate",
+        "hidden_size",
+        "window_size",
+        "forecast_horizon",
+        "weight_decay",
+        "patience",
+        "val_fraction",
+        "use_scheduler",
+        "normalize_data",
+        "cell_type",
+        "optimizer",
+        "criterion",
     })
 
-    def __init__(self, name: str, target_name: str, time_col_name: Union[str, None] = None, output_size: int = 1, **kwargs):
+    def __init__(self,
+                 name: str,
+                 target_name: str,
+                 time_col_name: Union[str, None] = None,
+                 output_size: int = 1,
+                 **kwargs):
         super().__init__(name, target_name, **kwargs)
         self.time_col_name = time_col_name
+        if output_size == 1 and isinstance(target_name, (list, tuple)) and len(target_name) > 1:
+            output_size = len(target_name)
         self.output_size = output_size
 
         # Filter to only LGBM-compatible parameters
@@ -55,8 +89,7 @@ class GradientBoostingRegressionModel(BaseRegressionModel):
             valid = y.notna()
         else:
             y_arr = np.asarray(y)
-            valid = (~np.isnan(y_arr).any(axis=1) if y_arr.ndim > 1
-                     else ~np.isnan(y_arr))
+            valid = (~np.isnan(y_arr).any(axis=1) if y_arr.ndim > 1 else ~np.isnan(y_arr))
         if not valid.all():
             X = X[valid]
             y = y[valid]

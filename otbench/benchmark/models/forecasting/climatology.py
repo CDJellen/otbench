@@ -1,8 +1,10 @@
-# otbench/benchmark/models/forecasting/climatology.py
 from typing import Union
+
 import pandas as pd
 import numpy as np
+
 from otbench.benchmark.models.forecasting.base_model import BaseForecastingModel
+
 
 class ClimatologyForecastingModel(BaseForecastingModel):
     """A model that predicts the mean value of the target variable seen during training."""
@@ -16,7 +18,7 @@ class ClimatologyForecastingModel(BaseForecastingModel):
         # y is already processed (potentially residuals)
         if isinstance(y, (pd.DataFrame, pd.Series)):
             y = y.values
-            
+
         # Compute mean along samples axis
         # Use nanmean to be safe
         self.global_mean = np.nanmean(y, axis=0)

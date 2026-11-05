@@ -3,15 +3,33 @@ from typing import Sequence, List, Optional
 import numpy as np
 import sklearn.metrics as sk_m
 
-from .utils import _get_valid_indices, _format_metric
-from .integrated_metrics import (
-    integrated_seeing, isoplanatic_angle, coherence_time, greenwood_frequency
+from otbench.eval.utils import _get_valid_indices, _format_metric, _bootstrap_ci, bootstrap_ci, paired_bootstrap_test
+from otbench.eval.integrated_metrics import (
+    integrated_seeing,
+    isoplanatic_angle,
+    coherence_time,
+    greenwood_frequency,
+    profile_to_fried_parameter,
+    ao_wavefront_error_budget,
+    strehl_ratio,
 )
 
 __all__ = [
-    "is_implemented_metric", "coefficient_of_determination", "root_mean_square_error", "mean_absolute_error",
-    "mean_absolute_percentage_error", "integrated_seeing", "isoplanatic_angle", "coherence_time",
-    "greenwood_frequency", "per_layer_rmse"
+    "is_implemented_metric",
+    "coefficient_of_determination",
+    "root_mean_square_error",
+    "mean_absolute_error",
+    "mean_absolute_percentage_error",
+    "integrated_seeing",
+    "isoplanatic_angle",
+    "coherence_time",
+    "greenwood_frequency",
+    "per_layer_rmse",
+    "profile_to_fried_parameter",
+    "ao_wavefront_error_budget",
+    "strehl_ratio",
+    "bootstrap_ci",
+    "paired_bootstrap_test",
 ]
 
 # Canonical set of callable metric names.  Kept separate from __all__ so that
@@ -27,6 +45,7 @@ _METRIC_NAMES = frozenset({
     "coherence_time",
     "greenwood_frequency",
     "per_layer_rmse",
+    "strehl_ratio",
 })
 
 
@@ -111,8 +130,6 @@ def mean_absolute_percentage_error(y_true: Sequence, y_pred: Sequence, detailed:
         len(y_pred))
 
 
-
-
 def per_layer_rmse(
     y_true: Sequence,
     y_pred: Sequence,
@@ -149,6 +166,8 @@ def per_layer_rmse(
     n_layers = y_true.shape[1]
     if layer_names is None:
         layer_names = [str(i) for i in range(n_layers)]
+    elif len(layer_names) != n_layers:
+        raise ValueError(f"layer_names length ({len(layer_names)}) must match number of target layers ({n_layers}).")
 
     rmse_per = sk_m.root_mean_squared_error(y_true, y_pred, multioutput="raw_values")
     rmse_avg = float(np.mean(rmse_per))

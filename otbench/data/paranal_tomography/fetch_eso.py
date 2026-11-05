@@ -92,12 +92,16 @@ class ESOFetcher:
 
         print(f" - Starting Campaign: {instrument} | {len(logical_dates)} Chunks")
 
-        # Load existing manifest for SHA-verified skipping.
+        # Load existing manifest for SHA-verified skipping and preserve prior entries.
         manifest_path = self.output_dir / f"{instrument}_manifest.json"
         existing_manifest = {}
         if manifest_path.exists():
-            with open(manifest_path, 'r') as f:
-                existing_manifest = json.load(f)
+            try:
+                with open(manifest_path, 'r') as f:
+                    existing_manifest = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                existing_manifest = {}
+        manifest = dict(existing_manifest)
 
         for i, date in enumerate(logical_dates):
             chunk_start = date.strftime("%Y-%m-%d")
@@ -109,22 +113,35 @@ class ESOFetcher:
             file_suffix = date.strftime("%Y-%m")
             filename = self.output_dir / f"{instrument}_{file_suffix}.csv"
 
-            # Prefer SHA manifest verification over raw size heuristic.
+            # Prefer SHA-256 cryptographic digest verification over raw size heuristic.
             if filename.name in existing_manifest and filename.exists():
-                print(f"  [SKIP] {filename.name} verified by SHA manifest.")
-                continue
-            if filename.exists() and filename.stat().st_size > 1000:
-                print(f"  [SKIP] {filename.name} exists (no manifest entry; size check).")
+                disk_sha = self._compute_sha256(filename)
+                if disk_sha == existing_manifest[filename.name]:
+                    manifest[filename.name] = disk_sha
+                    print(f"  [SKIP] {filename.name} verified by SHA-256 manifest.")
+                    continue
+                print(f"  [RE-FETCH] {filename.name} SHA-256 mismatch; re-downloading.")
+            elif filename.exists() and filename.stat().st_size > 1000:
+                manifest[filename.name] = self._compute_sha256(filename)
+                print(f"  [SKIP] {filename.name} exists (computed SHA-256 for manifest).")
                 continue
 
             sha = self._download_chunk(instrument, chunk_start, chunk_end, filename)
             if sha:
                 manifest[filename.name] = sha
 
-        manifest_path = self.output_dir / f"{instrument}_manifest.json"
         with open(manifest_path, 'w') as f:
             json.dump(manifest, f, indent=2)
         print(f" - Campaign Complete. Manifest saved to {manifest_path}")
+
+    @staticmethod
+    def _compute_sha256(path: Path) -> str:
+        """Compute the SHA-256 hex digest of an existing file on disk."""
+        sha256_hash = hashlib.sha256()
+        with open(path, 'rb') as f:
+            for chunk in iter(lambda: f.read(65536), b""):
+                sha256_hash.update(chunk)
+        return sha256_hash.hexdigest()
 
     def _download_chunk(self, instrument: str, start: str, end: str, path: Path) -> str:
         url_part = "lhatpro_profiles_paranal" if instrument == "lhatpro_paranal" else instrument

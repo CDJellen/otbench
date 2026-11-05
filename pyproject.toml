@@ -1,6 +1,6 @@
 [project]
 name = "otbench"
-version = "0.4.0"
+version = "0.5.0"
 description = "Consistent benchmarks for evaluating optical turbulence strength models."
 authors = [
     {name = "Christopher David Jellen", email = "cdjellen@gmail.com"}
@@ -58,3 +58,10 @@ markers = [
     "slow: long-running tests (use --run-slow to include)",
     "private: tests for private methods (use --run-private to include)",
 ]
+
+[tool.yapf]
+based_on_style = "google"
+spaces_before_comment = 2
+indent_width = 4
+split_before_logical_operator = true
+column_limit = 120

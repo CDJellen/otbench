@@ -17,9 +17,15 @@ class PersistenceRegressionModel(BaseRegressionModel):
         """Maintain the same interface as the other models."""
         if len(y) == 0:
             return
-        self.persistence = y.values[-1]
+        y_arr = y.values if hasattr(y, "values") else np.asarray(y)
+        valid_mask = ~np.isnan(y_arr).any(axis=1) if y_arr.ndim > 1 else ~np.isnan(y_arr)
+        if np.any(valid_mask):
+            self.persistence = y_arr[valid_mask][-1]
+        else:
+            self.persistence = y_arr[-1]
 
     def predict(self, X: 'pd.DataFrame'):
+        """Predict the most recent target value seen during training."""
         if len(X) == 0:
             if self.output_size > 1:
                 return np.empty((0, self.output_size))
@@ -27,9 +33,9 @@ class PersistenceRegressionModel(BaseRegressionModel):
 
         if np.ndim(self.persistence) > 0:
             return np.tile(self.persistence, (len(X), 1))
-        
-        # Handle scalar persistence for vector output (broadcast)
+
+        # handle scalar persistence for vector output
         if self.output_size > 1:
-             return np.tile(self.persistence, (len(X), self.output_size))
-             
+            return np.tile(self.persistence, (len(X), self.output_size))
+
         return np.full(len(X), self.persistence)

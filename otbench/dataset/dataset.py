@@ -1,6 +1,6 @@
 import os
 import json
-from typing import Any, Union, Tuple, Sequence, List
+from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 import numpy as np
@@ -69,53 +69,31 @@ class Dataset(object):
             raise NotImplementedError(f"Unsupported data type: {type(self._data)}")
 
     def get_context(self, indices: Any, columns: Union[str, List[str]], data_type: str = "pd") -> Any:
-        """
-        Retrieves "Contextual Metadata" (e.g., night_id) for the given indices from the raw dataset.
-        
-        This allows for the recovery of columns that were removed during task processing (via the 'remove' list)
-        but are necessary for downstream visualization or analysis (e.g., grouping by observing session).
-        
-        Args:
-            indices: The indices (row identifiers) corresponding to the data you currently have.
-                     Usually X_train.index or X_test.index.
-            columns: The list of column names to recover (e.g. ['night_id']).
-            data_type: The return format ('pd', 'np', 'xr', 'nc').
-        """
+        """Retrieve contextual metadata columns (e.g. ``night_id``) for the given indices from the raw dataset."""
         if isinstance(columns, str):
             columns = [columns]
 
         context_slice = None
 
-        # 1. Pandas Implementation
         if isinstance(self._data, pd.DataFrame):
-            # Verify columns exist
             missing = [c for c in columns if c not in self._data.columns]
             if missing:
                 raise ValueError(f"Context columns {missing} not found in source dataset.")
 
-            # Use .loc to retrieve rows by the user's index (TimeIndex or RangeIndex)
             try:
                 context_slice = self._data.loc[indices, columns]
             except KeyError:
-                # If indices don't align, it might be a Type mismatch (Int vs DateTime)
                 raise KeyError(
                     f"Provided indices could not be located in source dataset index ({type(self._data.index)}).")
 
-        # 2. Xarray Implementation
         elif isinstance(self._data, xr.Dataset):
-            # Verify variables exist
             missing = [c for c in columns if c not in self._data.data_vars and c not in self._data.coords]
             if missing:
                 raise ValueError(f"Context variables {missing} not found in source dataset.")
 
-            # Xarray selection requires values, not a Pandas Index object usually
-            if hasattr(indices, 'values'):
-                sel_indices = indices.values
-            else:
-                sel_indices = indices
+            sel_indices = indices.values if hasattr(indices, 'values') else indices
 
             try:
-                # Assumes 'time' is the indexing dimension
                 context_slice = self._data.sel(time=sel_indices)[columns]
             except Exception as e:
                 raise KeyError(f"Could not select indices from xarray dataset: {e}")
@@ -125,7 +103,7 @@ class Dataset(object):
 
         return self._handle_return_type(context_slice, return_type=data_type)
 
-    def get_xarray(self) -> 'Optional[xr.Dataset]':
+    def get_xarray(self) -> Optional[xr.Dataset]:
         """Return the underlying xr.Dataset if the cache holds one, else None.
 
         For datasets opened with ``"lazy": true`` in datasets.json (e.g. paranal_tomography)
@@ -150,8 +128,19 @@ class Dataset(object):
         sample = self.get_slice([0], [n])
         return self._convert_to_pd(sample)
 
+    def get_citation(self) -> str:
+        """Return the BibTeX citation text for this dataset."""
+        supported_datasets = self._supported_datasets()
+        ds_cfg = supported_datasets.get(self._name, {})
+        citation_rel = ds_cfg.get("citation_path", "citation.md")
+        citation_fp = os.path.join(self._data_dir, self._name, citation_rel)
+        if not os.path.exists(citation_fp):
+            raise FileNotFoundError(f"Citation file not found for dataset '{self._name}' at {citation_fp}.")
+        with open(citation_fp, "r", encoding="utf-8") as f:
+            return f.read().strip()
+
     def get_all(self, data_type: str = "pd", device: str = "") -> Any:
-        """Obtain the training data for this dataset from the supplied task."""
+        """Obtain all data for this dataset."""
         return self._handle_return_type(data=self._data, return_type=data_type)
 
     def get_train(self, task: Union[dict, Task], data_type: str = "pd") -> Tuple[Any, Any]:
@@ -193,10 +182,13 @@ class Dataset(object):
     def _handle_task(self, data: Union[pd.DataFrame, xr.Dataset],
                      task: Task) -> Tuple[Union[pd.DataFrame, xr.Dataset], Union[pd.DataFrame, xr.Dataset]]:
         """Split into features and target, dropping missing and transforming target if needed."""
-        # Lazy flattening: if the cache stores an xr.Dataset (memory-mapped), flatten
-        # only the requested slice here rather than pre-flattening the full dataset.
+        # Lazy flattening: if the cache stores an xr.Dataset (memory-mapped) and the
+        # dataset configuration requests flat tabular features ("flatten": true),
+        # flatten only the requested split slice here.
         if isinstance(data, xr.Dataset):
-            data = self._flatten_dataset(data)
+            should_flatten = self._supported_datasets().get(self._name, {}).get("flatten", True)
+            if should_flatten:
+                data = self._flatten_dataset(data)
 
         # Handle pandas DataFrame
         if isinstance(data, pd.DataFrame):
@@ -361,8 +353,6 @@ class Dataset(object):
                     else:
                         return ds.to_dataframe()
                 return ds
-            else:
-                pass
         file_name = supported_datasets[self._name]["local_data_path"]
         fp = settings.DATA_DIR / self._name / file_name
         fp_str = str(fp)

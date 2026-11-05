@@ -7,7 +7,7 @@ from otbench.utils import add_temporal_hour, add_temporal_hour_weight
 @pytest.fixture(scope='module')
 def sample_data():
     df = pd.DataFrame({
-        "time": pd.date_range("2020-01-01", "2020-01-02", freq="1H"),
+        "time": pd.date_range("2020-01-01", "2020-01-02", freq="1h"),
         "air_temperature": 10,
         "humidity": 0.5,
         "wind_speed": 10,

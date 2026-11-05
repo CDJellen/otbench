@@ -1,3 +1,3 @@
-from .tasks import TaskApi
+from otbench.tasks.tasks import TaskApi
 
 __all__ = ["TaskApi"]

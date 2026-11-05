@@ -1,8 +1,9 @@
+import re
+from typing import List, Optional, Sequence, Union
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from typing import Sequence, List, Union, Optional
-import re
 
 try:
     import cmocean
@@ -98,18 +99,17 @@ def plot_profile_comparison(y_true: Union[np.ndarray, pd.DataFrame],
     sort_idx = np.argsort(heights)
     h_sorted = heights[sort_idx]
 
-    # 3. Statistics (Compute Mean/Std in Log Space)
-    mu_true = np.mean(y_true, axis=0)[sort_idx]
-    std_true = np.std(y_true, axis=0)[sort_idx]
-    mu_pred = np.mean(y_pred, axis=0)[sort_idx]
+    # 3. Statistics (Compute NaN-safe Mean/Std in Log Space)
+    mu_true = np.nanmean(y_true, axis=0)[sort_idx]
+    std_true = np.nanstd(y_true, axis=0)[sort_idx]
+    mu_pred = np.nanmean(y_pred, axis=0)[sort_idx]
 
     # 4. Reference Physics (Hufnagel-Valley 5/7)
     if add_hv_reference:
         h_ref = np.linspace(1, max(h_sorted) * 1.1, 200)  # start at 1m to avoid h=0
         # Standard HV-5/7: v_rms = 21 m/s, A = 1.7e-14
         v_rms = 21.0
-        hv = (5.94e-53 * (v_rms / 27.0)**2 * h_ref**10 * np.exp(-h_ref / 1000.0) +
-              2.7e-16 * np.exp(-h_ref / 1500.0) +
+        hv = (5.94e-53 * (v_rms / 27.0)**2 * h_ref**10 * np.exp(-h_ref / 1000.0) + 2.7e-16 * np.exp(-h_ref / 1500.0) +
               1.7e-14 * np.exp(-h_ref / 100.0))
         ax.plot(np.log10(hv), h_ref, 'k--', alpha=0.4, label='Hufnagel-Valley 5/7 (Theory)')
 
@@ -200,4 +200,43 @@ def plot_time_series_heatmap(data: Union[np.ndarray, pd.DataFrame],
         cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         cbar.set_label(cbar_label)
 
+    return ax
+
+
+def plot_horizon_decay(
+    horizon_df: pd.DataFrame,
+    metric: str = "root_mean_square_error",
+    ax: Optional[plt.Axes] = None,
+    title: str = "Forecast Predictability Horizon Decay",
+    ylabel: Optional[str] = None,
+    xlabel: str = "Forecast Horizon (steps ahead)",
+) -> plt.Axes:
+    """Plot forecast error or skill score as a function of lead time H from :meth:`ForecastingTask.evaluate_horizon_curve`."""
+    if ax is None:
+        _, ax = plt.subplots(figsize=(8, 4.5))
+
+    if horizon_df.empty or metric not in horizon_df.columns:
+        raise ValueError(f"Metric '{metric}' not found in horizon_df columns: {list(horizon_df.columns)}")
+
+    palette = ["#00356B", "#C90016", "#2E7D32", "#6A1B9A", "#EF6C00", "#37474F"]
+    for idx, (model_name, grp) in enumerate(horizon_df.groupby("model", sort=False)):
+        grp_sorted = grp.sort_values("horizon")
+        ax.plot(
+            grp_sorted["horizon"].to_numpy(),
+            grp_sorted[metric].to_numpy(),
+            marker="o",
+            linewidth=2.0,
+            color=palette[idx % len(palette)],
+            label=str(model_name),
+        )
+
+    if metric == "skill_score":
+        ax.axhline(0.0, color="black", linestyle="--", linewidth=1.0, alpha=0.6)
+
+    ax.set_facecolor("#faf9f6")
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel if ylabel is not None else metric)
+    ax.grid(True, linestyle="--", alpha=0.4)
+    ax.legend(frameon=True)
     return ax

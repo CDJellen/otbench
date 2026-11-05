@@ -127,52 +127,53 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
 
         X_test, y_test = task.get_test_data(data_type="pd")
 
-        # Select model class and prepare training data.
-        # session_col (e.g. night_id) is already present in X because it is
-        # not in the task's remove list; prepare_forecasting_data handles it
-        # internally — no explicit context recovery is needed here.
+        # Select model class and prepare training data
         if isinstance(task, tasks.RegressionTask):
             models = reg_models
-            # Exclude rows where any target is NaN.  These carry no training
-            # signal and are rejected by sklearn MultiOutputRegressor; they
-            # also cause NaN-gradient poisoning in PyTorch when normalize_data
-            # is False.  LightGBM handles NaN *features* natively so we only
-            # filter on the target mask, preserving all X-NaN rows that tree
-            # models can use.
+            # Exclude rows where any target is NaN while preserving feature-NaN rows for tree models
             valid_rows = y_combined.notna().all(axis=1)
             X_bench = X_combined[valid_rows]
             y_bench = y_combined[valid_rows]
 
         elif isinstance(task, tasks.ForecastingTask):
             models = fcn_models
-            X_bench, y_bench = task.prepare_forecasting_data(X_combined, y_combined)
+            session_col = task_info.get("session_col")
+            seq_feature_names = [c for c in X_combined.columns if c != session_col]
+            X_seq_bench, y_seq_bench, idx_seq_bench = task.prepare_sequence_data(X_combined, y_combined)
+            # Lazily materialize 2D lagged DataFrame only when at least one non-PyTorch tabular model runs
+            needs_2d_bench = any(m not in ("RNNModel", "TransformerModel") for m in models.keys())
+            if needs_2d_bench and len(X_seq_bench) > 0:
+                lag_col_names = list(seq_feature_names) + [
+                    f"{col} (t-{lag})" for lag in range(1, task.window_size) for col in seq_feature_names
+                ]
+                X_flat = X_seq_bench[:, ::-1, :].reshape(len(X_seq_bench), task.window_size * len(seq_feature_names))
+                y_2d = y_seq_bench[:, np.newaxis] if y_seq_bench.ndim == 1 else y_seq_bench
+                y_cols = (list(y_combined.columns) if isinstance(y_combined, pd.DataFrame) else [y_combined.name])
+                X_bench = pd.DataFrame(X_flat, index=idx_seq_bench, columns=lag_col_names)
+                y_bench = pd.DataFrame(y_2d, index=idx_seq_bench, columns=y_cols)
+            else:
+                X_bench = None
+                y_bench = y_seq_bench
 
         else:
             raise ValueError(f"unknown task type {type(task)}.")
 
-        # possible_predictions: ground-truth rows available in the evaluation
-        # split, after applying the same windowing that evaluate_model uses.
-        # .all(axis=1) correctly handles both scalar (1-col) and vector targets:
-        # a row is "possible" only when every target value is non-NaN.
         if isinstance(task, tasks.ForecastingTask):
-            _, y_eval = task.prepare_forecasting_data(X_test, y_test)
+            _, y_eval, _ = task.prepare_sequence_data(X_test, y_test)
+            possible_preds = int(len(y_eval))
         else:
-            y_eval = y_test
+            possible_preds = int(y_test.notna().all(axis=1).sum())
 
         benchmark_results[task_name] = {}
-        benchmark_results[task_name]["possible_predictions"] = int(
-            y_eval.notna().all(axis=1).sum()
-        )
+        benchmark_results[task_name]["possible_predictions"] = possible_preds
 
-        # Feature Mapping (from the task's dataset configuration — single source of truth)
+        # Resolve dataset feature mapping
         ds_name = task_info["ds_name"]
         datasets_config = task.get_dataset()._supported_datasets()
         feature_map = datasets_config.get(ds_name, {}).get("feature_map")
         if not feature_map:
-            raise ValueError(
-                f"No feature_map configured for dataset '{ds_name}' in datasets.json. "
-                f"Cannot run benchmarks for task '{task_name}'."
-            )
+            raise ValueError(f"No feature_map configured for dataset '{ds_name}' in datasets.json. "
+                             f"Cannot run benchmarks for task '{task_name}'.")
 
         height_of_observation = feature_map["height_of_observation"]
         air_temperature_col_name = feature_map["air_temperature_col_name"]
@@ -181,8 +182,6 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
         wind_speed_col_name = feature_map["wind_speed_col_name"]
         time_col_name = feature_map["time_col_name"]
 
-        # Determine Vector Status
-        # Check output dimensionality to filter incompatible models
         output_dim = 1
         if hasattr(y_bench, "shape") and len(y_bench.shape) > 1:
             output_dim = y_bench.shape[1]
@@ -213,6 +212,8 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             if verbose:
                 print(f"Running benchmark for {model_name}...")
 
+            base_input_size = (len(seq_feature_names)
+                               if isinstance(task, tasks.ForecastingTask) else len(X_bench.columns))
             model_kwargs = dict(
                 name=model_name,
                 target_name=target_name,
@@ -229,50 +230,72 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 constant_adjustment=True,
                 use_log10=use_log10,
                 verbose=verbose,
-                input_size=len(X_bench.columns),
-                output_size=output_dim,  # Critical for Vector Tasks
+                input_size=base_input_size,
+                output_size=output_dim,
             )
 
             # Forecasting Specific Configs
             if "forecasting" in task_name:
                 model_kwargs["forecast_horizon"] = task.forecast_horizon
                 model_kwargs["window_size"] = task.window_size
-                # Input size for RNN/Transformer is Features per Step.
-                # _add_lags uniformly lags every feature, so total columns must be
-                # an exact multiple of window_size.
-                n_cols = len(X_bench.columns)
-                assert n_cols % task.window_size == 0, (
-                    f"X_bench has {n_cols} columns which is not divisible by "
-                    f"window_size={task.window_size}. Check that _add_lags was "
-                    f"called with uniform lag depth across all features."
-                )
-                model_kwargs["input_size"] = n_cols // task.window_size
-                model_kwargs["in_channels"] = task.window_size
-
-            # Override epochs
-            if n_epochs_override is not None:
-                model_kwargs["n_epochs"] = n_epochs_override
+                model_kwargs["feature_names"] = seq_feature_names
+                if X_bench is not None:
+                    n_cols = len(X_bench.columns)
+                    assert n_cols % task.window_size == 0, (f"X_bench has {n_cols} columns which is not divisible by "
+                                                            f"window_size={task.window_size}. Check that _add_lags was "
+                                                            f"called with uniform lag depth across all features.")
+                model_kwargs["input_size"] = len(seq_feature_names)
 
             # Model Specific Configs
+            if "RNNModel" in model_name and "forecasting" in task_name:
+                model_kwargs.update({
+                    "predict_residuals": True,
+                    "use_scheduler": True,
+                    "val_fraction": 0.1,
+                    "patience": 5,
+                })
+
             if "TransformerModel" in model_name:
                 model_kwargs.update({
                     "d_model": 128,
                     "nhead": 4,
                     "num_layers": 2,
                     "dropout": 0.1,
-                    # Transformer needs larger batch and careful epochs
+                    # Transformer needs larger batch, residual target framing, and scheduled epochs
                     "batch_size": 256,
-                    "n_epochs": 20
+                    "n_epochs": 20,
+                    "predict_residuals": True,
+                    "use_scheduler": True,
+                    "val_fraction": 0.1,
+                    "patience": 5,
                 })
+
+            # Override epochs
+            if n_epochs_override is not None:
+                model_kwargs["n_epochs"] = n_epochs_override
 
             # Instantiate & Train
             try:
                 mdl = model(**model_kwargs)
-                mdl.train(X_bench.copy(deep=True), y_bench.copy(deep=True))
+                use_seq = isinstance(task, tasks.ForecastingTask) and model_name in ("RNNModel", "TransformerModel")
+                if use_seq:
+                    mdl.train(
+                        X_seq_bench.copy(),
+                        y_seq_bench.copy(),
+                        feature_names=seq_feature_names,
+                    )
+                else:
+                    mdl.train(X_bench.copy(deep=True), y_bench.copy(deep=True))
 
                 # Evaluate
-                results = task.evaluate_model(predict_call=mdl.predict, x_transforms=None, x_transform_kwargs=None, detailed_metrics=True,)
-                benchmark_results[task_name][model_name] = results
+                results = task.evaluate_model(
+                    predict_call=mdl.predict,
+                    x_transforms=None,
+                    x_transform_kwargs=None,
+                    detailed_metrics=True,
+                    **(dict(use_sequence_data=True) if use_seq else {}),
+                )
+                benchmark_results[task_name][model_name] = tasks._compact_metrics_for_benchmark(results)
 
                 if verbose:
                     print(f"Done running benchmark for {model_name}.")
@@ -285,8 +308,20 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 traceback.print_exc()
 
     if write_metrics:
+        persisted_results = {}
+        if os.path.exists(metrics_fp):
+            try:
+                with open(metrics_fp, "r") as f:
+                    persisted_results = json.load(f)
+            except (json.JSONDecodeError, OSError):
+                persisted_results = {}
+        for task_name, task_res in benchmark_results.items():
+            if task_name in persisted_results and isinstance(persisted_results[task_name], dict):
+                persisted_results[task_name].update(task_res)
+            else:
+                persisted_results[task_name] = task_res
         with open(metrics_fp, "w") as f:
-            f.write(json.dumps(benchmark_results, indent=4, cls=NumpyEncoder))
+            f.write(json.dumps(persisted_results, indent=4, cls=NumpyEncoder))
         if verbose:
             print(f"Wrote benchmark metrics to {metrics_fp}.")
 
