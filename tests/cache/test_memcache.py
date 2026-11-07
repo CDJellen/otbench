@@ -107,6 +107,20 @@ def test_getitem(in_memory_cache):
     remove_from_cache(name='test')
 
 
+def test_available_datasets_preserves_leading_p_and_e(in_memory_cache):
+    """Dataset names starting with characters in '.pickle' (e.g. 'paranal_probe') must not be truncated."""
+    in_memory_cache.add_dataset(name='paranal_probe', dataset=pd.DataFrame({'a': [1]}))
+    try:
+        avail = in_memory_cache.available_datasets()
+        assert 'paranal_probe' in avail
+        assert 'aranal_probe' not in avail
+    finally:
+        if 'paranal_probe' in in_memory_cache._cache:
+            del in_memory_cache._cache['paranal_probe']
+        remove_from_cache(name='paranal_probe')
+
+
+
 def remove_from_cache(name: str) -> None:
     """Remove any datasets created during testing."""
     for fp in os.listdir(CACHE_DIR):

@@ -249,6 +249,8 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             # Model Specific Configs
             if "RNNModel" in model_name and "forecasting" in task_name:
                 model_kwargs.update({
+                    "batch_size": 256,
+                    "n_epochs": 20,
                     "predict_residuals": True,
                     "use_scheduler": True,
                     "val_fraction": 0.1,

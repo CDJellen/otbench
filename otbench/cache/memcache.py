@@ -22,7 +22,11 @@ class InMemoryCache:
     def available_datasets(self) -> List[str]:
         """List datasets available in memory or on disk"""
         in_memory = self.mem_datasets()
-        on_disk = [fp.strip(".pickle") for fp in os.listdir(self._cache_dir) if ".gitkeep" not in str(fp)]
+        on_disk = [
+            fp.removesuffix(".pickle")
+            for fp in os.listdir(self._cache_dir)
+            if ".gitkeep" not in str(fp) and str(fp).endswith(".pickle")
+        ]
         return list(set(in_memory + on_disk))
 
     def mem_datasets(self) -> List[str]:

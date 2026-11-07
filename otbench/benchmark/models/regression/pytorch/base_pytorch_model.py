@@ -35,6 +35,7 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         self.window_size = window_size
         self.batch_size = batch_size
         self.random_state = random_state
+        torch.manual_seed(self.random_state)
         self.n_epochs = n_epochs
         self.criterion = criterion
         self._optimizer_callable = optimizer  # persist callable for later use
@@ -109,12 +110,11 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         if y is None and isinstance(X, pd.DataFrame):
             y = X.iloc[:, [0]]
         elif y is None and isinstance(X, np.ndarray):
-            y = X[:, [0]]
+            y = np.zeros((len(X), 1), dtype=X.dtype)
         elif y is None:
             raise ValueError("y must be supplied if X is not a pd.DataFrame  or np.ndarray object.")
 
         if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
-            # reshape to apply window size
             n_features = len(X.columns) // self.window_size
             X = X.to_numpy()
             y = y.to_numpy()
@@ -125,15 +125,27 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
                     X, y = self._normalize_data(X=X, y=y)
                 else:
                     X, y = self._apply_normalization(X=X, y=y)
+        elif isinstance(X, np.ndarray) and isinstance(y, np.ndarray):
+            X = X.copy()
+            y = y.copy()
+            if y.ndim == 1:
+                y = y[:, np.newaxis]
+            if X.ndim == 2:
+                n_features = X.shape[1] // self.window_size
+                X = X.reshape(-1, self.window_size, n_features)
+            if self.normalize_data:
+                if mode == "train":
+                    X, y = self._normalize_data(X=X, y=y)
+                else:
+                    X, y = self._apply_normalization(X=X, y=y)
         else:
-            if not isinstance(X, np.ndarray) and isinstance(y, np.ndarray):
-                raise ValueError("X and y must be both be pd.DataFrame objects or np.ndarray objects.")
+            raise ValueError("X and y must be both be pd.DataFrame objects or np.ndarray objects.")
         X, y = self._map_to_tensor(X, y)
         if mode == "train":
             dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=True)
             self.train_dataloader = dataloader
         elif mode == "test":
-            dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=True)
+            dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=False)
             self.test_dataloader = dataloader
         elif mode == "val_train":
             dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=False)
@@ -145,8 +157,9 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
     def _normalize_data(self, X: 'pd.DataFrame', y: 'pd.DataFrame') -> Tuple[np.ndarray, np.ndarray]:
         """Normalize the data before training."""
         # normalize the training data
-        X_mean = np.nanmean(X, axis=0)
-        X_std = np.nanstd(X, axis=0)
+        x_axes = (0, 1) if np.ndim(X) == 3 else 0
+        X_mean = np.nanmean(X, axis=x_axes)
+        X_std = np.nanstd(X, axis=x_axes)
         X_std = np.where(X_std == 0, sys.float_info.epsilon, X_std)
         y_mean = np.nanmean(y, axis=0)
         y_std = np.nanstd(y, axis=0)
@@ -257,6 +270,14 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         if len(X) == 0:
             return
 
+        y_arr = y.to_numpy() if isinstance(y, (pd.DataFrame, pd.Series)) else np.asarray(y)
+        y_valid_mask = ~np.isnan(y_arr).any(axis=1) if y_arr.ndim > 1 else ~np.isnan(y_arr)
+        if len(y_valid_mask) == len(X) and not np.all(y_valid_mask):
+            X = X.iloc[y_valid_mask] if isinstance(X, pd.DataFrame) else X[y_valid_mask]
+            y = y.iloc[y_valid_mask] if isinstance(y, (pd.DataFrame, pd.Series)) else y[y_valid_mask]
+            if len(X) == 0:
+                return
+
         if y.ndim > 1 and y.shape[1] != output_dim:
             if self.verbose:
                 print(f"Warning: Target dimension {y.shape[1]} does not match model output size {output_dim}.")
@@ -264,7 +285,8 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
                 raise ValueError(f"Model initialized with output_size=1 but target has {y.shape[1]} columns. "
                                  f"Ensure input_size and output_size are set correctly.")
 
-        n_features = len(X.columns) // self.window_size
+        n_features = (len(X.columns) // self.window_size if isinstance(X, pd.DataFrame) else
+                      (X.shape[-1] if X.ndim == 3 else X.shape[1] // self.window_size))
         if self.verbose:
             print(f"training data contains {n_features} features.")
 
@@ -322,14 +344,15 @@ class BasePyTorchRegressionModel(BaseRegressionModel):
         if best_state_dict is not None:
             self.model.load_state_dict(best_state_dict)
 
-    def _run_prediction(self, X: 'pd.DataFrame', output_dim: int) -> np.ndarray:
+    def _run_prediction(self, X: Union['pd.DataFrame', np.ndarray], output_dim: int) -> np.ndarray:
         """Shared batched inference across validation/test data."""
         if len(X) == 0:
             if output_dim > 1:
                 return np.empty((0, output_dim))
             return np.empty((0,))
 
-        n_features = len(X.columns) // self.window_size
+        n_features = (len(X.columns) // self.window_size if isinstance(X, pd.DataFrame) else
+                      (X.shape[-1] if X.ndim == 3 else X.shape[1] // self.window_size))
         if self.verbose:
             print(f"validation data contains {n_features} features.")
         self.set_validation_data(X=X, y=None)

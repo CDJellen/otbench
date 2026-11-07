@@ -71,7 +71,7 @@ def generate_paranal_tomography(seed: int = 2020) -> xr.Dataset:
     ds = xr.Dataset(data_vars=data_vars, coords=coords)
 
     ds.attrs = {
-        "project": "otbench v2",
+        "project": "otbench v0.5.0",
         "site": "ESO Paranal",
         "description": "Synthetic Tomographic Benchmark (MASS+LHATPRO)",
         "processing": "Synthetic generator",

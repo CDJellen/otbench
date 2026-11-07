@@ -38,7 +38,9 @@ class MinuteClimatologyForecastingModel(BaseForecastingModel):
         # shift timestamps by the forecast horizon to determine target time of day
         times = pd.to_datetime(X.index)
         if len(times) > 1:
-            dt = times[1] - times[0]
+            diffs = pd.Series(times).diff().dropna()
+            positive_diffs = diffs[diffs > pd.Timedelta(0)]
+            dt = positive_diffs.median() if len(positive_diffs) > 0 else pd.Timedelta(minutes=1)
             shift = pd.Timedelta(seconds=self.forecast_horizon * dt.total_seconds())
             target_times = (times + shift).time
         else:

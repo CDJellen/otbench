@@ -80,3 +80,45 @@ def test_base_pytorch_model_data_validation():
 
     with pytest.raises(ValueError, match="X and y must be both be pd.DataFrame objects or np.ndarray objects"):
         model.set_training_data(X_df, np.array([1]))
+
+
+def test_regression_rnn_numpy_array_train_and_predict():
+    """RNNModel (regression) must train, normalize, and predict identically on np.ndarray and pd.DataFrame."""
+    from otbench.benchmark.models.regression.pytorch import RNNModel
+
+    rng = np.random.default_rng(42)
+    X_np = rng.normal(0.0, 1.0, size=(20, 4))
+    y_np = rng.normal(0.0, 1.0, size=(20, 2))
+    X_df = pd.DataFrame(X_np, columns=[f"f{i}" for i in range(4)])
+    y_df = pd.DataFrame(y_np, columns=["t0", "t1"])
+
+    mdl_np = RNNModel(
+        name="rnn_np",
+        target_name=["t0", "t1"],
+        input_size=4,
+        output_size=2,
+        hidden_size=16,
+        num_layers=1,
+        n_epochs=3,
+        batch_size=8,
+        random_state=123,
+    )
+    mdl_np.train(X_np, y_np)
+    pred_np = mdl_np.predict(X_np)
+    assert pred_np.shape == (20, 2)
+    assert np.all(np.isfinite(pred_np))
+
+    mdl_df = RNNModel(
+        name="rnn_df",
+        target_name=["t0", "t1"],
+        input_size=4,
+        output_size=2,
+        hidden_size=16,
+        num_layers=1,
+        n_epochs=3,
+        batch_size=8,
+        random_state=123,
+    )
+    mdl_df.train(X_df, y_df)
+    pred_df = mdl_df.predict(X_df)
+    np.testing.assert_allclose(pred_np, pred_df, atol=1e-5)

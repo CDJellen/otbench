@@ -31,7 +31,10 @@ class LinearForecastingModel(BaseForecastingModel):
             return np.array([])
 
         for i, t in enumerate(targets):
-            cols = [c for c in X.columns if c.startswith(t)]
+            cols = [c for c in X.columns if c == t or c.startswith(f"{t} (t-") or c.startswith(f"{t}_t-")]
+            if not cols:
+                other_targets = [ot for ot in targets if ot != t and ot.startswith(t)]
+                cols = [c for c in X.columns if c.startswith(t) and not any(c.startswith(ot) for ot in other_targets)]
 
             if not cols:
                 if self._training_mean is not None:
@@ -41,11 +44,18 @@ class LinearForecastingModel(BaseForecastingModel):
                 all_preds.append(np.full(len(X), fallback))
                 continue
 
-            X_t = X[cols].values
+            p_col_idx = (cols.index(f"{t} (t-0)") if f"{t} (t-0)" in cols else
+                         (cols.index(f"{t}_t-0") if f"{t}_t-0" in cols else 0))
+            if p_col_idx > 0:
+                cols = list(reversed(cols))
+
+            X_t = X[cols].to_numpy(dtype=float).copy()
 
             # transform target history to log10 space when target is log-transformed
             if self.use_log10:
-                X_t = np.log10(np.maximum(X_t, 1e-19))
+                valid_vals = X_t[np.isfinite(X_t)]
+                if len(valid_vals) > 0 and np.min(valid_vals) >= 0.0 and np.median(valid_vals) < 1e-5:
+                    X_t = np.log10(np.maximum(X_t, 1e-19))
 
             # lag columns are ordered [feat(t-0), feat(t-1), ..., feat(t-(W-1))]
             n_lags = X_t.shape[1]
@@ -56,12 +66,25 @@ class LinearForecastingModel(BaseForecastingModel):
                 coeffs = np.linalg.lstsq(A, X_t.T, rcond=None)[0]
                 preds_t = coeffs[0] * self.forecast_horizon + coeffs[1]
             else:
-                preds_t = []
+                preds_t = np.empty(len(X_t), dtype=float)
+                fallback = (float(self._training_mean[i] if len(self._training_mean) > 1 else self._training_mean[0])
+                            if self._training_mean is not None else 0.0)
                 for row_i in range(len(X_t)):
                     history = X_t[row_i, :]
-                    m, b = np.linalg.lstsq(A, history, rcond=None)[0]
-                    pred = m * self.forecast_horizon + b
-                    preds_t.append(pred)
+                    valid = ~np.isnan(history)
+                    n_valid = int(valid.sum())
+                    if n_valid == 0:
+                        preds_t[row_i] = fallback
+                    elif n_valid == 1:
+                        preds_t[row_i] = float(history[valid][0])
+                    else:
+                        m, b = np.linalg.lstsq(A[valid], history[valid], rcond=None)[0]
+                        preds_t[row_i] = float(m * self.forecast_horizon + b)
+
+            if self.predict_residuals:
+                y_curr_t = X_t[:, 0]
+                all_nan_row = np.isnan(X_t).all(axis=1)
+                preds_t = np.where(all_nan_row, preds_t, preds_t - y_curr_t)
 
             all_preds.append(preds_t)
 

@@ -127,6 +127,7 @@ def plot_profile_comparison(y_true: Union[np.ndarray, pd.DataFrame],
     ax.plot(mu_pred, h_sorted, 's--', color='#C90016', lw=2, label='Forecast')
 
     # Formatting
+    ax.set_facecolor("#faf9f6")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title)

@@ -283,7 +283,10 @@ class Dataset(object):
 
     def _load_dataset(self) -> Union[pd.DataFrame, xr.Dataset]:
         """Load the dataset from cache or disk."""
-        if self._name in CACHE:
+        if settings.USE_SYNTHETIC_DATA and self._name in SYNTHETIC_REGISTRY:
+            return self._load_dataset_from_disk()
+        is_lazy = self._supported_datasets().get(self._name, {}).get("lazy", False)
+        if self._name in CACHE or (not is_lazy and CACHE._is_on_disk(self._name)):
             return CACHE.get_dataset(self._name)
         else:
             data = self._load_dataset_from_disk()
@@ -341,8 +344,11 @@ class Dataset(object):
                 # Bypass disk loading completely for synthetic data
                 ds = SYNTHETIC_REGISTRY[self._name]()
 
-                # Check if we need to flatten (mirroring disk logic)
+                # Check if lazy or if we need to flatten (mirroring disk logic)
                 dataset_config = supported_datasets.get(self._name, {})
+                is_lazy = dataset_config.get("lazy", False)
+                if is_lazy:
+                    return ds
                 should_flatten = dataset_config.get("flatten", True)
 
                 if should_flatten:

@@ -8,7 +8,7 @@
 [![PyPI - Status](https://img.shields.io/pypi/status/otbench)](https://pypi.org/project/otbench/)
 [![PyPI - Python Version](https://img.shields.io/pypi/pyversions/otbench)](https://pypi.org/project/otbench/)
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white&style=flat-square)](https://www.linkedin.com/in/cdjellen/)
-[![GitHub](https://img.shields.io/github/license/cdjellen/otbench)](https://github.com/cdjellen/ndbc-api/blob/main/LICENSE)
+[![GitHub](https://img.shields.io/github/license/cdjellen/otbench)](https://github.com/CDJellen/otbench/blob/main/LICENSE)
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/otbench)](https://pypi.org/project/otbench/)
 
 
@@ -24,19 +24,23 @@ The package currently covers regression and forecasting for modeling the strengt
 
 *Environmentally Diverse Datasets*
 
-`otbench` includes datasets from diverse operational studies. v0.4.0 adds the **ESO Paranal Tomographic Benchmark** — the first community-standard, causally-ordered, multi-instrument benchmarking corpus for optical turbulence profiling. It combines MASS turbulence profiles (6 free-atmosphere layers + ground), LHATPRO thermodynamic profiles (39 levels), and surface meteorology across >500 observing nights at Paranal Observatory.
+`otbench` includes datasets from diverse operational studies. v0.5.0 adds the **ESO Paranal Tomographic Benchmark** — the first community-standard, causally-ordered, multi-instrument benchmarking corpus for optical turbulence profiling. It combines MASS turbulence profiles (6 free-atmosphere layers + ground), LHATPRO thermodynamic profiles (39 levels), and surface meteorology across >500 observing nights at Paranal Observatory.
 
-*Domain-Complete Evaluation Metrics*
+*Domain-Complete Evaluation Metrics & Statistical Inference*
 
-Beyond standard regression metrics (RMSE, MAE, R², MAPE), `otbench` provides **physics-derived evaluation metrics** for turbulence profile assessment:
+Beyond standard regression metrics (RMSE, MAE, R², MAPE), `otbench` provides **physics-derived evaluation metrics** and **moving-block bootstrap inference** for turbulence profile assessment:
 
-| Metric | Physical Quantity | Unit |
+| Metric / Utility | Physical / Statistical Quantity | Unit |
 |--------|------------------|------|
-| `integrated_seeing` | Fried parameter → FWHM | arcsec |
-| `isoplanatic_angle` | AO correction field of view (θ₀) | arcsec |
-| `coherence_time` | AO loop timing (τ₀) | ms |
-| `greenwood_frequency` | AO bandwidth requirement (f_G) | Hz |
+| `integrated_seeing` | Fried parameter $r_0$ → seeing FWHM ($\varepsilon_0$) | arcsec |
+| `isoplanatic_angle` | AO correction field of view ($\theta_0$) | arcsec |
+| `coherence_time` | AO loop timing ($\tau_0$) | ms |
+| `greenwood_frequency` | AO bandwidth requirement ($f_G$) | Hz |
+| `strehl_ratio` | Closed-loop Maréchal Strehl ratio ($S$), OPD error, & layer KL divergence | — / nm / nats |
+| `ao_wavefront_error_budget` | Fitting, anisoplanatic, & servo-lag wavefront error variances | $\mathrm{rad}^2$ |
 | `per_layer_rmse` | Per-layer error decomposition | — |
+| `bootstrap_ci` | Vectorized i.i.d. or moving-block bootstrap confidence intervals | metric units |
+| `paired_bootstrap_test` | Paired moving-block statistical significance ($p$-value & $\Delta$ CI) | metric units |
 
 These metrics are **declaratively composable** — add them to any task's `eval_metrics` list and the dispatch adapter injects the required physical context (layer heights, wind speed) automatically.
 
@@ -103,7 +107,7 @@ pip install -r requirements.txt
 If you would like to make a contribution, please install the development dependencies as well:
 
 ```bash
-pip install -r requirements-dev.txt
+pip install -e ".[dev]"
 ```
 
 ### Usage
@@ -160,7 +164,7 @@ We provide a similar overview for the process of developing a forecasting model 
 
 [![forecasting.usna_cn2_sm.full.Cn2_3m](./doc/img/usna_cn2_sm_forecasting.png)](./notebooks/forecasting/usna_cn2_sm.ipynb)
 
-#### Paranal Tomographic Profiling (v0.4.0)
+#### Paranal Tomographic Profiling (v0.5.0)
 
 The ESO Paranal Tomographic Benchmark provides three tasks for turbulence profile modeling:
 
@@ -170,7 +174,7 @@ The ESO Paranal Tomographic Benchmark provides three tasks for turbulence profil
 | `forecasting.paranal_tomography.full.seeing_nowcast` | Forecasting | Scalar seeing prediction 5 minutes ahead |
 | `forecasting.paranal_tomography.full.cn2_profile_forecast` | Forecasting | 7-layer profile prediction 10 minutes ahead |
 
-Profile tasks automatically evaluate using AO-derived metrics (integrated seeing, isoplanatic angle) alongside standard RMSE. See the [Paranal dataset documentation](./otbench/data/paranal_tomography/README.md) for schema details and physical quantities.
+Profile tasks automatically evaluate using AO-derived metrics (`integrated_seeing`, `isoplanatic_angle`, `coherence_time`, `greenwood_frequency`, `per_layer_rmse`) alongside standard RMSE, and support vectorized moving-block bootstrap confidence intervals (`compute_ci=True`), paired model hypothesis tests (`task.compare_models()`), regime stratification (`task.evaluate_by_regime()`), and multi-horizon predictability decay curves (`task.evaluate_horizon_curve()`). See the [Paranal dataset documentation](./otbench/data/paranal_tomography/README.md) for schema details and physical quantities.
 
 ```python
 from otbench import TaskApi
@@ -180,10 +184,12 @@ profile_task = task_api.get_task(
     "regression.paranal_tomography.full.cn2_profile_reconstruction"
 )
 
-# Evaluate a model — AO metrics are injected automatically
-results = profile_task.evaluate_model(predict_call=model.predict)
-# results includes: root_mean_square_error, per_layer_rmse,
-#                   integrated_seeing, isoplanatic_angle
+# Evaluate a model with 95% moving-block bootstrap confidence intervals
+results = profile_task.evaluate_model(
+    predict_call=model.predict,
+    compute_ci=True,
+    bootstrap_block_size=30,
+)
 ```
 
 ### Contributing
@@ -230,6 +236,10 @@ Please acknowledge NCAR/EOL in your publications with text such as:
 Please acknowledge ONR and DE-JTO in your publications with text such as:
 
 >  Data provided by the United States Naval Academy under the sponsorship of the Office of Naval Research and the Directed Energy Joint Technology Office.
+
+When using the `paranal_tomography` dataset, please also acknowledge ESO with text such as:
+
+>  Based on observations collected at the European Southern Observatory (ESO) Paranal Observatory Ambient Conditions Database (`archive.eso.org`).
 
 [^1]: https://data.eol.ucar.edu/dataset/160.007
 [^2]: https://papers.nips.cc/paper_files/paper/2017/hash/6449f44a102fde848669bdd9eb6b76fa-Abstract.html

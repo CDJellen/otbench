@@ -1404,33 +1404,33 @@
         },
         "RNNModel": {
             "root_mean_square_error": {
-                "metric_value": 0.33762759857493224,
-                "valid_predictions": 47247,
+                "metric_value": 0.121755921220083,
+                "valid_predictions": 36549,
                 "detailed_score": [
-                    0.33762759857493224
+                    0.121755921220083
                 ]
             },
             "mean_absolute_error": {
-                "metric_value": 0.25828666622767626,
-                "valid_predictions": 47247,
+                "metric_value": 0.08489722120586185,
+                "valid_predictions": 36549,
                 "detailed_score": [
-                    0.25828666622767626
+                    0.08489722120586185
                 ]
             }
         },
         "TransformerModel": {
             "root_mean_square_error": {
-                "metric_value": 0.3157392640161773,
-                "valid_predictions": 47247,
+                "metric_value": 0.12066629428233544,
+                "valid_predictions": 36549,
                 "detailed_score": [
-                    0.3157392640161773
+                    0.12066629428233544
                 ]
             },
             "mean_absolute_error": {
-                "metric_value": 0.23588767834586497,
-                "valid_predictions": 47247,
+                "metric_value": 0.0847644414026813,
+                "valid_predictions": 36549,
                 "detailed_score": [
-                    0.23588767834586497
+                    0.0847644414026813
                 ]
             }
         }

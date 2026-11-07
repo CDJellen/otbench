@@ -371,7 +371,7 @@ class ESOParanalLoader:
             },
             attrs={
                 "project":
-                    "otbench v2",
+                    "otbench v0.5.0",
                 "site":
                     "ESO Paranal Observatory",
                 "site_latitude":

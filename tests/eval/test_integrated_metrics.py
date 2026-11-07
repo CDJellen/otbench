@@ -587,13 +587,15 @@ def test_vectorized_bootstrap_ci_and_paired_significance():
     np.testing.assert_allclose(ci_vec[0], ci_loop[0], rtol=1e-12)
     np.testing.assert_allclose(ci_vec[1], ci_loop[1], rtol=1e-12)
 
-    # Paired bootstrap test directly and via task.compare_models
+    # Paired bootstrap test directly and via task.compare_models (including greenwood_frequency)
+    from otbench.eval import greenwood_frequency
+
     task = TaskApi().get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
     comparison = task.compare_models(
         y_true,
         y_pred_a,
         y_pred_b,
-        eval_metric_names=["root_mean_square_error", "integrated_seeing"],
+        eval_metric_names=["root_mean_square_error", "integrated_seeing", "greenwood_frequency"],
         n_bootstrap=500,
         block_size=10,
         seed=42,
@@ -604,6 +606,33 @@ def test_vectorized_bootstrap_ci_and_paired_significance():
     assert rmse_cmp["p_value"] < 0.05
     assert rmse_cmp["significant"] is True
     assert rmse_cmp["a_is_better"] is True
+
+    fg_kw = task._build_metric_kwargs("greenwood_frequency")
+    fg_expected_a = greenwood_frequency(y_true, y_pred_a, detailed=False, **fg_kw)["metric_value"]
+    fg_expected_b = greenwood_frequency(y_true, y_pred_b, detailed=False, **fg_kw)["metric_value"]
+    np.testing.assert_allclose(comparison["greenwood_frequency"]["score_a"], fg_expected_a, rtol=1e-10)
+    np.testing.assert_allclose(comparison["greenwood_frequency"]["score_b"], fg_expected_b, rtol=1e-10)
+    assert comparison["greenwood_frequency"]["a_is_better"] is True
+
+    # Also verify 3-argument (horizon, X_h, y_h) callable support in evaluate_horizon_curve
+    X_test_raw, y_test_raw = task.get_test_data(data_type="pd")
+    X_sub, y_sub = _first_valid_contiguous_slice(X_test_raw, y_test_raw, min_rows=90)
+    seen_horizons = []
+
+    def _three_arg_predictor(h, X_h, y_h):
+        seen_horizons.append(h)
+        return y_h.to_numpy() * 0.99
+
+    h_df = task.evaluate_horizon_curve(
+        models={"ThreeArgOracle": _three_arg_predictor},
+        horizons=(1, 3),
+        window_size=5,
+        eval_metric_names=["root_mean_square_error"],
+        X_test=X_sub,
+        y_test=y_sub,
+    )
+    assert seen_horizons == [1, 3]
+    assert len(h_df) == 2
 
 
 def test_pytorch_3d_sequence_dispatch_parity():
@@ -662,3 +691,137 @@ def test_pytorch_3d_sequence_dispatch_parity():
         res_2d["root_mean_square_error"]["metric_value"],
         atol=1e-5,
     )
+
+
+def test_ao_physics_loss_with_residual_learning():
+    """AOPhysicsLoss must reconstruct physical log10(J_i) = y_base + delta_y when predict_residuals=True,
+    preventing clamp saturation and producing non-zero r0/theta0 gradients during 2D and 3D training."""
+    import torch
+    from otbench.tasks import TaskApi
+    from otbench.benchmark.models.forecasting.pytorch import AOPhysicsLoss, RNNModel, TransformerModel
+
+    heights = [0, 500, 1000, 2000, 4000, 8000, 16000]
+    loss_fn = AOPhysicsLoss(heights=heights, lambda_r0=1.0, lambda_theta0=1.0)
+    # Residual normalization stats: mean ~ 0.0, std ~ 0.2 dex
+    loss_fn.set_normalization_stats(np.zeros(7), np.full(7, 0.2))
+
+    # Normalized residuals near 0 -> un-normalized residuals near 0.0 dex
+    # Physical base persistence profile near -14.8 log10(m^(1/3))
+    y_hat = torch.zeros((8, 7), dtype=torch.float32, requires_grad=True)
+    y_tgt = torch.full((8, 7), 0.5, dtype=torch.float32)  # +0.1 dex residual target
+    y_base = torch.full((8, 7), -14.8, dtype=torch.float32)
+
+    # Pure MSE component (lambda_r0=0, lambda_theta0=0) vs full physics loss with y_base
+    mse_only = torch.nn.functional.mse_loss(y_hat, y_tgt)
+    total_loss = loss_fn(y_hat, y_tgt, y_base=y_base)
+    total_loss.backward()
+
+    assert total_loss.item() > mse_only.item(), "Optical moment penalties (r0, theta0) must be strictly positive"
+    assert y_hat.grad is not None and torch.all(torch.isfinite(y_hat.grad))
+    # Verify gradients differ from pure MSE gradient (-2*(y_tgt - y_hat)/N)
+    mse_grad = 2.0 * (y_hat.detach() - y_tgt) / y_hat.numel()
+    assert not torch.allclose(y_hat.grad, mse_grad), "r0/theta0 physics terms must contribute non-zero gradients"
+
+    # End-to-end training with RNNModel and TransformerModel under predict_residuals=True + AOPhysicsLoss
+    task = TaskApi().get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
+    X_train_raw, y_train_raw = task.get_train_data(data_type="pd")
+    X_sub, y_sub = _first_valid_contiguous_slice(X_train_raw, y_train_raw, min_rows=100)
+    X_seq, y_seq, _ = task.prepare_sequence_data(X_sub, y_sub)
+    X_2d, y_2d = task.prepare_forecasting_data(X_sub, y_sub)
+    feature_names = [c for c in X_sub.columns if c.lower() not in ("night_id", "session_id")]
+
+    for ModelCls in (RNNModel, TransformerModel):
+        crit_3d = AOPhysicsLoss(heights=heights, lambda_r0=0.25, lambda_theta0=0.25)
+        mdl_3d = ModelCls(
+            name=f"{ModelCls.__name__}_Phys3D",
+            target_name=list(y_sub.columns),
+            input_size=len(feature_names),
+            output_size=7,
+            window_size=task.window_size,
+            forecast_horizon=task.forecast_horizon,
+            feature_names=feature_names,
+            criterion=crit_3d,
+            predict_residuals=True,
+            use_log10=True,
+            n_epochs=2,
+            batch_size=32,
+            val_fraction=0.2,
+        )
+        mdl_3d.train(X_seq, y_seq, feature_names=feature_names)
+        preds_3d = mdl_3d.predict(X_seq)
+        assert preds_3d.shape == y_seq.shape
+        assert np.all(np.isfinite(preds_3d))
+        assert np.all((preds_3d > -20.0) & (preds_3d < -10.0))
+
+    crit_2d = AOPhysicsLoss(heights=heights, lambda_r0=0.25, lambda_theta0=0.25)
+    mdl_2d = RNNModel(
+        name="RNN_Phys2D",
+        target_name=list(y_sub.columns),
+        input_size=len(feature_names),
+        output_size=7,
+        window_size=task.window_size,
+        forecast_horizon=task.forecast_horizon,
+        criterion=crit_2d,
+        predict_residuals=True,
+        use_log10=True,
+        n_epochs=2,
+        batch_size=32,
+        val_fraction=0.2,
+    )
+    mdl_2d.train(X_2d, y_2d)
+    preds_2d = mdl_2d.predict(X_2d)
+    assert preds_2d.shape == y_2d.shape
+    assert np.all(np.isfinite(preds_2d))
+
+
+def test_compare_models_joint_mask_and_sequence_horizon_curve():
+    """compare_models must apply a single joint validity mask across (y_true, y_pred_a, y_pred_b),
+    and evaluate_horizon_curve must support use_sequence_data=True for 3D sequence models."""
+    from otbench.tasks import TaskApi
+
+    task = TaskApi().get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
+    rng = np.random.default_rng(314)
+    y_true = rng.uniform(-15.5, -13.5, size=(60, 7))
+    y_pred_a = y_true + rng.normal(0.0, 0.05, size=(60, 7))
+    y_pred_b = y_true + rng.normal(0.0, 0.25, size=(60, 7))
+
+    # Inject disjoint NaNs into y_pred_a and y_pred_b
+    y_pred_a[3, 0] = np.nan
+    y_pred_b[11, 2] = np.nan
+    y_true[25, 4] = np.nan
+
+    cmp_res = task.compare_models(
+        y_true,
+        y_pred_a,
+        y_pred_b,
+        eval_metric_names=["root_mean_square_error", "mean_absolute_error", "integrated_seeing"],
+        n_bootstrap=100,
+        block_size=5,
+        seed=42,
+    )
+    for m_name in ("root_mean_square_error", "mean_absolute_error", "integrated_seeing"):
+        assert np.isfinite(cmp_res[m_name]["delta"])
+        assert cmp_res[m_name]["a_is_better"] is True
+
+    # Verify evaluate_horizon_curve with use_sequence_data=True
+    X_test_raw, y_test_raw = task.get_test_data(data_type="pd")
+    X_sub, y_sub = _first_valid_contiguous_slice(X_test_raw, y_test_raw, min_rows=90)
+    observed_shapes = []
+
+    def _seq_model_fn(X_3d):
+        observed_shapes.append(X_3d.shape)
+        assert X_3d.ndim == 3
+        return np.full((X_3d.shape[0], 7), -14.7)
+
+    df_seq_curve = task.evaluate_horizon_curve(
+        models={"SeqConstant": _seq_model_fn},
+        horizons=(1, 2),
+        window_size=4,
+        eval_metric_names=["root_mean_square_error"],
+        X_test=X_sub,
+        y_test=y_sub,
+        use_sequence_data=True,
+    )
+    assert len(df_seq_curve) == 2
+    assert all(len(s) == 3 and s[1] == 4 for s in observed_shapes)
+

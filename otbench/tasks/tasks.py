@@ -1,5 +1,6 @@
-import os
+import inspect
 import json
+import os
 import warnings
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -138,7 +139,8 @@ class TaskABC(ABC):
     def evaluate_model(
         self,
         predict_call: Callable,
-        data_type: str,
+        predict_call_kwargs: Union[dict, None] = None,
+        data_type: str = "pd",
         x_transforms: Union[Callable, None] = None,
         x_transform_kwargs: Union[dict, None] = None,
         eval_metric_names: Union[List[str], None] = None,
@@ -146,7 +148,14 @@ class TaskABC(ABC):
         include_as_benchmark: bool = False,
         model_name: Union[str, None] = None,
         detailed_metrics: bool = False,
-        overwrite: bool = False,
+        overwrite: bool = True,
+        compute_ci: bool = False,
+        n_bootstrap: int = 1000,
+        ci: float = 0.95,
+        bootstrap_block_size: int = 1,
+        X_test: Optional[pd.DataFrame] = None,
+        y_test: Optional[Union[pd.DataFrame, pd.Series]] = None,
+        **kwargs,
     ) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         ...
@@ -296,6 +305,7 @@ class BaseTask(TaskABC):
     def evaluate_model(
         self,
         predict_call: Callable,
+        predict_call_kwargs: Union[dict, None] = None,
         data_type: str = "pd",
         x_transforms: Union[Callable, None] = None,
         x_transform_kwargs: Union[dict, None] = None,
@@ -309,6 +319,9 @@ class BaseTask(TaskABC):
         n_bootstrap: int = 1000,
         ci: float = 0.95,
         bootstrap_block_size: int = 1,
+        X_test: Optional[pd.DataFrame] = None,
+        y_test: Optional[Union[pd.DataFrame, pd.Series]] = None,
+        **kwargs,
     ) -> Union[dict, Tuple[dict, 'np.ndarray']]:
         """Evaluate a model against this task's transformed test set, default against all metrics."""
         raise NotImplementedError
@@ -518,9 +531,27 @@ class BaseTask(TaskABC):
             "integrated_seeing": ("seeing_true", "seeing_pred"),
             "isoplanatic_angle": ("theta0_true", "theta0_pred"),
             "coherence_time": ("tau0_true", "tau0_pred"),
-            "greenwood_frequency": ("fG_true", "fG_pred"),
+            "greenwood_frequency": ("fg_true", "fg_pred"),
             "strehl_ratio": ("strehl_true", "strehl_pred"),
         }
+
+        yt_arr = np.asarray(y_true, dtype=float)
+        ya_arr = np.asarray(y_pred_a, dtype=float)
+        yb_arr = np.asarray(y_pred_b, dtype=float)
+        if yt_arr.ndim == 2 and yt_arr.shape[1] == 1:
+            yt_arr = yt_arr.ravel()
+        if ya_arr.ndim == 2 and ya_arr.shape[1] == 1:
+            ya_arr = ya_arr.ravel()
+        if yb_arr.ndim == 2 and yb_arr.shape[1] == 1:
+            yb_arr = yb_arr.ravel()
+        if yt_arr.shape == ya_arr.shape and yt_arr.shape == yb_arr.shape and len(yt_arr) > 0:
+            if yt_arr.ndim == 1:
+                joint_mask = ~np.isnan(yt_arr) & ~np.isnan(ya_arr) & ~np.isnan(yb_arr)
+            else:
+                joint_mask = ~np.isnan(yt_arr).any(axis=1) & ~np.isnan(ya_arr).any(axis=1) & ~np.isnan(yb_arr).any(axis=1)
+            yt_joint, ya_joint, yb_joint = yt_arr[joint_mask], ya_arr[joint_mask], yb_arr[joint_mask]
+        else:
+            yt_joint = ya_joint = yb_joint = np.array([])
 
         comparisons: dict = {}
         for m in eval_metric_names:
@@ -538,18 +569,14 @@ class BaseTask(TaskABC):
             if m in ("root_mean_square_error", "per_layer_rmse"):
                 reduction = "rmse"
             elif m == "mean_absolute_error":
-                from otbench.eval.utils import _get_valid_indices
-
-                yt_a, ypa = _get_valid_indices(y_true, y_pred_a)
-                _, ypb = _get_valid_indices(y_true, y_pred_b)
-                if len(yt_a) == len(ypb):
-                    sample_losses_a = np.abs(yt_a - ypa)
-                    sample_losses_b = np.abs(yt_a - ypb)
+                if len(yt_joint) > 0:
+                    sample_losses_a = np.abs(yt_joint - ya_joint)
+                    sample_losses_b = np.abs(yt_joint - yb_joint)
                     reduction = "mae"
-            elif m in ao_detail_keys:
+            elif m in ao_detail_keys and len(yt_joint) > 0:
                 true_k, pred_k = ao_detail_keys[m]
-                val_a = metric_fn(y_true=y_true, y_pred=y_pred_a, detailed=True, **extra_kwargs)
-                val_b = metric_fn(y_true=y_true, y_pred=y_pred_b, detailed=True, **extra_kwargs)
+                val_a = metric_fn(y_true=yt_joint, y_pred=ya_joint, detailed=True, **extra_kwargs)
+                val_b = metric_fn(y_true=yt_joint, y_pred=yb_joint, detailed=True, **extra_kwargs)
                 if true_k in val_a and pred_k in val_a and true_k in val_b and pred_k in val_b:
                     la = (np.asarray(val_a[true_k], dtype=float) - np.asarray(val_a[pred_k], dtype=float))**2
                     lb = (np.asarray(val_b[true_k], dtype=float) - np.asarray(val_b[pred_k], dtype=float))**2
@@ -557,6 +584,8 @@ class BaseTask(TaskABC):
                         sample_losses_a = la
                         sample_losses_b = lb
                         reduction = "rmse"
+                if sample_losses_a is None:
+                    fn_arg = lambda yt, yp, _fn=metric_fn, _kw=extra_kwargs: _fn(yt, yp, detailed=False, **_kw)
             else:
                 fn_arg = lambda yt, yp, _fn=metric_fn, _kw=extra_kwargs: _fn(yt, yp, detailed=False, **_kw)
 
@@ -1054,6 +1083,7 @@ class ForecastingTask(BaseTask):
         window_size: Optional[int] = None,
         eval_metric_names: Optional[List[str]] = None,
         reference_model: Optional[str] = None,
+        use_sequence_data: bool = False,
         X_test: Optional[pd.DataFrame] = None,
         y_test: Optional[Union[pd.DataFrame, pd.Series]] = None,
     ) -> pd.DataFrame:
@@ -1069,6 +1099,7 @@ class ForecastingTask(BaseTask):
             eval_metric_names: Metrics to compute at each horizon (defaults to ``self.task["eval_metrics"]``).
             reference_model: Optional key in ``models`` (e.g. ``"Persistence"``) used to compute
                 ``skill_score = 1 - (rmse_model / rmse_ref)^2`` at each horizon.
+            use_sequence_data: If True, pass 3D sequence arrays ``(N, W, F)`` instead of 2D DataFrames.
             X_test: Optional pre-loaded test features (defaults to ``self.get_test_data()``).
             y_test: Optional pre-loaded test targets.
 
@@ -1087,9 +1118,36 @@ class ForecastingTask(BaseTask):
             X_h, y_h = self.prepare_forecasting_data(X_test.copy(), y_test.copy(), window_size=w, forecast_horizon=h)
             if len(X_h) == 0:
                 continue
+            seq_cache = None
             for model_name, mdl in models.items():
-                predict_fn = mdl.predict if hasattr(mdl, "predict") else mdl
-                y_pred = predict_fn(X_h)
+                needs_seq = use_sequence_data or (getattr(mdl, "_persistence_indices_3d", None) is not None)
+                if needs_seq:
+                    if seq_cache is None:
+                        seq_cache = self.prepare_sequence_data(
+                            X_test.copy(), y_test.copy(), window_size=w, forecast_horizon=h
+                        )
+                    X_in, y_in, feat_names = seq_cache
+                else:
+                    X_in, y_in, feat_names = X_h, y_h, None
+
+                if hasattr(mdl, "predict"):
+                    if needs_seq and feat_names is not None:
+                        try:
+                            y_pred = mdl.predict(X_in, feature_names=feat_names)
+                        except TypeError:
+                            y_pred = mdl.predict(X_in)
+                    else:
+                        y_pred = mdl.predict(X_in)
+                else:
+                    try:
+                        sig = inspect.signature(mdl)
+                        n_pos = sum(1 for p in sig.parameters.values() if p.kind in (
+                            inspect.Parameter.POSITIONAL_ONLY,
+                            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                        ) and p.default is inspect.Parameter.empty)
+                    except (TypeError, ValueError):
+                        n_pos = 1
+                    y_pred = mdl(h, X_in, y_in) if n_pos >= 3 else mdl(X_in)
                 m_dict = self._compute_metrics_dict(
                     y_true=y_h,
                     y_pred=y_pred,

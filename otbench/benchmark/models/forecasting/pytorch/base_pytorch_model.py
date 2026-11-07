@@ -29,7 +29,11 @@ class AOPhysicsLoss(nn.Module):
 
     When attached to a normalized PyTorch model, ``set_normalization_stats(y_mean, y_std)``
     is called automatically so moment integrals are evaluated in physical log10(J_i) space.
+    When ``predict_residuals=True``, ``y_base`` (the current persistence profile log10(J_i(t)))
+    is added to the un-normalized residual predictions and targets before evaluating moments.
     """
+
+    accepts_y_base: bool = True
 
     def __init__(
         self,
@@ -55,19 +59,29 @@ class AOPhysicsLoss(nn.Module):
         self.y_mean = torch.as_tensor(y_mean, dtype=torch.float32)
         self.y_std = torch.as_tensor(y_std, dtype=torch.float32)
 
-    def forward(self, y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        y_pred: torch.Tensor,
+        y_true: torch.Tensor,
+        y_base: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         loss_profile = self.mse(y_pred, y_true)
         if y_pred.ndim < 2 or y_pred.shape[-1] <= 1 or (self.lambda_r0 == 0.0 and self.lambda_theta0 == 0.0):
             return loss_profile
 
         if self.y_mean is not None and self.y_std is not None:
-            mean = self.y_mean.to(y_pred.device)
-            std = self.y_std.to(y_pred.device)
+            mean = self.y_mean.to(device=y_pred.device, dtype=y_pred.dtype)
+            std = self.y_std.to(device=y_pred.device, dtype=y_pred.dtype)
             yp_phys = y_pred * std + mean
             yt_phys = y_true * std + mean
         else:
             yp_phys = y_pred
             yt_phys = y_true
+
+        if y_base is not None:
+            base = y_base.to(device=y_pred.device, dtype=y_pred.dtype)
+            yp_phys = yp_phys + base
+            yt_phys = yt_phys + base
 
         yp_clamped = torch.clamp(yp_phys, min=-20.0, max=-5.0)
         yt_clamped = torch.clamp(yt_phys, min=-20.0, max=-5.0)
@@ -79,7 +93,7 @@ class AOPhysicsLoss(nn.Module):
             total_loss = total_loss + self.lambda_r0 * self.mse(log10_j_pred, log10_j_true)
 
         if self.lambda_theta0 > 0.0 and yp_clamped.shape[-1] == self.log10_h53.numel():
-            h_shift = self.log10_h53.to(y_pred.device)
+            h_shift = self.log10_h53.to(device=y_pred.device, dtype=y_pred.dtype)
             log10_m53_pred = torch.logsumexp((yp_clamped + h_shift) * _LN10, dim=-1) / _LN10
             log10_m53_true = torch.logsumexp((yt_clamped + h_shift) * _LN10, dim=-1) / _LN10
             total_loss = total_loss + self.lambda_theta0 * self.mse(log10_m53_pred, log10_m53_true)
@@ -115,6 +129,7 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
                          **kwargs)
         self.batch_size = batch_size
         self.random_state = random_state
+        torch.manual_seed(self.random_state)
         self.n_epochs = n_epochs
         self.criterion = criterion
         self._optimizer_callable = optimizer  # persist callable for later use
@@ -133,6 +148,8 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         self.patience = patience
         self.val_fraction = val_fraction
         self.use_scheduler = use_scheduler
+        self._target_feature_indices: Optional[List[int]] = None
+        self._target_time_index: int = -1
 
     def set_model(self,
                   model: 'torch.nn.Module',
@@ -197,15 +214,22 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
         if isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame):
             n_cols = len(X.columns)
             col_names = list(X.columns)
+            targets = self.target_name if isinstance(self.target_name, list) else [self.target_name]
+            p_cols = self._persistence_cols
+            if p_cols is None:
+                try:
+                    p_cols = self._find_persistence_cols(X, pd.DataFrame(columns=targets))
+                except ValueError:
+                    p_cols = []
             X = X.to_numpy().copy()
             y = y.to_numpy().copy()
 
             # When use_log10 is active, transform linear target-history columns in X
             # into log10 space so autoregressive neural features share the target domain.
             if self.use_log10 and len(X) > 0:
-                targets = self.target_name if isinstance(self.target_name, list) else [self.target_name]
                 target_col_idx = [
-                    idx for idx, c in enumerate(col_names) if any(c == t or c.startswith(f"{t} (t-") for t in targets)
+                    idx for idx, c in enumerate(col_names)
+                    if any(c == t or c.startswith(f"{t} (t-") or c.startswith(f"{t}_t-") for t in targets)
                 ]
                 if target_col_idx:
                     sub = X[:, target_col_idx]
@@ -220,6 +244,10 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
             # vector as a single-step sequence (seq_len=1) instead.
             if self.window_size > 1 and n_cols % self.window_size == 0:
                 n_features = n_cols // self.window_size
+                if p_cols:
+                    first_c_idx = col_names.index(p_cols[0])
+                    self._target_time_index = (self.window_size - 1) - (first_c_idx // n_features)
+                    self._target_feature_indices = [col_names.index(c) % n_features for c in p_cols]
                 X = X.reshape(-1, self.window_size, n_features)
                 # _add_lags produces columns ordered [feat(t-0), feat(t-1), ..., feat(t-W+1)],
                 # so after reshape step-0 = newest and step-(W-1) = oldest.  Reverse the time
@@ -228,6 +256,9 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
                 # encode the most recent observation rather than the oldest one.
                 X = np.ascontiguousarray(X[:, ::-1, :])
             else:
+                if p_cols:
+                    self._target_time_index = 0
+                    self._target_feature_indices = [col_names.index(c) for c in p_cols]
                 X = X.reshape(-1, 1, n_cols)
 
             if self.normalize_data:
@@ -247,13 +278,16 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
                     X = np.ascontiguousarray(X.reshape(-1, self.window_size, n_features)[:, ::-1, :])
                 else:
                     X = X.reshape(-1, 1, n_cols)
-            if self.use_log10 and len(X) > 0 and X.ndim == 3:
-                target_idx = self._find_persistence_indices_3d(X.shape[2], strict=False)
+            if X.ndim == 3:
+                target_idx = self._persistence_indices_3d or self._find_persistence_indices_3d(X.shape[2], strict=False)
                 if target_idx:
-                    sub = X[:, :, target_idx]
-                    valid = sub[np.isfinite(sub)]
-                    if len(valid) > 0 and np.min(valid) >= 0.0 and np.median(valid) < 1e-5:
-                        X[:, :, target_idx] = np.log10(np.maximum(sub, 1e-19))
+                    self._target_time_index = -1
+                    self._target_feature_indices = list(target_idx)
+                    if self.use_log10 and len(X) > 0:
+                        sub = X[:, :, target_idx]
+                        valid = sub[np.isfinite(sub)]
+                        if len(valid) > 0 and np.min(valid) >= 0.0 and np.median(valid) < 1e-5:
+                            X[:, :, target_idx] = np.log10(np.maximum(sub, 1e-19))
             if self.normalize_data:
                 if mode == "train":
                     X, y = self._normalize_data(X=X, y=y)
@@ -268,7 +302,7 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
             dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=True)
             self.train_dataloader = dataloader
         elif mode == "test":
-            dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=True)
+            dataloader = self._create_dataloader(X=X, y=y, batch_size=self.batch_size, shuffle=False)
             self.test_dataloader = dataloader
         elif mode == "val_train":
             # Validation dataloader for early stopping during training:
@@ -364,6 +398,36 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
 
         return X_tr, y_tr, X_val, y_val
 
+    def _extract_y_base(self, X_batch: torch.Tensor) -> Optional[torch.Tensor]:
+        """Reconstruct physical log10(J_i(t)) persistence baseline from X_batch when predicting residuals."""
+        if not self.predict_residuals or not self._target_feature_indices or X_batch.ndim < 3:
+            return None
+        t_idx = getattr(self, "_target_time_index", -1)
+        f_idx = self._target_feature_indices
+        x_base = X_batch[:, t_idx, f_idx]
+        if self.normalize_data and getattr(self, "X_mean", None) is not None and getattr(self, "X_std", None) is not None:
+            mean_arr = np.asarray(self.X_mean)
+            std_arr = np.asarray(self.X_std)
+            mean_t = torch.as_tensor(
+                mean_arr[f_idx] if mean_arr.ndim == 1 else mean_arr[t_idx, f_idx],
+                device=X_batch.device,
+                dtype=X_batch.dtype,
+            )
+            std_t = torch.as_tensor(
+                std_arr[f_idx] if std_arr.ndim == 1 else std_arr[t_idx, f_idx],
+                device=X_batch.device,
+                dtype=X_batch.dtype,
+            )
+            return x_base * std_t + mean_t
+        return x_base
+
+    def _compute_loss(self, outputs: torch.Tensor, y_batch: torch.Tensor, X_batch: torch.Tensor) -> torch.Tensor:
+        """Evaluate criterion, supplying the physical persistence baseline when AOPhysicsLoss is used with residuals."""
+        if getattr(self.criterion, "accepts_y_base", False) and self.predict_residuals:
+            y_base = self._extract_y_base(X_batch)
+            return self.criterion(outputs, y_batch, y_base=y_base)
+        return self.criterion(outputs, y_batch)
+
     def _compute_val_loss(self):
         """Evaluate the model on the validation-for-training dataloader."""
         self.model.eval()
@@ -374,7 +438,7 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
                 X_batch = X_batch.to(self.device).float()
                 y_batch = y_batch.to(self.device).float()
                 outputs = self.model(X_batch)
-                loss = self.criterion(outputs, y_batch)
+                loss = self._compute_loss(outputs, y_batch, X_batch)
                 total_loss += loss.item()
                 n_batches += 1
         self.model.train()
@@ -451,7 +515,7 @@ class BasePyTorchForecastingModel(BaseForecastingModel):
                 self.optimizer.zero_grad()
                 X_batch, y_batch = X_batch.to(self.device).float(), y_batch.to(self.device).float()
                 outputs = self.model(X_batch)
-                loss = self.criterion(outputs, y_batch)
+                loss = self._compute_loss(outputs, y_batch, X_batch)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.5)
                 self.optimizer.step()
