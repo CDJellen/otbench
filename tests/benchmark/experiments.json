@@ -1,106 +1,271 @@
 {
     "forecasting.mlo_cn2.dropna.Cn2_15m": {
-        "possible_predictions": 2444,
-        "mean_window_forecasting": {
+        "possible_predictions": 2432,
+        "LinearForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.2779041826725006,
-                "valid_predictions": 2444
+                "metric_value": 0.9301750794775393,
+                "valid_predictions": 2432
             },
             "coefficient_of_determination": {
-                "metric_value": 0.8227610719548378,
-                "valid_predictions": 2444
+                "metric_value": 0.0709949512018475,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.196153461933136,
-                "valid_predictions": 2444
+                "metric_value": 0.6859138891687716,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.014085889793932438,
-                "valid_predictions": 2444
+                "metric_value": 0.04913322467195988,
+                "valid_predictions": 2432
             }
         },
-        "linear_forecasting": {
+        "MeanWindowForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.45668903701202007,
-                "valid_predictions": 2444
+                "metric_value": 0.48137521743774414,
+                "valid_predictions": 2432
             },
             "coefficient_of_determination": {
-                "metric_value": 0.5213587668339381,
-                "valid_predictions": 2444
+                "metric_value": 0.5094407195832247,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.3222100714029538,
-                "valid_predictions": 2444
+                "metric_value": 0.3529319763183594,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.023111269407456055,
-                "valid_predictions": 2444
+                "metric_value": 0.025265973061323166,
+                "valid_predictions": 2432
             }
         },
-        "macro_meteorological": {
+        "PersistenceForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.7114374938363093,
-                "valid_predictions": 809
+                "metric_value": 1.2711966037750244,
+                "valid_predictions": 2432
             },
             "coefficient_of_determination": {
-                "metric_value": -1.063896399963308,
-                "valid_predictions": 809
+                "metric_value": 0.0,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.5851506943380125,
-                "valid_predictions": 809
+                "metric_value": 1.0888313055038452,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.0441946136412319,
-                "valid_predictions": 809
+                "metric_value": 0.07705160230398178,
+                "valid_predictions": 2432
             }
         },
-        "offshore_macro_meteorological": {
+        "MinuteClimatologyForecastingModel": {
             "root_mean_square_error": {
-                "metric_value": 0.8156299828336213,
-                "valid_predictions": 2269
+                "metric_value": 0.5507352948188782,
+                "valid_predictions": 2432
             },
             "coefficient_of_determination": {
-                "metric_value": -0.4793665847428459,
-                "valid_predictions": 2269
+                "metric_value": 0.44694638903207434,
+                "valid_predictions": 2432
             },
             "mean_absolute_error": {
-                "metric_value": 0.6220501090843806,
-                "valid_predictions": 2269
+                "metric_value": 0.4170035421848297,
+                "valid_predictions": 2432
             },
             "mean_absolute_percentage_error": {
-                "metric_value": 0.043739282800318934,
-                "valid_predictions": 2269
+                "metric_value": 0.030099932104349136,
+                "valid_predictions": 2432
+            }
+        },
+        "ClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.6583983302116394,
+                "valid_predictions": 2432
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
+                "valid_predictions": 2432
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5279864072799683,
+                "valid_predictions": 2432
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.03818046674132347,
+                "valid_predictions": 2432
+            }
+        },
+        "GradientBoostingForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4283680034537716,
+                "valid_predictions": 2432
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.6518880920552661,
+                "valid_predictions": 2432
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.31760423943549015,
+                "valid_predictions": 2432
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.0230231115580597,
+                "valid_predictions": 2432
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5657574534416199,
+                "valid_predictions": 2432
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.4033707575395383,
+                "valid_predictions": 2432
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.4200192093849182,
+                "valid_predictions": 2432
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.030401138588786125,
+                "valid_predictions": 2432
+            }
+        }
+    },
+    "forecasting.usna_cn2_sm.full.Cn2_3m": {
+        "possible_predictions": 4074,
+        "LinearForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.35766029556257317,
+                "valid_predictions": 4074
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.5292783037645352,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.20475838574340885,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.014466686130689977,
+                "valid_predictions": 4074
+            }
+        },
+        "MeanWindowForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.18197107355144435,
+                "valid_predictions": 4074
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.8471920373053263,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.10216899660692459,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.00723260913078015,
+                "valid_predictions": 4074
+            }
+        },
+        "PersistenceForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.8212316846223886,
+                "valid_predictions": 4074
+            },
+            "coefficient_of_determination": {
+                "metric_value": 8.073492637827552e-30,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.6937863663297408,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.048072417551083595,
+                "valid_predictions": 4074
+            }
+        },
+        "MinuteClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.45294037686388644,
+                "valid_predictions": 4074
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.12039064844256872,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.36202741587478954,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.02558917173522264,
+                "valid_predictions": 4074
+            }
+        },
+        "ClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4799858269445086,
+                "valid_predictions": 4074
+            },
+            "coefficient_of_determination": {
+                "metric_value": 8.073492637827552e-30,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.38152894906631035,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.026964371274693588,
+                "valid_predictions": 4074
+            }
+        },
+        "GradientBoostingForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1603699396113978,
+                "valid_predictions": 4074
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.8808208953373919,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.0815838278224119,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.005791995641806741,
+                "valid_predictions": 4074
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.18675840805507377,
+                "valid_predictions": 4074
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.8617647016417663,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.11999809879217871,
+                "valid_predictions": 4074
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.008519056464439479,
+                "valid_predictions": 4074
             }
         }
     },
     "regression.mlo_cn2.dropna.Cn2_15m": {
         "possible_predictions": 2449,
-        "mean_regression": {
-            "root_mean_square_error": {
-                "metric_value": 0.6611728668212891,
-                "valid_predictions": 2449
-            },
-            "coefficient_of_determination": {
-                "metric_value": -0.001476310741173048,
-                "valid_predictions": 2449
-            },
-            "mean_absolute_error": {
-                "metric_value": 0.5308192372322083,
-                "valid_predictions": 2449
-            },
-            "mean_absolute_percentage_error": {
-                "metric_value": 0.038418691605329514,
-                "valid_predictions": 2449
-            }
-        },
-        "macro_meteorological": {
+        "MacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.7138353117427121,
                 "valid_predictions": 813
             },
             "coefficient_of_determination": {
-                "metric_value": -1.0279853591950694,
+                "metric_value": 0.02068922453109421,
                 "valid_predictions": 813
             },
             "mean_absolute_error": {
@@ -112,13 +277,13 @@
                 "valid_predictions": 813
             }
         },
-        "offshore_macro_meteorological": {
+        "OffshoreMacroMeteorologicalModel": {
             "root_mean_square_error": {
                 "metric_value": 0.8157009064248446,
                 "valid_predictions": 2274
             },
             "coefficient_of_determination": {
-                "metric_value": -0.4749983894964831,
+                "metric_value": 0.039793794176718224,
                 "valid_predictions": 2274
             },
             "mean_absolute_error": {
@@ -128,6 +293,2909 @@
             "mean_absolute_percentage_error": {
                 "metric_value": 0.04375820062480316,
                 "valid_predictions": 2274
+            }
+        },
+        "PersistenceRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 1.2090872526168823,
+                "valid_predictions": 2449
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_error": {
+                "metric_value": 1.0162612199783325,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.0718001276254654,
+                "valid_predictions": 2449
+            }
+        },
+        "MinuteClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5041238069534302,
+                "valid_predictions": 2449
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.5375378356586982,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.3842025101184845,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.027801290154457092,
+                "valid_predictions": 2449
+            }
+        },
+        "ClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.6611728668212891,
+                "valid_predictions": 2449
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5308192372322083,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.038418691605329514,
+                "valid_predictions": 2449
+            }
+        },
+        "GradientBoostingRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.21200749028200058,
+                "valid_predictions": 2449
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.9079344888760108,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.15414540847947156,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.011118891476548967,
+                "valid_predictions": 2449
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.3358548879623413,
+                "valid_predictions": 2449
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.7609812185273418,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.21252451837062836,
+                "valid_predictions": 2449
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.015167005360126495,
+                "valid_predictions": 2449
+            }
+        }
+    },
+    "regression.mlo_cn2.full.Cn2_15m": {
+        "possible_predictions": 2816,
+        "MacroMeteorologicalModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.6200457025149092,
+                "valid_predictions": 862
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.03194277654059044,
+                "valid_predictions": 862
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5138612297196273,
+                "valid_predictions": 862
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.038726010912381384,
+                "valid_predictions": 862
+            }
+        },
+        "OffshoreMacroMeteorologicalModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.8302753265342115,
+                "valid_predictions": 2641
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.024465788037029035,
+                "valid_predictions": 2641
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.6318127175971934,
+                "valid_predictions": 2641
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.044386366916080264,
+                "valid_predictions": 2641
+            }
+        },
+        "PersistenceRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 1.2207112312316895,
+                "valid_predictions": 2816
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_error": {
+                "metric_value": 1.029592514038086,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.07270682603120804,
+                "valid_predictions": 2816
+            }
+        },
+        "MinuteClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5862628817558289,
+                "valid_predictions": 2816
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.4268338171566551,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.44142836332321167,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.03195468336343765,
+                "valid_predictions": 2816
+            }
+        },
+        "ClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.6645260453224182,
+                "valid_predictions": 2816
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.0,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5291815400123596,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.038242921233177185,
+                "valid_predictions": 2816
+            }
+        },
+        "GradientBoostingRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 4.503356399221535,
+                "valid_predictions": 2816
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.06494974732899454,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_error": {
+                "metric_value": 3.1465615279394226,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.2298339863304398,
+                "valid_predictions": 2816
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5481449961662292,
+                "valid_predictions": 2816
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.34265572348558165,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.41288402676582336,
+                "valid_predictions": 2816
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.029578138142824173,
+                "valid_predictions": 2816
+            }
+        }
+    },
+    "regression.usna_cn2_lg.full.Cn2_3m": {
+        "possible_predictions": 488306,
+        "AWTModel": {
+            "root_mean_square_error": {
+                "metric_value": 1.0461998343461816,
+                "valid_predictions": 458687
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.10944505469195645,
+                "valid_predictions": 458687
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.8923641485012126,
+                "valid_predictions": 458687
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.06381948039758084,
+                "valid_predictions": 458687
+            }
+        },
+        "MacroMeteorologicalModel": {
+            "root_mean_square_error": {
+                "metric_value": 1.217037352229368,
+                "valid_predictions": 312367
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.01509102605199758,
+                "valid_predictions": 312367
+            },
+            "mean_absolute_error": {
+                "metric_value": 1.0450167561248713,
+                "valid_predictions": 312367
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.07206253156620035,
+                "valid_predictions": 312367
+            }
+        },
+        "OffshoreMacroMeteorologicalModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.6748188087597109,
+                "valid_predictions": 317350
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.00013537583497916106,
+                "valid_predictions": 317350
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5331112261717813,
+                "valid_predictions": 317350
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.03743351848080913,
+                "valid_predictions": 317350
+            }
+        },
+        "PersistenceRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 1.2083104592404925,
+                "valid_predictions": 488306
+            },
+            "coefficient_of_determination": {
+                "metric_value": 9.647867875651636e-30,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_error": {
+                "metric_value": 1.06362637810705,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.07730908066011898,
+                "valid_predictions": 488306
+            }
+        },
+        "MinuteClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.6254808688755286,
+                "valid_predictions": 488306
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.020947718352732028,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5015551076492998,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.035590661128220374,
+                "valid_predictions": 488306
+            }
+        },
+        "ClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.631974388051484,
+                "valid_predictions": 488306
+            },
+            "coefficient_of_determination": {
+                "metric_value": 1.0841202187829783e-29,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5077191414738433,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.03602417000111926,
+                "valid_predictions": 488306
+            }
+        },
+        "HybridAWTRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4579319178199759,
+                "valid_predictions": 458687
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.48036024695666374,
+                "valid_predictions": 458687
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.3473493997954561,
+                "valid_predictions": 458687
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.024407925342916224,
+                "valid_predictions": 458687
+            }
+        },
+        "GradientBoostingRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 1.339473597112731,
+                "valid_predictions": 488306
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.029330056054944494,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.6834389214873006,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.04818159896071329,
+                "valid_predictions": 488306
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5299129503254789,
+                "valid_predictions": 488306
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.36225649774594715,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.39897702378970384,
+                "valid_predictions": 488306
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.028121164252675274,
+                "valid_predictions": 488306
+            }
+        }
+    },
+    "regression.usna_cn2_sm.full.Cn2_3m": {
+        "possible_predictions": 4080,
+        "AWTModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.9096191919328067,
+                "valid_predictions": 4080
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.26661127635285675,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.7884504234946442,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.056049126816720744,
+                "valid_predictions": 4080
+            }
+        },
+        "MacroMeteorologicalModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.8638771705816506,
+                "valid_predictions": 3653
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.26763633228241185,
+                "valid_predictions": 3653
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.6849410787984583,
+                "valid_predictions": 3653
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.04725185126821087,
+                "valid_predictions": 3653
+            }
+        },
+        "OffshoreMacroMeteorologicalModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.17819538474607394,
+                "valid_predictions": 421
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.05798783868686379,
+                "valid_predictions": 421
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.12555099442355777,
+                "valid_predictions": 421
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.009207724213973945,
+                "valid_predictions": 421
+            }
+        },
+        "PersistenceRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.757756119953163,
+                "valid_predictions": 4080
+            },
+            "coefficient_of_determination": {
+                "metric_value": 1.4793090160430023e-29,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.6822991233195909,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.04882870888175034,
+                "valid_predictions": 4080
+            }
+        },
+        "MinuteClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4519271501365811,
+                "valid_predictions": 4080
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.1259538903929186,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.36151071746122304,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.025555202500157224,
+                "valid_predictions": 4080
+            }
+        },
+        "ClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4801184955506507,
+                "valid_predictions": 4080
+            },
+            "coefficient_of_determination": {
+                "metric_value": 1.4793090160430023e-29,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.38179556303007695,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.02698506147467595,
+                "valid_predictions": 4080
+            }
+        },
+        "HybridAWTRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.3034463678691597,
+                "valid_predictions": 4080
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.5828683569229168,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.21816390255749163,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.01536798885155561,
+                "valid_predictions": 4080
+            }
+        },
+        "GradientBoostingRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.2989640119890569,
+                "valid_predictions": 4080
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.5840761733534754,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.21970872948282044,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.015453382435865429,
+                "valid_predictions": 4080
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.37466592481888317,
+                "valid_predictions": 4080
+            },
+            "coefficient_of_determination": {
+                "metric_value": 0.45091283711198493,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.28145469568498926,
+                "valid_predictions": 4080
+            },
+            "mean_absolute_percentage_error": {
+                "metric_value": 0.01993480459285803,
+                "valid_predictions": 4080
+            }
+        }
+    },
+    "forecasting.paranal_tomography.full.cn2_profile_forecast": {
+        "possible_predictions": 22598,
+        "LinearForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5669195396491701,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.21850804238555183,
+                    0.507079859842031,
+                    0.792566019904484,
+                    0.9804766163829105,
+                    0.5973480459129393,
+                    0.7034032307779049,
+                    0.16905496233836836
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.3617132158318472,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.16006432152305505,
+                    0.33854037626206307,
+                    0.5102284390341567,
+                    0.5950314404027436,
+                    0.3788484195862488,
+                    0.4186158913607232,
+                    0.1306636226539402
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.5669195396491701,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.21850804238555183,
+                    "500m": 0.507079859842031,
+                    "1000m": 0.792566019904484,
+                    "2000m": 0.9804766163829105,
+                    "4000m": 0.5973480459129393,
+                    "8000m": 0.7034032307779049,
+                    "16000m": 0.16905496233836836
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.3621755735003166,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.5588083042880926,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 1.1055547832154942,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 15.301197130957966,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.10292854010069942,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 26.79818193169772,
+                "layer_weight_kl_divergence": 0.1449579329108311
+            }
+        },
+        "MeanWindowForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.528648833670697,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.21126165327331595,
+                    0.47880660329065483,
+                    0.748996829500755,
+                    0.9267326246829937,
+                    0.54036685813643,
+                    0.6418637352990757,
+                    0.15251353151165362
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.33611591565777227,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.15535709531559364,
+                    0.3171807366905251,
+                    0.47466541784163263,
+                    0.5649152911262179,
+                    0.34701274283994704,
+                    0.3758389714778339,
+                    0.11784115431265586
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.528648833670697,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.21126165327331595,
+                    "500m": 0.47880660329065483,
+                    "1000m": 0.748996829500755,
+                    "2000m": 0.9267326246829937,
+                    "4000m": 0.54036685813643,
+                    "8000m": 0.6418637352990757,
+                    "16000m": 0.15251353151165362
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.1756013657916121,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.49180878825038693,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 1.0380957595503626,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 7.418808199776526,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08816598648127537,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 21.728985332080033,
+                "layer_weight_kl_divergence": 0.12476790486718095
+            }
+        },
+        "PersistenceForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5533434541478827,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.20090241528368635,
+                    0.5138946969452387,
+                    0.7842345818548493,
+                    0.9769768047058472,
+                    0.5939205752984164,
+                    0.6542461475214005,
+                    0.14922895742574002
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.31995961595138617,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.14419870212939304,
+                    0.3151918368826022,
+                    0.4422477828206882,
+                    0.5141953673078499,
+                    0.34280810739395434,
+                    0.3662201012482234,
+                    0.11485541387699204
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.5533434541478827,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.20090241528368635,
+                    "500m": 0.5138946969452387,
+                    "1000m": 0.7842345818548493,
+                    "2000m": 0.9769768047058472,
+                    "4000m": 0.5939205752984164,
+                    "8000m": 0.6542461475214005,
+                    "16000m": 0.14922895742574002
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.15596285225568146,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.47681789304517475,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 0.9088068401753511,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 6.589120090034365,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08599750991428289,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 21.3570519074428,
+                "layer_weight_kl_divergence": 0.10178823201166426
+            }
+        },
+        "MinuteClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7768338505829935,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.3179007978053927,
+                    0.6905149004542879,
+                    1.0409828495037334,
+                    1.3227462759126238,
+                    0.8908102341630275,
+                    0.913936932673621,
+                    0.2609449635682678
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5363219080513584,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.24470806819978208,
+                    0.47793302673264076,
+                    0.7172219256251978,
+                    0.9105145158036488,
+                    0.6089735307872154,
+                    0.5847918453435925,
+                    0.21011044386743088
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7768338505829935,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.3179007978053927,
+                    "500m": 0.6905149004542879,
+                    "1000m": 1.0409828495037334,
+                    "2000m": 1.3227462759126238,
+                    "4000m": 0.8908102341630275,
+                    "8000m": 0.913936932673621,
+                    "16000m": 0.2609449635682678
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.309215451821188,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.8621593017343245,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 1.6751506241878416,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 13.063737398209978,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.16886278172028513,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 42.598418034644126,
+                "layer_weight_kl_divergence": 0.35337026992213466
+            }
+        },
+        "ClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7712235221707048,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.31614141192392975,
+                    0.6816978057227736,
+                    1.0280941291239394,
+                    1.3180539904122937,
+                    0.8848236873230251,
+                    0.9116472046342554,
+                    0.2581064260547163
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5319368096689776,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.24384008761407522,
+                    0.4717618493324731,
+                    0.7105940477369,
+                    0.8973867574261056,
+                    0.6076466595041574,
+                    0.584007396319667,
+                    0.2083208697494647
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7712235221707048,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.31614141192392975,
+                    "500m": 0.6816978057227736,
+                    "1000m": 1.0280941291239394,
+                    "2000m": 1.3180539904122937,
+                    "4000m": 0.8848236873230251,
+                    "8000m": 0.9116472046342554,
+                    "16000m": 0.2581064260547163
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.31027465109177527,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.8572708811410366,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 1.6716495127903195,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 13.108486459234681,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.1689638779002085,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 42.59089243862217,
+                "layer_weight_kl_divergence": 0.34638363149449924
+            }
+        },
+        "GradientBoostingForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.49842817395257505,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.18773655142130705,
+                    0.4452601616318116,
+                    0.6777433261684721,
+                    0.8523101020952163,
+                    0.5477168323107212,
+                    0.639906617058068,
+                    0.1383236269824287
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.303773679046527,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.1333738009797419,
+                    0.2869311501596118,
+                    0.4179435794140809,
+                    0.5100506604759678,
+                    0.3214739917463774,
+                    0.34925210156713754,
+                    0.10739046898277181
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.49842817395257505,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.18773655142130705,
+                    "500m": 0.4452601616318116,
+                    "1000m": 0.6777433261684721,
+                    "2000m": 0.8523101020952163,
+                    "4000m": 0.5477168323107212,
+                    "8000m": 0.639906617058068,
+                    "16000m": 0.1383236269824287
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.15492536413540484,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.44819945790435106,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 0.8714422873321489,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 6.545288281897901,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08010101583923894,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 19.8542812932313,
+                "layer_weight_kl_divergence": 0.09414010401066575
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4946540464484377,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.18068077809909577,
+                    0.4339611410968383,
+                    0.6863215977467417,
+                    0.8655725651821485,
+                    0.5343335848874288,
+                    0.6224276442364902,
+                    0.13928101389032066
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.3059317816549096,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.1308970778443432,
+                    0.2825062836626628,
+                    0.4206476255288872,
+                    0.5259552716459169,
+                    0.3193585163633984,
+                    0.35444672015890033,
+                    0.10771097638025826
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4946540464484377,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.18068077809909577,
+                    "500m": 0.4339611410968383,
+                    "1000m": 0.6863215977467417,
+                    "2000m": 0.8655725651821485,
+                    "4000m": 0.5343335848874288,
+                    "8000m": 0.6224276442364902,
+                    "16000m": 0.13928101389032066
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.16320433285884356,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.4620824684627345,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 0.8819974287317871,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 6.895058232571453,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08289989946137767,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 20.55930699287001,
+                "layer_weight_kl_divergence": 0.09926535785266664
+            }
+        },
+        "TransformerModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4807780764119744,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.18047548552804063,
+                    0.438464033451434,
+                    0.678674810582022,
+                    0.8400122628931503,
+                    0.5047404111526322,
+                    0.5889771762878002,
+                    0.13410235498874085
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.29619779210426095,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.13074911660264465,
+                    0.2798611161688003,
+                    0.4085363189670103,
+                    0.49857014022831553,
+                    0.3102945087538589,
+                    0.34140883698089325,
+                    0.10396450702830345
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4807780764119744,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.18047548552804063,
+                    "500m": 0.438464033451434,
+                    "1000m": 0.678674810582022,
+                    "2000m": 0.8400122628931503,
+                    "4000m": 0.5047404111526322,
+                    "8000m": 0.5889771762878002,
+                    "16000m": 0.13410235498874085
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.1511057845561187,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.43229671532310865,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 0.850229394965317,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 6.383918646902384,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.07919055748447616,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 19.549701720892198,
+                "layer_weight_kl_divergence": 0.09493143045940003
+            }
+        },
+        "GRUModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4778153590129957,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.18273742785604316,
+                    0.4293882264174016,
+                    0.6643030458086034,
+                    0.8294598741112871,
+                    0.5067314914800995,
+                    0.5962511525813542,
+                    0.13583629483618082
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.2965658613335143,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.1329992548179215,
+                    0.2810574033143988,
+                    0.40424401346504046,
+                    0.5029114621032174,
+                    0.30844975217073295,
+                    0.3410996648432075,
+                    0.10519947862008157
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4778153590129957,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.18273742785604316,
+                    "500m": 0.4293882264174016,
+                    "1000m": 0.6643030458086034,
+                    "2000m": 0.8294598741112871,
+                    "4000m": 0.5067314914800995,
+                    "8000m": 0.5962511525813542,
+                    "16000m": 0.13583629483618082
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.1582831983725094,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.44477295173631315,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 0.8742344895956314,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 6.68715009521252,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08063174501768246,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 19.953267719605435,
+                "layer_weight_kl_divergence": 0.09675223234506118
+            }
+        },
+        "LSTMModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4887977401463378,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.18056262333108497,
+                    0.4416143472863081,
+                    0.6798309316279949,
+                    0.8430517361503683,
+                    0.5296856509501094,
+                    0.6079526664007515,
+                    0.13888622527774738
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.30034814480541705,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.13043093010607357,
+                    0.2896624062203618,
+                    0.4097037398250404,
+                    0.5022274988403332,
+                    0.3161481831600732,
+                    0.3470312421142658,
+                    0.10723301337177132
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4887977401463378,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.18056262333108497,
+                    "500m": 0.4416143472863081,
+                    "1000m": 0.6798309316279949,
+                    "2000m": 0.8430517361503683,
+                    "4000m": 0.5296856509501094,
+                    "8000m": 0.6079526664007515,
+                    "16000m": 0.13888622527774738
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.16168698711102258,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.45910311660643094,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 0.8803773510084459,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 6.830953394746964,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08280117679700708,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 20.53638289578545,
+                "layer_weight_kl_divergence": 0.09606438335403865
+            }
+        },
+        "PhysicsTransformerModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4823575161691257,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.18273481847904505,
+                    0.4407881844677856,
+                    0.6876011406402742,
+                    0.8346791921426601,
+                    0.5057335014003408,
+                    0.5908240956544266,
+                    0.13414168039934768
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.2980649774127753,
+                "valid_predictions": 22598,
+                "detailed_score": [
+                    0.13302890934854544,
+                    0.2823589328888422,
+                    0.4135149607570954,
+                    0.49913386027251955,
+                    0.3111280353600258,
+                    0.34351122483552315,
+                    0.1037789184268757
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4823575161691257,
+                "valid_predictions": 22598,
+                "per_layer": {
+                    "0m": 0.18273481847904505,
+                    "500m": 0.4407881844677856,
+                    "1000m": 0.6876011406402742,
+                    "2000m": 0.8346791921426601,
+                    "4000m": 0.5057335014003408,
+                    "8000m": 0.5908240956544266,
+                    "16000m": 0.13414168039934768
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.15247681866562862,
+                "valid_predictions": 22598
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.43421152691379117,
+                "valid_predictions": 22598
+            },
+            "coherence_time": {
+                "metric_value": 0.8588084699855958,
+                "valid_predictions": 22598
+            },
+            "greenwood_frequency": {
+                "metric_value": 6.441842109216886,
+                "valid_predictions": 22598
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08018138657993269,
+                "valid_predictions": 22598,
+                "mean_opd_rms_error_nm": 19.73957580582858,
+                "layer_weight_kl_divergence": 0.097965292318789
+            }
+        }
+    },
+    "forecasting.paranal_tomography.full.seeing_nowcast": {
+        "possible_predictions": 36549,
+        "LinearForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1495451418457857,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.1495451418457857
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.10587602594271939,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.10587602594271939
+                ]
+            }
+        },
+        "MeanWindowForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1360424433897685,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.1360424433897685
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.09606342170784427,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.09606342170784427
+                ]
+            }
+        },
+        "PersistenceForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1344946653791841,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.1344946653791841
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.0933790254179321,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.0933790254179321
+                ]
+            }
+        },
+        "MinuteClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.3028145957144888,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.3028145957144888
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.23400981622484548,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.23400981622484548
+                ]
+            }
+        },
+        "ClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.29667744291361137,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.29667744291361137
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.2279027950267293,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.2279027950267293
+                ]
+            }
+        },
+        "GradientBoostingForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.12374555109730216,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.12374555109730216
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.08646183283294796,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.08646183283294796
+                ]
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.12112543444320327,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.12112543444320327
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.08488776227292455,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.08488776227292455
+                ]
+            }
+        },
+        "TransformerModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.12114895491851331,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.12114895491851331
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.08463044276357458,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.08463044276357458
+                ]
+            }
+        },
+        "GRUModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.12055230188450126,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.12055230188450126
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.08453386930820492,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.08453386930820492
+                ]
+            }
+        },
+        "LSTMModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.12180601081464763,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.12180601081464763
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.08473659946951474,
+                "valid_predictions": 36549,
+                "detailed_score": [
+                    0.08473659946951474
+                ]
+            }
+        }
+    },
+    "regression.paranal_tomography.full.cn2_profile_reconstruction": {
+        "possible_predictions": 47300,
+        "PersistenceRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 1.0259472481989864,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.3598000694874337,
+                    0.8473019562549653,
+                    1.718739767235113,
+                    1.6940209667105972,
+                    1.3806050854941776,
+                    0.909522054760958,
+                    0.2716408374496583
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.7971146048507597,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.27868035164509797,
+                    0.6318431665425498,
+                    1.524875406941587,
+                    1.1840858842903537,
+                    1.0980155663168576,
+                    0.6446309139342151,
+                    0.21767094428465775
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 1.0259472481989864,
+                "valid_predictions": 47300,
+                "per_layer": {
+                    "0m": 0.3598000694874337,
+                    "500m": 0.8473019562549653,
+                    "1000m": 1.718739767235113,
+                    "2000m": 1.6940209667105972,
+                    "4000m": 1.3806050854941776,
+                    "8000m": 0.909522054760958,
+                    "16000m": 0.2716408374496583
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.32861030016522286,
+                "valid_predictions": 47300
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.89209452580456,
+                "valid_predictions": 47300
+            },
+            "coherence_time": {
+                "metric_value": 2.012397493595837,
+                "valid_predictions": 47300
+            },
+            "greenwood_frequency": {
+                "metric_value": 13.883131138569036,
+                "valid_predictions": 47300
+            },
+            "strehl_ratio": {
+                "metric_value": 0.16456061567707578,
+                "valid_predictions": 47300,
+                "mean_opd_rms_error_nm": 43.41329451450792,
+                "layer_weight_kl_divergence": 0.6731222052751048
+            }
+        },
+        "MinuteClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7762521580505098,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.33375281245049904,
+                    0.7052529698979753,
+                    1.045983260246163,
+                    1.3079885460888547,
+                    0.8864562055991378,
+                    0.888970482549676,
+                    0.2653608295212623
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5343142485788026,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.25350290420970395,
+                    0.491060653787146,
+                    0.7164916658514165,
+                    0.8853380334136818,
+                    0.6071585992781168,
+                    0.5722742798152478,
+                    0.2143736036963053
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7762521580505098,
+                "valid_predictions": 47300,
+                "per_layer": {
+                    "0m": 0.33375281245049904,
+                    "500m": 0.7052529698979753,
+                    "1000m": 1.045983260246163,
+                    "2000m": 1.3079885460888547,
+                    "4000m": 0.8864562055991378,
+                    "8000m": 0.888970482549676,
+                    "16000m": 0.2653608295212623
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.33028505860730617,
+                "valid_predictions": 47300
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.8722033182819544,
+                "valid_predictions": 47300
+            },
+            "coherence_time": {
+                "metric_value": 1.6999989739756602,
+                "valid_predictions": 47300
+            },
+            "greenwood_frequency": {
+                "metric_value": 13.953886349422676,
+                "valid_predictions": 47300
+            },
+            "strehl_ratio": {
+                "metric_value": 0.1707561141399355,
+                "valid_predictions": 47300,
+                "mean_opd_rms_error_nm": 43.318156577095905,
+                "layer_weight_kl_divergence": 0.3293465481401237
+            }
+        },
+        "ClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7755283360651136,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.3321553850456363,
+                    0.7039290915645318,
+                    1.0492676595018962,
+                    1.3125376729351277,
+                    0.8807928382878555,
+                    0.8866308027786949,
+                    0.26338490234205236
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.534002965225192,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.25304757108046094,
+                    0.4907847599489401,
+                    0.7238065518205306,
+                    0.8847150907249733,
+                    0.6021653795117777,
+                    0.5708837288902934,
+                    0.21261767459936745
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7755283360651136,
+                "valid_predictions": 47300,
+                "per_layer": {
+                    "0m": 0.3321553850456363,
+                    "500m": 0.7039290915645318,
+                    "1000m": 1.0492676595018962,
+                    "2000m": 1.3125376729351277,
+                    "4000m": 0.8807928382878555,
+                    "8000m": 0.8866308027786949,
+                    "16000m": 0.26338490234205236
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.3331954379487447,
+                "valid_predictions": 47300
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.8664070182200899,
+                "valid_predictions": 47300
+            },
+            "coherence_time": {
+                "metric_value": 1.7085849840748835,
+                "valid_predictions": 47300
+            },
+            "greenwood_frequency": {
+                "metric_value": 14.076844083978948,
+                "valid_predictions": 47300
+            },
+            "strehl_ratio": {
+                "metric_value": 0.17098681474528452,
+                "valid_predictions": 47300,
+                "mean_opd_rms_error_nm": 43.21135265133905,
+                "layer_weight_kl_divergence": 0.3278157130207143
+            }
+        },
+        "GradientBoostingRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7573032667924116,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.29253180308467686,
+                    0.6490823767251718,
+                    1.020021944319572,
+                    1.303353693477205,
+                    0.878259133477657,
+                    0.9051120691930211,
+                    0.25276184726957734
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5179579524058935,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.21745150623215642,
+                    0.4510855499552033,
+                    0.7007114244268344,
+                    0.8763690783097282,
+                    0.5996546045332316,
+                    0.5767338258992444,
+                    0.2036996774848557
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7573032667924116,
+                "valid_predictions": 47300,
+                "per_layer": {
+                    "0m": 0.29253180308467686,
+                    "500m": 0.6490823767251718,
+                    "1000m": 1.020021944319572,
+                    "2000m": 1.303353693477205,
+                    "4000m": 0.878259133477657,
+                    "8000m": 0.9051120691930211,
+                    "16000m": 0.25276184726957734
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.2650156243647447,
+                "valid_predictions": 47300
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.8265568964736784,
+                "valid_predictions": 47300
+            },
+            "coherence_time": {
+                "metric_value": 1.4854849670337504,
+                "valid_predictions": 47300
+            },
+            "greenwood_frequency": {
+                "metric_value": 11.196382660481438,
+                "valid_predictions": 47300
+            },
+            "strehl_ratio": {
+                "metric_value": 0.15892656989034196,
+                "valid_predictions": 47300,
+                "mean_opd_rms_error_nm": 40.449531178374194,
+                "layer_weight_kl_divergence": 0.29564239809994725
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7414813062021407,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.32509741678507154,
+                    0.6442893051664904,
+                    0.9874495637983373,
+                    1.244894319357417,
+                    0.8633723040626142,
+                    0.8793966108863156,
+                    0.24586962335873955
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.503726239331923,
+                "valid_predictions": 47300,
+                "detailed_score": [
+                    0.2477811790989859,
+                    0.44381879144859726,
+                    0.6747901618094859,
+                    0.8333028596535362,
+                    0.5791347020526894,
+                    0.5499814626767895,
+                    0.1972745185833769
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7414813062021407,
+                "valid_predictions": 47300,
+                "per_layer": {
+                    "0m": 0.32509741678507154,
+                    "500m": 0.6442893051664904,
+                    "1000m": 0.9874495637983373,
+                    "2000m": 1.244894319357417,
+                    "4000m": 0.8633723040626142,
+                    "8000m": 0.8793966108863156,
+                    "16000m": 0.24586962335873955
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.29403999468395553,
+                "valid_predictions": 47300
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.7983460019707372,
+                "valid_predictions": 47300
+            },
+            "coherence_time": {
+                "metric_value": 1.5897170114134518,
+                "valid_predictions": 47300
+            },
+            "greenwood_frequency": {
+                "metric_value": 12.422604538351349,
+                "valid_predictions": 47300
+            },
+            "strehl_ratio": {
+                "metric_value": 0.15210955901998835,
+                "valid_predictions": 47300,
+                "mean_opd_rms_error_nm": 38.63848517781361,
+                "layer_weight_kl_divergence": 0.29557495815217716
+            }
+        }
+    },
+    "regression.paranal_tomography.multiannual.cn2_profile_reconstruction": {
+        "possible_predictions": 138669,
+        "PersistenceRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.9798301239268354,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.42912861348839093,
+                    1.1915807976458512,
+                    1.452203568895181,
+                    1.930018962463246,
+                    0.8050038185309203,
+                    0.7257945345846292,
+                    0.32508057187962885
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.8137170565592886,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.35760800972832363,
+                    0.9757366780709135,
+                    1.2043172288556652,
+                    1.7405376786165028,
+                    0.6452333115056446,
+                    0.5167856434165633,
+                    0.2558008457214081
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.9798301239268354,
+                "valid_predictions": 138669,
+                "per_layer": {
+                    "0m": 0.42912861348839093,
+                    "500m": 1.1915807976458512,
+                    "1000m": 1.452203568895181,
+                    "2000m": 1.930018962463246,
+                    "4000m": 0.8050038185309203,
+                    "8000m": 0.7257945345846292,
+                    "16000m": 0.32508057187962885
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.3983342393524027,
+                "valid_predictions": 138669
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.9961050928728606,
+                "valid_predictions": 138669
+            },
+            "coherence_time": {
+                "metric_value": 1.6125558345119786,
+                "valid_predictions": 138669
+            },
+            "greenwood_frequency": {
+                "metric_value": 16.828828795479165,
+                "valid_predictions": 138669
+            },
+            "strehl_ratio": {
+                "metric_value": 0.21712272893247497,
+                "valid_predictions": 138669,
+                "mean_opd_rms_error_nm": 53.266367285887824,
+                "layer_weight_kl_divergence": 0.8963287790413985
+            }
+        },
+        "ClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7434383400655712,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.3226255005003492,
+                    0.8404850496010506,
+                    1.1001146227759355,
+                    1.2736842290151091,
+                    0.6811220515675334,
+                    0.7152696121770549,
+                    0.27076731482196525
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5219653600133883,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.24191477914289916,
+                    0.5790215184827664,
+                    0.7466449400789443,
+                    0.87820125627445,
+                    0.5046436264472088,
+                    0.490120122453405,
+                    0.21321127721404448
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7434383400655712,
+                "valid_predictions": 138669,
+                "per_layer": {
+                    "0m": 0.3226255005003492,
+                    "500m": 0.8404850496010506,
+                    "1000m": 1.1001146227759355,
+                    "2000m": 1.2736842290151091,
+                    "4000m": 0.6811220515675334,
+                    "8000m": 0.7152696121770549,
+                    "16000m": 0.27076731482196525
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.45768440284568757,
+                "valid_predictions": 138669
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.7464559199130543,
+                "valid_predictions": 138669
+            },
+            "coherence_time": {
+                "metric_value": 1.6137085476990862,
+                "valid_predictions": 138669
+            },
+            "greenwood_frequency": {
+                "metric_value": 19.33625507657413,
+                "valid_predictions": 138669
+            },
+            "strehl_ratio": {
+                "metric_value": 0.18450793156315679,
+                "valid_predictions": 138669,
+                "mean_opd_rms_error_nm": 45.45653511353132,
+                "layer_weight_kl_divergence": 0.3286270211092893
+            }
+        },
+        "MinuteClimatologyRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7436446082996833,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.3236918280762555,
+                    0.8425999387635369,
+                    1.1012423919010559,
+                    1.2743677639930584,
+                    0.6778204422561063,
+                    0.7153402373030223,
+                    0.27044965580474717
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5224866608426585,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.24245536514564345,
+                    0.5809197012117573,
+                    0.7501250020943308,
+                    0.8793570991044724,
+                    0.5016053687461269,
+                    0.4900137340018001,
+                    0.21293035559447895
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7436446082996833,
+                "valid_predictions": 138669,
+                "per_layer": {
+                    "0m": 0.3236918280762555,
+                    "500m": 0.8425999387635369,
+                    "1000m": 1.1012423919010559,
+                    "2000m": 1.2743677639930584,
+                    "4000m": 0.6778204422561063,
+                    "8000m": 0.7153402373030223,
+                    "16000m": 0.27044965580474717
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.4564088934684206,
+                "valid_predictions": 138669
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.7453990293618153,
+                "valid_predictions": 138669
+            },
+            "coherence_time": {
+                "metric_value": 1.6115275256597599,
+                "valid_predictions": 138669
+            },
+            "greenwood_frequency": {
+                "metric_value": 19.282367344071016,
+                "valid_predictions": 138669
+            },
+            "strehl_ratio": {
+                "metric_value": 0.1837238784043988,
+                "valid_predictions": 138669,
+                "mean_opd_rms_error_nm": 45.301726453692126,
+                "layer_weight_kl_divergence": 0.32670884796071636
+            }
+        },
+        "GradientBoostingRegressionModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7079586053200665,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.26419167956666145,
+                    0.757017054731953,
+                    1.052861072855431,
+                    1.2182045338144207,
+                    0.6731949627810092,
+                    0.7306201936940451,
+                    0.2596207397969446
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.4878523193391159,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.1966516289009573,
+                    0.502854772712669,
+                    0.7054358886279775,
+                    0.8220814436883425,
+                    0.488688464647962,
+                    0.49591367630436367,
+                    0.2033403604915392
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7079586053200665,
+                "valid_predictions": 138669,
+                "per_layer": {
+                    "0m": 0.26419167956666145,
+                    "500m": 0.757017054731953,
+                    "1000m": 1.052861072855431,
+                    "2000m": 1.2182045338144207,
+                    "4000m": 0.6731949627810092,
+                    "8000m": 0.7306201936940451,
+                    "16000m": 0.2596207397969446
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.34221013508482884,
+                "valid_predictions": 138669
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.7165705909815211,
+                "valid_predictions": 138669
+            },
+            "coherence_time": {
+                "metric_value": 1.2878700968644328,
+                "valid_predictions": 138669
+            },
+            "greenwood_frequency": {
+                "metric_value": 14.457697095743383,
+                "valid_predictions": 138669
+            },
+            "strehl_ratio": {
+                "metric_value": 0.1604455071973871,
+                "valid_predictions": 138669,
+                "mean_opd_rms_error_nm": 40.95090852648217,
+                "layer_weight_kl_divergence": 0.28208045566790774
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7151690427891022,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.3000520204026482,
+                    0.7824216511365809,
+                    1.045856638315046,
+                    1.2404112564017231,
+                    0.6613982387574687,
+                    0.7166903233096955,
+                    0.25935317120055207
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.4999483959104415,
+                "valid_predictions": 138669,
+                "detailed_score": [
+                    0.22805070787386056,
+                    0.5349401693701239,
+                    0.7044044881029407,
+                    0.8592973789544183,
+                    0.481716002903014,
+                    0.4884654926647141,
+                    0.20276453150401902
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7151690427891022,
+                "valid_predictions": 138669,
+                "per_layer": {
+                    "0m": 0.3000520204026482,
+                    "500m": 0.7824216511365809,
+                    "1000m": 1.045856638315046,
+                    "2000m": 1.2404112564017231,
+                    "4000m": 0.6613982387574687,
+                    "8000m": 0.7166903233096955,
+                    "16000m": 0.25935317120055207
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.4029560145006321,
+                "valid_predictions": 138669
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.7090041560725343,
+                "valid_predictions": 138669
+            },
+            "coherence_time": {
+                "metric_value": 1.4401101274332668,
+                "valid_predictions": 138669
+            },
+            "greenwood_frequency": {
+                "metric_value": 17.02408959662747,
+                "valid_predictions": 138669
+            },
+            "strehl_ratio": {
+                "metric_value": 0.1646123914408289,
+                "valid_predictions": 138669,
+                "mean_opd_rms_error_nm": 41.56565011313348,
+                "layer_weight_kl_divergence": 0.31101513661477703
+            }
+        }
+    },
+    "forecasting.paranal_tomography.multiannual.seeing_nowcast": {
+        "possible_predictions": 95475,
+        "PersistenceForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.15451663814532712,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.15451663814532712
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.10564294317884265,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.10564294317884265
+                ]
+            }
+        },
+        "ClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.3500107462473517,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.3500107462473517
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.2429884503044232,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.2429884503044232
+                ]
+            }
+        },
+        "MinuteClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.3503550833491025,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.3503550833491025
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.24357639814195708,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.24357639814195708
+                ]
+            }
+        },
+        "MeanWindowForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1527205631230727,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.1527205631230727
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.1068508300602252,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.1068508300602252
+                ]
+            }
+        },
+        "LinearForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.16816044828809662,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.16816044828809662
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.11827031947504266,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.11827031947504266
+                ]
+            }
+        },
+        "GradientBoostingForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1413785295516243,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.1413785295516243
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.09639559553350016,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.09639559553350016
+                ]
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1384277236497083,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.1384277236497083
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.0954635657403963,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.0954635657403963
+                ]
+            }
+        },
+        "GRUModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.13717424895436134,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.13717424895436134
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.09486861923889413,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.09486861923889413
+                ]
+            }
+        },
+        "LSTMModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.1374765932514364,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.1374765932514364
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.09469695296456052,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.09469695296456052
+                ]
+            }
+        },
+        "TransformerModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.13714884595977778,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.13714884595977778
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.09490903695949303,
+                "valid_predictions": 95475,
+                "detailed_score": [
+                    0.09490903695949303
+                ]
+            }
+        }
+    },
+    "forecasting.paranal_tomography.multiannual.cn2_profile_forecast": {
+        "possible_predictions": 56167,
+        "PersistenceForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5441136552946658,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.18733278080654636,
+                    0.6134727166890116,
+                    0.8287101223542693,
+                    0.9802366985948663,
+                    0.47018439240932647,
+                    0.5855772929807063,
+                    0.14328158322793483
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.3232709541017474,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.13268052474374778,
+                    0.3599733098711332,
+                    0.4792389407270226,
+                    0.5311745899784578,
+                    0.3054524632437426,
+                    0.3443900495152425,
+                    0.10998680063288546
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.5441136552946658,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.18733278080654636,
+                    "500m": 0.6134727166890116,
+                    "1000m": 0.8287101223542693,
+                    "2000m": 0.9802366985948663,
+                    "4000m": 0.47018439240932647,
+                    "8000m": 0.5855772929807063,
+                    "16000m": 0.14328158322793483
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.17334872674135718,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.42003582269900724,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.7959995920466749,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 7.32363868340158,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08415337787288207,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 21.164295025074974,
+                "layer_weight_kl_divergence": 0.10147770570352098
+            }
+        },
+        "ClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.7322576276122378,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.3095747576734934,
+                    0.7981841576119576,
+                    1.0358612264412832,
+                    1.3292533399669597,
+                    0.6780719742983247,
+                    0.7193606288439018,
+                    0.25549730844974433
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.512765258752488,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.23316421670391488,
+                    0.5489985308480244,
+                    0.6960955800485873,
+                    0.9102056073790473,
+                    0.502174972865572,
+                    0.49338152908893124,
+                    0.20533637433333898
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.7322576276122378,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.3095747576734934,
+                    "500m": 0.7981841576119576,
+                    "1000m": 1.0358612264412832,
+                    "2000m": 1.3292533399669597,
+                    "4000m": 0.6780719742983247,
+                    "8000m": 0.7193606288439018,
+                    "16000m": 0.25549730844974433
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.3986234552672563,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.7401500866913902,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 1.60363599747187,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 16.8410475922462,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.17503081073489965,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 43.008492048958175,
+                "layer_weight_kl_divergence": 0.32317426173254554
+            }
+        },
+        "MinuteClimatologyForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.732193723105416,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.3095363139511987,
+                    0.8010134060526558,
+                    1.0366203469179256,
+                    1.328077736689061,
+                    0.6758530009181436,
+                    0.7186485370326221,
+                    0.2556067201763044
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.5126124898800019,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.23290790617236454,
+                    0.548652551498266,
+                    0.6984477256874239,
+                    0.9089778472426121,
+                    0.5005570738186622,
+                    0.4934895532489576,
+                    0.20525477149172608
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.732193723105416,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.3095363139511987,
+                    "500m": 0.8010134060526558,
+                    "1000m": 1.0366203469179256,
+                    "2000m": 1.328077736689061,
+                    "4000m": 0.6758530009181436,
+                    "8000m": 0.7186485370326221,
+                    "16000m": 0.2556067201763044
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.3972566036936549,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.7393787609905826,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 1.598422137101755,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 16.7833008337492,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.17436911754675902,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 42.86500246225897,
+                "layer_weight_kl_divergence": 0.32180366495530244
+            }
+        },
+        "MeanWindowForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.49852712138423777,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.19666471532428753,
+                    0.5438806245450054,
+                    0.7464701219999679,
+                    0.8839542179923353,
+                    0.44893301976738675,
+                    0.5231965181893071,
+                    0.14659063187137455
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.32573418174390023,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.14421752231231558,
+                    0.3512977687703221,
+                    0.48721036671888507,
+                    0.5479246817104854,
+                    0.3108659361536261,
+                    0.3243777827184724,
+                    0.114245213823195
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.49852712138423777,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.19666471532428753,
+                    "500m": 0.5438806245450054,
+                    "1000m": 0.7464701219999679,
+                    "2000m": 0.8839542179923353,
+                    "4000m": 0.44893301976738675,
+                    "8000m": 0.5231965181893071,
+                    "16000m": 0.14659063187137455
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.1921148114884714,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.4373664495738445,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.8688832841852304,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 8.116468413238694,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.08869921150790584,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 22.335494980974836,
+                "layer_weight_kl_divergence": 0.10961344794274275
+            }
+        },
+        "LinearForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.5375836221427965,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.19984272564106936,
+                    0.5824993502197896,
+                    0.8089310609034115,
+                    0.9551517584059389,
+                    0.48448936071966914,
+                    0.569452880210202,
+                    0.16271821889949503
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.35390166060150335,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.1458897308712525,
+                    0.3777109816515532,
+                    0.529456347710094,
+                    0.5956130722919901,
+                    0.33833761607523494,
+                    0.3641295184532625,
+                    0.126174357157136
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.5375836221427965,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.19984272564106936,
+                    "500m": 0.5824993502197896,
+                    "1000m": 0.8089310609034115,
+                    "2000m": 0.9551517584059389,
+                    "4000m": 0.48448936071966914,
+                    "8000m": 0.569452880210202,
+                    "16000m": 0.16271821889949503
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.2595748625744637,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.49637551839300503,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.929306170739354,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 10.96652130376131,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.09980583842283186,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 25.804951639059144,
+                "layer_weight_kl_divergence": 0.1325427882638336
+            }
+        },
+        "GradientBoostingForecastingModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4703800121490073,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.17179967752050238,
+                    0.5371791223829763,
+                    0.6929547326628607,
+                    0.8417649765626113,
+                    0.41631633558931397,
+                    0.503609538193917,
+                    0.12903570213086968
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.295290827356125,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.11954749846067794,
+                    0.324783146152941,
+                    0.43159038082134404,
+                    0.5079504242855674,
+                    0.2785525343509547,
+                    0.3049658777726501,
+                    0.09964592964873983
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4703800121490073,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.17179967752050238,
+                    "500m": 0.5371791223829763,
+                    "1000m": 0.6929547326628607,
+                    "2000m": 0.8417649765626113,
+                    "4000m": 0.41631633558931397,
+                    "8000m": 0.503609538193917,
+                    "16000m": 0.12903570213086968
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.16792396528677989,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.38010471256387257,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.7367576825355586,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 7.094451742499149,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.07765685341115748,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 19.32892626126092,
+                "layer_weight_kl_divergence": 0.0874156783562575
+            }
+        },
+        "RNNModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4585892497122917,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.16611573915632621,
+                    0.5044880769017669,
+                    0.6845623789974847,
+                    0.820295472708418,
+                    0.41028380088959027,
+                    0.49459063737943065,
+                    0.12978864195302478
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.29061655604642495,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.11762528038919819,
+                    0.3119997372442225,
+                    0.42832926273788646,
+                    0.49939818445294215,
+                    0.2747158059324603,
+                    0.30174646329312094,
+                    0.10050115827514401
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4585892497122917,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.16611573915632621,
+                    "500m": 0.5044880769017669,
+                    "1000m": 0.6845623789974847,
+                    "2000m": 0.820295472708418,
+                    "4000m": 0.41028380088959027,
+                    "8000m": 0.49459063737943065,
+                    "16000m": 0.12978864195302478
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.1779300975477453,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.38520775321312845,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.7491850153462937,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 7.517190592560802,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.0800992830669581,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 20.005642905755682,
+                "layer_weight_kl_divergence": 0.08546666435479448
+            }
+        },
+        "GRUModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.45289847460389565,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.16487838937919472,
+                    0.4951972536663316,
+                    0.6757395601375221,
+                    0.8105638232327682,
+                    0.40482704291817423,
+                    0.4906744668638564,
+                    0.1284087860294225
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.28507806512372086,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.11708976946125134,
+                    0.30564707182805206,
+                    0.41878259945088897,
+                    0.4871796838215735,
+                    0.2704509130635626,
+                    0.2969997974888385,
+                    0.0993966207518791
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.45289847460389565,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.16487838937919472,
+                    "500m": 0.4951972536663316,
+                    "1000m": 0.6757395601375221,
+                    "2000m": 0.8105638232327682,
+                    "4000m": 0.40482704291817423,
+                    "8000m": 0.4906744668638564,
+                    "16000m": 0.1284087860294225
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.16665913317337575,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.3793267707522384,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.729587993381655,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 7.041014945723716,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.07747871418399284,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 19.316896821607745,
+                "layer_weight_kl_divergence": 0.08189333368626261
+            }
+        },
+        "LSTMModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4572385530252708,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.16679122119569037,
+                    0.5018004923497956,
+                    0.6807367008508244,
+                    0.8145760011225791,
+                    0.41124419693736536,
+                    0.4963347090304445,
+                    0.12918654969019583
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.2885785672785626,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.11822250674516681,
+                    0.3114902559318188,
+                    0.42196419168264687,
+                    0.49242853469293624,
+                    0.27413461119506244,
+                    0.3015913743025562,
+                    0.1002184963997511
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4572385530252708,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.16679122119569037,
+                    "500m": 0.5018004923497956,
+                    "1000m": 0.6807367008508244,
+                    "2000m": 0.8145760011225791,
+                    "4000m": 0.41124419693736536,
+                    "8000m": 0.4963347090304445,
+                    "16000m": 0.12918654969019583
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.17270619672240206,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.38243579773198894,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.7425250385237525,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 7.296491212423505,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.07883500151767381,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 19.678133206596602,
+                "layer_weight_kl_divergence": 0.08330669794641934
+            }
+        },
+        "TransformerModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.45488129589670095,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.16735144548650968,
+                    0.4988514225927972,
+                    0.679507879882124,
+                    0.814484189029648,
+                    0.40357046715685224,
+                    0.49203634159101106,
+                    0.12836732553796443
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.28528902187402727,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.11848922933000773,
+                    0.30600832370752007,
+                    0.4203902018298447,
+                    0.4878617260125144,
+                    0.26935587861572047,
+                    0.29559293920360324,
+                    0.09932485441898012
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.45488129589670095,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.16735144548650968,
+                    "500m": 0.4988514225927972,
+                    "1000m": 0.679507879882124,
+                    "2000m": 0.814484189029648,
+                    "4000m": 0.40357046715685224,
+                    "8000m": 0.49203634159101106,
+                    "16000m": 0.12836732553796443
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.16695992118177147,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.37774941127071066,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.7313723496977377,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 7.05372266190641,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.07730326767887809,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 19.231325383818263,
+                "layer_weight_kl_divergence": 0.08200273377821303
+            }
+        },
+        "PhysicsTransformerModel": {
+            "root_mean_square_error": {
+                "metric_value": 0.4546676516693605,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.16715173567788674,
+                    0.49847110832192243,
+                    0.6785107128348624,
+                    0.8148881386901806,
+                    0.4034381666641671,
+                    0.4917136798596864,
+                    0.12850001963681798
+                ]
+            },
+            "mean_absolute_error": {
+                "metric_value": 0.2850446569868803,
+                "valid_predictions": 56167,
+                "detailed_score": [
+                    0.11851209342505029,
+                    0.30589885164840225,
+                    0.41926846885252844,
+                    0.4871645006819536,
+                    0.26916177141753933,
+                    0.2959001389807423,
+                    0.0994067739019459
+                ]
+            },
+            "per_layer_rmse": {
+                "metric_value": 0.4546676516693605,
+                "valid_predictions": 56167,
+                "per_layer": {
+                    "0m": 0.16715173567788674,
+                    "500m": 0.49847110832192243,
+                    "1000m": 0.6785107128348624,
+                    "2000m": 0.8148881386901806,
+                    "4000m": 0.4034381666641671,
+                    "8000m": 0.4917136798596864,
+                    "16000m": 0.12850001963681798
+                }
+            },
+            "integrated_seeing": {
+                "metric_value": 0.167714991032742,
+                "valid_predictions": 56167
+            },
+            "isoplanatic_angle": {
+                "metric_value": 0.37825007189266135,
+                "valid_predictions": 56167
+            },
+            "coherence_time": {
+                "metric_value": 0.7329781370662973,
+                "valid_predictions": 56167
+            },
+            "greenwood_frequency": {
+                "metric_value": 7.0856228414872655,
+                "valid_predictions": 56167
+            },
+            "strehl_ratio": {
+                "metric_value": 0.07752204644218909,
+                "valid_predictions": 56167,
+                "mean_opd_rms_error_nm": 19.276083844897165,
+                "layer_weight_kl_divergence": 0.08217036195121966
             }
         }
     }

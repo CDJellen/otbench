@@ -53,6 +53,7 @@
         "remote_data_path": "https://www.eso.org/sci/facilities/paranal/astroclimate/site-monitor/asm_data.html",
         "lazy": true,
         "flatten": true,
+        "n_rows": 2247245,
         "feature_map": {
             "height_of_observation": 0.0,
             "height_of_observation_units": "m AGL",

@@ -825,3 +825,276 @@ def test_compare_models_joint_mask_and_sequence_horizon_curve():
     assert len(df_seq_curve) == 2
     assert all(len(s) == 3 and s[1] == 4 for s in observed_shapes)
 
+
+def test_solar_features_sunrise_to_sunset_monotonicity_and_boundary_weights():
+    """add_temporal_hour must vary across the solar day (0 at sunrise to 12 at sunset) without
+    mutating caller DataFrame, and add_temporal_hour_weight must cover integer boundaries."""
+    from otbench.utils.solar_features import add_temporal_hour, add_temporal_hour_weight
+
+    idx = pd.date_range("2021-06-21 06:00:00", "2021-06-21 18:00:00", freq="2h")
+    X_orig = pd.DataFrame({"T_2m": np.linspace(15.0, 25.0, len(idx))}, index=idx)
+    X_th = add_temporal_hour(
+        X_orig,
+        name="test_site",
+        timezone="UTC",
+        obs_lat=0.0,
+        obs_lon=0.0,
+        time_col_name="time",
+        temporal_hour_col_name="temporal_hour",
+    )
+    assert "temporal_hour" not in X_orig.columns, "add_temporal_hour must not mutate input DataFrame"
+    th_vals = X_th["temporal_hour"].to_numpy()
+    assert np.all(np.diff(th_vals) > 0), "Temporal hour must strictly increase with time of day"
+    assert np.isclose(th_vals[0], 0.0, atol=0.25)
+    assert np.isclose(th_vals[-1], 12.0, atol=0.25)
+
+    X_bins = pd.DataFrame({"temporal_hour": [-100.0, -4.0, 0.0, 5.0, 12.0, 13.0, 120.0, np.nan]})
+    X_w = add_temporal_hour_weight(
+        X_bins,
+        temporal_hour_col_name="temporal_hour",
+        temporal_hour_weight_col_name="temporal_hour_weight",
+    )
+    assert "temporal_hour_weight" not in X_bins.columns
+    w_vals = X_w["temporal_hour_weight"].to_numpy()
+    np.testing.assert_allclose(w_vals[:-1], [0.11, 0.11, 0.05, 1.0, 0.08, 0.13, 0.13])
+    assert np.isnan(w_vals[-1])
+
+
+def test_macro_meteorological_single_row_inference_and_non_mutation():
+    """MacroMeteorologicalModel and OffshoreMacroMeteorologicalModel must freeze constant_adjustment
+    from training data so single-row inference matches batch inference, without mutating X."""
+    from otbench.benchmark.models.regression.macro_meteorological import MacroMeteorologicalModel
+    from otbench.benchmark.models.regression.offshore_macro_meteorological import OffshoreMacroMeteorologicalModel
+
+    X_train = pd.DataFrame({
+        "T_2m": [15.0, 18.0, 20.0, 22.0],
+        "Spd_10m": [2.0, 4.0, 5.0, 7.0],
+        "RH_2m": [40.0, 50.0, 60.0, 70.0],
+        "time": [0, 1, 2, 3],
+        "temporal_hour": [0.0, 2.0, 5.0, 8.0],
+        "temporal_hour_weight": [0.05, 0.51, 1.0, 0.59],
+    })
+    y_train = pd.DataFrame({"Cn2_15m": [-14.2, -14.0, -13.8, -14.1]})
+
+    for ModelCls in (MacroMeteorologicalModel, OffshoreMacroMeteorologicalModel):
+        mdl = ModelCls(
+            name="mm_test",
+            target_name="Cn2_15m",
+            timezone="UTC",
+            obs_lat=0.0,
+            obs_lon=0.0,
+            air_temperature_col_name="T_2m",
+            wind_speed_col_name="Spd_10m",
+            humidity_col_name="RH_2m",
+            time_col_name="time",
+            height_of_observation=15.0,
+            use_log10=True,
+        )
+        mdl.train(X_train, y_train)
+        X_copy = X_train.copy(deep=True)
+        batch_preds = mdl.predict(X_train)
+        pd.testing.assert_frame_equal(X_train, X_copy)
+        for i in range(len(X_train)):
+            single_pred = mdl.predict(X_train.iloc[[i]])
+            np.testing.assert_allclose(single_pred[0], batch_preds[i], rtol=1e-12)
+
+
+def test_height_adjustment_non_mutation_and_validation():
+    """Height adjustment utilities must not mutate caller inputs and must reject observed <= 0."""
+    from otbench.utils.height_adjustment import apply_fried_height_adjustment, apply_oermann_height_adjustment
+
+    arr = np.array([1e-14, 2e-14])
+    arr_orig = arr.copy()
+    out_fried = apply_fried_height_adjustment(arr, observed=15.0, desired=30.0)
+    out_oermann = apply_oermann_height_adjustment(arr, desired=30.0, observed=15.0)
+    np.testing.assert_array_equal(arr, arr_orig)
+    assert not np.allclose(out_fried, arr_orig, atol=0.0)
+    assert not np.allclose(out_oermann, arr_orig, atol=0.0)
+
+    with pytest.raises(ValueError, match="positive"):
+        apply_fried_height_adjustment(arr, observed=0.0, desired=15.0)
+
+
+def test_integrated_metrics_density_mode_log10_and_domain_mismatch_warning():
+    """Integrated AO metrics must support values_are_integrals=False (Cn2 density mode) on both
+    linear and log10 profiles, and warn when y_true and y_pred domains mismatch."""
+    from otbench.eval.integrated_metrics import (
+        isoplanatic_angle,
+        coherence_time,
+        greenwood_frequency,
+        ao_wavefront_error_budget,
+        strehl_ratio,
+    )
+
+    heights = [0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
+    cn2_lin = np.full((5, 7), 1e-16)
+    cn2_log = np.log10(cn2_lin)
+
+    budget_lin = ao_wavefront_error_budget(cn2_lin, heights=heights, values_are_integrals=False)
+    budget_log = ao_wavefront_error_budget(cn2_log, heights=heights, values_are_integrals=False)
+    np.testing.assert_allclose(budget_lin["r0_m"], budget_log["r0_m"])
+    np.testing.assert_allclose(budget_lin["theta0_arcsec"], budget_log["theta0_arcsec"])
+    np.testing.assert_allclose(budget_lin["strehl_ratio"], budget_log["strehl_ratio"])
+
+    for fn in (isoplanatic_angle, coherence_time, greenwood_frequency, strehl_ratio):
+        res_lin = fn(cn2_lin, cn2_lin * 1.1, heights=heights, values_are_integrals=False)
+        res_log = fn(cn2_log, np.log10(cn2_lin * 1.1), heights=heights, values_are_integrals=False)
+        np.testing.assert_allclose(res_lin["metric_value"], res_log["metric_value"])
+
+    with pytest.warns(UserWarning, match="Domain mismatch"):
+        res_mixed = isoplanatic_angle(cn2_log, cn2_lin, heights=heights, values_are_integrals=True)
+    assert np.isclose(res_mixed["metric_value"], 0.0)
+
+
+def test_get_valid_indices_pandas_index_mismatch_raises():
+    """_get_valid_indices must raise ValueError when pandas inputs have misaligned indices."""
+    from otbench.eval.utils import _get_valid_indices
+
+    s1 = pd.Series([1.0, 2.0, 3.0], index=[0, 1, 2])
+    s2 = pd.Series([1.0, 2.0, 3.0], index=[10, 11, 12])
+    with pytest.raises(ValueError, match="mismatched indices"):
+        _get_valid_indices(s1, s2)
+
+
+def test_top_models_and_leaderboard_metric_orientation(tmp_path):
+    """top_models and leaderboard must rank higher-is-better metrics (R2) descending and push NaNs last."""
+    import json
+    from otbench.eval import is_lower_better
+    from otbench.tasks import TaskApi
+
+    assert is_lower_better("root_mean_square_error") is True
+    assert is_lower_better("coefficient_of_determination") is False
+
+    bench_fp = tmp_path / "experiments.json"
+    task_name = "regression.mlo_cn2.dropna.Cn2_15m"
+    mock_data = {
+        task_name: {
+            "possible_predictions": 100,
+            "ModelLowR2": {
+                "root_mean_square_error": {
+                    "metric_value": 0.50,
+                    "valid_predictions": 100
+                },
+                "coefficient_of_determination": {
+                    "metric_value": 0.25,
+                    "valid_predictions": 100
+                },
+            },
+            "ModelHighR2": {
+                "root_mean_square_error": {
+                    "metric_value": 0.20,
+                    "valid_predictions": 100,
+                    "ci_lower": 0.18,
+                    "ci_upper": 0.22
+                },
+                "coefficient_of_determination": {
+                    "metric_value": 0.85,
+                    "valid_predictions": 100
+                },
+            },
+            "ModelNaN": {
+                "root_mean_square_error": {
+                    "metric_value": float("nan"),
+                    "valid_predictions": 0
+                },
+                "coefficient_of_determination": {
+                    "metric_value": float("nan"),
+                    "valid_predictions": 0
+                },
+            },
+        }
+    }
+    bench_fp.write_text(json.dumps(mock_data))
+    task = TaskApi().get_task(task_name, benchmark_fp=str(bench_fp))
+
+    top_r2 = [k for k in task.top_models(n=3, metric="coefficient_of_determination") if k != "possible_predictions"]
+    assert top_r2 == ["ModelHighR2", "ModelLowR2", "ModelNaN"]
+
+    top_rmse = [k for k in task.top_models(n=3, metric="root_mean_square_error") if k != "possible_predictions"]
+    assert top_rmse == ["ModelHighR2", "ModelLowR2", "ModelNaN"]
+
+    lb = task.leaderboard(metric="coefficient_of_determination", include_ci=True)
+    assert list(lb.index) == ["ModelHighR2", "ModelLowR2", "ModelNaN"]
+    assert "root_mean_square_error_ci_lower" in lb.columns
+
+
+def test_forecasting_contiguous_sessions_prepared_data_and_estimator_eval():
+    """ForecastingTask must split non-contiguous repeated session IDs into separate runs,
+    provide get_prepared_data(), and accept estimator instances in evaluate_model()."""
+    from otbench.tasks import TaskApi
+    from otbench.tasks.tasks import ForecastingTask
+    from otbench.benchmark.models.forecasting.persistence import PersistenceForecastingModel
+
+    sessions = pd.Series([1, 1, 1, np.nan, 2, 2, 1, 1])
+    runs = ForecastingTask._get_session_group_positions(sessions)
+    assert len(runs) == 3
+    np.testing.assert_array_equal(runs[0], [0, 1, 2])
+    np.testing.assert_array_equal(runs[1], [4, 5])
+    np.testing.assert_array_equal(runs[2], [6, 7])
+
+    task = TaskApi().get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
+    X_tr, y_tr = task.get_train_data(prepared=True)
+    X_tr2, y_tr2 = task.get_prepared_data(split="train")
+    pd.testing.assert_frame_equal(X_tr, X_tr2)
+    pd.testing.assert_frame_equal(y_tr, y_tr2)
+
+    X_seq, y_seq = task.get_prepared_data(split="train", use_sequence_data=True)
+    assert X_seq.ndim == 3 and len(X_seq) == len(X_tr)
+
+    mdl = PersistenceForecastingModel(
+        name="PersDirect",
+        target_name=task.get_target_name(),
+        window_size=task.window_size,
+        forecast_horizon=task.forecast_horizon,
+    )
+    mdl.train(X_tr, y_tr)
+    X_raw_test, y_raw_test = task.get_test_data()
+    X_sub, y_sub = _first_valid_contiguous_slice(X_raw_test, y_raw_test, min_rows=100)
+    res_obj = task.evaluate_model(mdl, X_test=X_sub, y_test=y_sub)
+    res_fn = task.evaluate_model(mdl.predict, X_test=X_sub, y_test=y_sub)
+    assert res_obj["root_mean_square_error"]["metric_value"] == res_fn["root_mean_square_error"]["metric_value"]
+
+
+def test_pytorch_all_nan_feature_normalization_and_bench_runner_validation():
+    """PyTorch _normalize_data must safely zero-fill all-NaN feature columns, and
+    _resolve_model_map must validate unknown model names while accepting custom classes."""
+    from otbench.benchmark.models.regression.pytorch.recurrent_neural_network import RNNModel
+    from otbench.benchmark.bench_runner import _resolve_model_map
+    from otbench.benchmark.models.regression.persistence import PersistenceRegressionModel
+
+    X = np.random.default_rng(0).normal(size=(16, 1, 3))
+    X[:, :, 1] = np.nan  # Entire feature 1 is NaN
+    y = np.random.default_rng(1).normal(size=(16, 1))
+
+    mdl = RNNModel(name="nan_col_test", target_name="t", input_size=3, output_size=1, n_epochs=1)
+    X_norm, y_norm = mdl._normalize_data(X, y)
+    assert np.all(np.isfinite(X_norm))
+    assert np.all(X_norm[:, :, 1] == 0.0)
+    assert np.all(np.isfinite(y_norm))
+
+    with pytest.raises(ValueError, match="Unknown regression model"):
+        _resolve_model_map(["NonExistentModel"], {"PersistenceRegressionModel": PersistenceRegressionModel},
+                           kind="regression")
+
+    resolved = _resolve_model_map([PersistenceRegressionModel], {}, kind="regression")
+    assert resolved["PersistenceRegressionModel"] is PersistenceRegressionModel
+
+
+def test_fast_fail_height_and_horizon_contracts():
+    """Verify _validate_profile_heights and ForecastingTask reject negative, unsorted, or invalid parameters."""
+    from otbench.eval.integrated_metrics import profile_to_fried_parameter, isoplanatic_angle
+    from otbench.tasks import TaskApi
+
+    prof = np.full((4, 3), -14.0)
+    with pytest.raises(ValueError, match="non-negative"):
+        profile_to_fried_parameter(prof, heights=[-100.0, 500.0, 1000.0])
+
+    with pytest.raises(ValueError, match="monotonically non-decreasing"):
+        isoplanatic_angle(prof, prof, heights=[0.0, 1000.0, 500.0])
+
+    task = TaskApi().get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
+    X_raw, y_raw = task.get_test_data()
+    with pytest.raises(ValueError, match="window_size must be >= 1"):
+        task.prepare_forecasting_data(X_raw.iloc[:20], y_raw.iloc[:20], window_size=0)
+    with pytest.raises(ValueError, match="forecast_horizon must be >= 0"):
+        task.prepare_forecasting_data(X_raw.iloc[:20], y_raw.iloc[:20], forecast_horizon=-1)

@@ -25,6 +25,7 @@ class BaseForecastingModel:
         self.feature_names = list(feature_names) if feature_names is not None else None
         self._persistence_cols = None
         self._persistence_indices_3d: Optional[List[int]] = None
+        self._trained_on_3d: bool = False
 
     def train(
         self,
@@ -38,25 +39,19 @@ class BaseForecastingModel:
 
         # 3D sequence tensor path: X has shape (N, window_size, n_features)
         if isinstance(X, np.ndarray) and X.ndim == 3:
+            self._trained_on_3d = True
             y_arr = np.asarray(y, dtype=float)
             if y_arr.ndim == 1:
                 y_arr = y_arr[:, np.newaxis]
 
             if not self.use_log10 and len(y_arr) > 0:
-                y_valid = y_arr[np.isfinite(y_arr)]
-                if len(y_valid) > 0 and np.median(y_valid) < -5.0:
-                    p_idx = self._find_persistence_indices_3d(X.shape[2], strict=False)
-                    if p_idx:
-                        x_vals = X[:, -1, p_idx]
-                        x_valid = x_vals[np.isfinite(x_vals)]
-                        if len(x_valid) > 0 and np.min(x_valid) >= 0.0 and np.median(x_valid) < 1e-5:
-                            self.use_log10 = True
+                p_idx = self._find_persistence_indices_3d(X.shape[2], strict=False)
+                if p_idx:
+                    self._check_auto_log10(y_arr, X[:, -1, p_idx])
 
             if self.predict_residuals:
                 self._persistence_indices_3d = self._find_persistence_indices_3d(X.shape[2], strict=True)
-                y_current = X[:, -1, self._persistence_indices_3d].copy()
-                if self.use_log10:
-                    y_current = np.log10(np.maximum(y_current, 1e-19))
+                y_current = self._maybe_log10_array(X[:, -1, self._persistence_indices_3d].copy())
                 y_training = y_arr - y_current
             else:
                 y_training = y_arr
@@ -74,22 +69,15 @@ class BaseForecastingModel:
             self.feature_names = list(X.columns[:len(X.columns) // self.window_size])
 
         if not self.use_log10 and isinstance(X, pd.DataFrame) and isinstance(y, pd.DataFrame) and len(y) > 0:
-            y_valid = y.values[np.isfinite(y.values)]
-            if len(y_valid) > 0 and np.median(y_valid) < -5.0:
-                try:
-                    p_cols = self._find_persistence_cols(X, y)
-                    x_vals = X[p_cols].values
-                    x_valid = x_vals[np.isfinite(x_vals)]
-                    if len(x_valid) > 0 and np.min(x_valid) >= 0.0 and np.median(x_valid) < 1e-5:
-                        self.use_log10 = True
-                except ValueError:
-                    pass
+            try:
+                p_cols = self._find_persistence_cols(X, y)
+                self._check_auto_log10(y.values, X[p_cols].values)
+            except ValueError:
+                pass
 
         if self.predict_residuals:
             self._persistence_cols = self._find_persistence_cols(X, y)
-            y_current = X[self._persistence_cols].values
-            if self.use_log10:
-                y_current = np.log10(np.maximum(y_current, 1e-19))
+            y_current = self._maybe_log10_array(X[self._persistence_cols].values.copy())
             y_target = y.values - y_current
             y_training = pd.DataFrame(y_target, index=y.index, columns=y.columns)
         else:
@@ -108,9 +96,7 @@ class BaseForecastingModel:
             if isinstance(X, np.ndarray) and X.ndim == 3:
                 if self._persistence_indices_3d is None:
                     self._persistence_indices_3d = self._find_persistence_indices_3d(X.shape[2], strict=True)
-                y_current = X[:, -1, self._persistence_indices_3d].copy()
-                if self.use_log10:
-                    y_current = np.log10(np.maximum(y_current, 1e-19))
+                y_current = self._maybe_log10_array(X[:, -1, self._persistence_indices_3d].copy())
                 if y_pred.ndim == 1 and y_current.shape[1] == 1:
                     return y_current.ravel() + y_pred
                 if y_pred.ndim != y_current.ndim:
@@ -122,15 +108,69 @@ class BaseForecastingModel:
                     columns=self.target_name if isinstance(self.target_name, list) else [self.target_name])
                 self._persistence_cols = self._find_persistence_cols(X, dummy_y)
 
-            y_current = X[self._persistence_cols].values
-            if self.use_log10:
-                y_current = np.log10(np.maximum(y_current, 1e-19))
+            y_current = self._maybe_log10_array(X[self._persistence_cols].values.copy())
             if y_pred.ndim != y_current.ndim:
                 y_pred = y_pred.reshape(y_current.shape)
 
             return y_current + y_pred
 
         return y_pred
+
+    def _check_auto_log10(self, y_vals: np.ndarray, x_vals: np.ndarray) -> None:
+        """Promote use_log10=True when targets are in log10 space (< -5) and inputs are positive linear (< 1e-5)."""
+        y_valid = y_vals[np.isfinite(y_vals)]
+        if len(y_valid) > 0 and np.median(y_valid) < -5.0:
+            x_valid = x_vals[np.isfinite(x_vals)]
+            if len(x_valid) > 0 and np.min(x_valid) >= 0.0 and np.median(x_valid) < 1e-5:
+                self.use_log10 = True
+
+    def _maybe_log10_array(self, arr: np.ndarray) -> np.ndarray:
+        """Convert non-negative linear values to log10 space when use_log10 is active, avoiding double-logging."""
+        if not self.use_log10 or len(arr) == 0:
+            return arr
+        valid = arr[np.isfinite(arr)]
+        if len(valid) == 0 or np.min(valid) >= 0.0:
+            return np.log10(np.maximum(arr, 1e-19))
+        return arr
+
+    def _resolve_target_lag_columns(
+        self,
+        X: pd.DataFrame,
+        target: str,
+        all_targets: Optional[List[str]] = None,
+    ) -> List[str]:
+        """Resolve all lag columns in X corresponding to target, ordered newest-first [t-0, t-1, ...]."""
+        cols = [c for c in X.columns if c == target or c.startswith(f"{target} (t-") or c.startswith(f"{target}_t-")]
+        if not cols:
+            targets = all_targets or (self.target_name if isinstance(self.target_name, list) else [self.target_name])
+            other_targets = [ot for ot in targets if ot != target and ot.startswith(target)]
+            cols = [c for c in X.columns if c.startswith(target) and not any(c.startswith(ot) for ot in other_targets)]
+        if not cols:
+            return []
+        p_col_idx = (cols.index(f"{target} (t-0)") if f"{target} (t-0)" in cols else
+                     (cols.index(f"{target}_t-0") if f"{target}_t-0" in cols else 0))
+        if p_col_idx > 0:
+            cols = list(reversed(cols))
+        return cols
+
+    def _extract_target_window(
+        self,
+        X: Union[pd.DataFrame, np.ndarray],
+        target: str,
+        all_targets: Optional[List[str]] = None,
+    ) -> Optional[np.ndarray]:
+        """Extract the (N, n_lags) target history matrix for target (ordered newest-first, with optional log10)."""
+        if isinstance(X, np.ndarray) and X.ndim == 3:
+            if self.feature_names is not None and target in self.feature_names:
+                idx = self.feature_names.index(target)
+                X_t = np.asarray(X[:, ::-1, idx], dtype=float).copy()
+                return self._maybe_log10_array(X_t)
+            return None
+        cols = self._resolve_target_lag_columns(X, target, all_targets=all_targets)
+        if not cols:
+            return None
+        X_t = X[cols].to_numpy(dtype=float).copy()
+        return self._maybe_log10_array(X_t)
 
     def _find_persistence_indices_3d(self, n_features: int, strict: bool = True) -> List[int]:
         """Resolve feature-axis indices corresponding to target_name in a 3D (N, W, F) sequence array."""
@@ -148,6 +188,23 @@ class BaseForecastingModel:
                     raise ValueError(
                         f"Residual Learning Error: Target '{t}' not found in feature_names {self.feature_names}.")
             return indices
+        if self.feature_names is None and len(targets) <= n_features:
+            try:
+                from otbench.tasks import TaskApi
+                api = TaskApi()
+                for t_name in api.list_tasks():
+                    if not t_name.startswith("forecasting."):
+                        continue
+                    t_cfg = api._get_task(t_name)
+                    t_targets = t_cfg["target"] if isinstance(t_cfg["target"], list) else [t_cfg["target"]]
+                    if t_targets == targets:
+                        task_obj = api.get_task(t_name)
+                        cand_features = task_obj.feature_names
+                        if len(cand_features) == n_features and all(t in cand_features for t in targets):
+                            self.feature_names = cand_features
+                            return [cand_features.index(t) for t in targets]
+            except Exception:
+                pass
         if strict:
             raise ValueError(
                 "feature_names of length n_features must be provided when using 3D sequence arrays with predict_residuals=True."

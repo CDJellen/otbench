@@ -120,7 +120,6 @@ def test_available_datasets_preserves_leading_p_and_e(in_memory_cache):
         remove_from_cache(name='paranal_probe')
 
 
-
 def remove_from_cache(name: str) -> None:
     """Remove any datasets created during testing."""
     for fp in os.listdir(CACHE_DIR):

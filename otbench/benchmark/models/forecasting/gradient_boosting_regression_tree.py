@@ -1,54 +1,21 @@
 from typing import Union
 
-import pandas as pd
 import numpy as np
-import lightgbm as lgb
+import pandas as pd
 from sklearn.multioutput import MultiOutputRegressor
 
+from otbench.benchmark.models._lgbm_utils import (
+    _NON_LGBM_KEYS,
+    build_lgbm_estimator,
+    filter_valid_target_rows,
+)
 from otbench.benchmark.models.forecasting.base_model import BaseForecastingModel
 
 
 class GradientBoostingForecastingModel(BaseForecastingModel):
     """A model that uses gradient boosting regression trees for direct forecasting."""
 
-    # Keys consumed by the framework (BaseForecastingModel, bench_runner, notebooks)
-    # that must NOT be forwarded to LGBMRegressor.
-    _NON_LGBM_KEYS = frozenset({
-        "verbose",
-        "predict_residuals",
-        "use_log10",
-        "input_size",
-        "output_size",
-        "timezone",
-        "obs_lat",
-        "obs_lon",
-        "obs_tz",
-        "air_temperature_col_name",
-        "water_temperature_col_name",
-        "humidity_col_name",
-        "wind_speed_col_name",
-        "time_col_name",
-        "height_of_observation",
-        "enforce_dynamic_range",
-        "constant_adjustment",
-        "session_col",
-        "d_model",
-        "nhead",
-        "num_layers",
-        "dropout",
-        "batch_size",
-        "n_epochs",
-        "learning_rate",
-        "hidden_size",
-        "weight_decay",
-        "patience",
-        "val_fraction",
-        "use_scheduler",
-        "normalize_data",
-        "cell_type",
-        "optimizer",
-        "criterion",
-    })
+    _NON_LGBM_KEYS = _NON_LGBM_KEYS
 
     def __init__(self,
                  name: str,
@@ -58,53 +25,48 @@ class GradientBoostingForecastingModel(BaseForecastingModel):
                  output_size: int = 1,
                  **kwargs):
         super().__init__(name, target_name, window_size, forecast_horizon, **kwargs)
+        self._lgb_mdl, self.output_size = build_lgbm_estimator(output_size, target_name, kwargs)
 
-        # Filter to only LGBM-compatible parameters
-        lgbm_kwargs = {k: v for k, v in kwargs.items() if k not in self._NON_LGBM_KEYS}
-        lgb_estimator = lgb.LGBMRegressor(verbose=-1, **lgbm_kwargs)
+    @staticmethod
+    def _flatten_3d_sequence(X: np.ndarray) -> np.ndarray:
+        """Convert a 3D sequence tensor (N, W, D) into a 2D tabular feature matrix.
 
-        # Handle Vector vs Scalar
-        if output_size == 1 and isinstance(target_name, (list, tuple)) and len(target_name) > 1:
-            output_size = len(target_name)
-        if output_size > 1:
-            self._lgb_mdl = MultiOutputRegressor(lgb_estimator)
-        else:
-            self._lgb_mdl = lgb_estimator
+        For compact windows (W * D <= 400), all lags are flattened newest-first.
+        For high-dimensional long-window tensors (W * D > 400), extracts a multi-scale
+        logarithmically spaced lag set [0, 1, 2, 4, 9, 19, 39, W-1] concatenated with
+        full-window mean, full-window standard deviation, and short-window (10-step) mean.
+        """
+        n_samples, window_size, n_features = X.shape
+        if window_size * n_features <= 400:
+            return np.ascontiguousarray(X[:, ::-1, :]).reshape(n_samples, -1)
+        x_rev = X[:, ::-1, :].astype(np.float32, copy=False)
+        lag_idx = sorted({i for i in (0, 1, 2, 4, 9, 19, 39, window_size - 1) if i < window_size})
+        lags = x_rev[:, lag_idx, :].reshape(n_samples, -1)
+        mean_all = x_rev.mean(axis=1)
+        std_all = x_rev.std(axis=1)
+        mean_short = x_rev[:, :min(10, window_size), :].mean(axis=1)
+        return np.hstack([lags, mean_all, std_all, mean_short])
 
-    def _train(self, X: 'pd.DataFrame', y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
+    def _train(self, X: Union['pd.DataFrame', np.ndarray], y: Union['pd.DataFrame', 'pd.Series', np.ndarray]):
         """Internal training implementation."""
         if len(X) == 0:
             return
-
-        # Drop rows where any target is NaN.  LightGBM handles NaN in X natively
-        # but rejects NaN in y; filter here defensively in case the caller skips
-        # the standard forecasting pipeline's dropna step.
-        if isinstance(y, pd.DataFrame):
-            valid = y.notna().all(axis=1).values
-        elif isinstance(y, pd.Series):
-            valid = y.notna().values
-        else:
-            y_arr = np.asarray(y)
-            valid = (~np.isnan(y_arr).any(axis=1) if y_arr.ndim > 1 else ~np.isnan(y_arr))
-        if not valid.all():
-            X = X[valid]
-            y = y[valid] if not isinstance(y, np.ndarray) else y[valid]
-
+        if isinstance(X, np.ndarray) and X.ndim == 3:
+            X = self._flatten_3d_sequence(X)
+        X, y = filter_valid_target_rows(X, y)
         if len(X) == 0:
             return
-
+        if self.output_size == 1 and isinstance(y, np.ndarray) and y.ndim == 2 and y.shape[1] == 1:
+            y = y.ravel()
         self._lgb_mdl.fit(X, y)
 
-    def _predict(self, X: 'pd.DataFrame'):
+    def _predict(self, X: Union['pd.DataFrame', np.ndarray]):
         """Internal prediction implementation."""
-        # Guard against empty prediction data
         if len(X) == 0:
-            # Return empty array with correct dimensions
             if isinstance(self._lgb_mdl, MultiOutputRegressor):
-                # We can't ask the model for output dim easily if not fitted,
-                # so we rely on the target_name list length if available or fallback
-                n_targets = len(self.target_name) if isinstance(self.target_name, list) else 1
+                n_targets = len(self.target_name) if isinstance(self.target_name, list) else self.output_size
                 return np.empty((0, n_targets))
             return np.array([])
-
+        if isinstance(X, np.ndarray) and X.ndim == 3:
+            X = self._flatten_3d_sequence(X)
         return self._lgb_mdl.predict(X)

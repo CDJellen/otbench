@@ -46,15 +46,28 @@ class MinuteClimatologyRegressionModel(BaseRegressionModel):
 
     def predict(self, X: 'pd.DataFrame'):
         """Predict the mean seen during training at the time of day for inference."""
-        times = X.index
-        times = pd.to_datetime(times).time
+        if len(X) == 0:
+            if np.ndim(self.global_mean) > 0:
+                return np.empty((0, len(self.global_mean)))
+            return np.array([])
 
+        dt_index = pd.to_datetime(X.index)
+        if (self.means and np.all(dt_index.second == 0) and np.all(dt_index.microsecond == 0)
+                and all(t.second == 0 and t.microsecond == 0 for t in self.means)):
+            g_mean = np.asarray(self.global_mean, dtype=float)
+            table = np.broadcast_to(g_mean, (1440,) + g_mean.shape).copy()
+            for t, val in self.means.items():
+                val_arr = np.asarray(val, dtype=float)
+                if not np.isnan(val_arr).all():
+                    table[t.hour * 60 + t.minute] = val_arr
+            minute_idx = dt_index.hour.to_numpy() * 60 + dt_index.minute.to_numpy()
+            return table[minute_idx]
+
+        times = dt_index.time
         preds = []
-
         for time in times:
             if time in self.means:
                 val = self.means[time]
-                # Check for NaNs in the mean (if time step existed but all values were NaN)
                 if np.isnan(val).all():
                     preds.append(self.global_mean)
                 else:

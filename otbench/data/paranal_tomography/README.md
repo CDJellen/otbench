@@ -71,7 +71,7 @@ The dataset conforms to the following `xarray.Dataset` specification:
 
 ### Global Attributes
 
-*   **project**: `otbench v2`
+*   **project**: `otbench v0.5.0`
 *   **site**: `ESO Paranal Observatory`
 *   **site_latitude**: `-24.6272`
 *   **site_longitude**: `-70.4048`

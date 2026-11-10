@@ -1,6 +1,8 @@
 from typing import Sequence, Optional, Union
+import warnings
 
 import numpy as np
+import pandas as pd
 
 from otbench.eval.utils import _get_valid_indices, _format_metric
 
@@ -9,6 +11,32 @@ try:
     _trapezoid = np.trapezoid
 except AttributeError:
     _trapezoid = np.trapz
+
+
+def _to_linear_profile(profile: np.ndarray) -> np.ndarray:
+    """Convert log10 turbulence profiles (median < 0) to linear physical space."""
+    if len(profile) > 0 and np.nanmedian(profile) < 0:
+        return np.power(10.0, profile)
+    return profile
+
+
+def _prepare_profile_pair(y_true: np.ndarray, y_pred: np.ndarray) -> tuple:
+    """Ensure y_true and y_pred are in linear physical space, warning on domain mismatch."""
+    yt_is_log = bool(len(y_true) > 0 and np.nanmedian(y_true) < 0)
+    yp_is_log = bool(len(y_pred) > 0 and np.nanmedian(y_pred) < 0)
+    if yt_is_log != yp_is_log:
+        warnings.warn(
+            "Domain mismatch detected in integrated metric: one profile has negative median "
+            f"(log10 space, y_true_log10={yt_is_log}) while the other has non-negative median "
+            f"(linear space, y_pred_log10={yp_is_log}). Converting log10 profile(s) via 10**x.",
+            UserWarning,
+            stacklevel=3,
+        )
+    if yt_is_log:
+        y_true = np.power(10.0, y_true)
+    if yp_is_log:
+        y_pred = np.power(10.0, y_pred)
+    return y_true, y_pred
 
 
 def integrated_seeing(
@@ -55,13 +83,8 @@ def integrated_seeing(
     if len(y_pred) == 0:
         return _format_metric(np.nan, 0)
 
-    # Detect and reverse log10 transform.
-    # Turbulence integrals J_i are O(1e-15), so log10(J_i) ~ -15.
-    # If the median is negative, the inputs are in log10 space and must
-    # be exponentiated before physical integration (sum or trapz).
-    if values_are_integrals and np.nanmedian(y_true) < 0:
-        y_true = np.power(10.0, y_true)
-        y_pred = np.power(10.0, y_pred)
+    # Detect and reverse log10 transform independently on y_true and y_pred.
+    y_true, y_pred = _prepare_profile_pair(y_true, y_pred)
 
     def calc_seeing(profile, h):
         _, r0 = _profile_to_j_and_r0(profile, h, wavelength, values_are_integrals)
@@ -91,6 +114,38 @@ def integrated_seeing(
     return res
 
 
+def _validate_profile_heights(
+    profile: np.ndarray,
+    heights: Optional[Sequence[float]],
+) -> Optional[np.ndarray]:
+    """Validate that heights length matches the profile layer dimension and altitudes are non-negative and sorted."""
+    if heights is None:
+        return None
+    h_arr = np.asarray(heights, dtype=float)
+    if np.any(np.isnan(h_arr)) or np.any(h_arr < 0.0):
+        raise ValueError(f"heights must be finite and non-negative (>= 0 m), got {h_arr.tolist()}.")
+    if len(h_arr) > 1 and np.any(np.diff(h_arr) < 0.0):
+        raise ValueError(f"heights must be monotonically non-decreasing, got {h_arr.tolist()}.")
+    if profile.ndim == 2 and profile.shape[1] > 1 and len(h_arr) != profile.shape[1]:
+        raise ValueError(f"heights length ({len(h_arr)}) must match number of profile layers ({profile.shape[1]}).")
+    return h_arr
+
+
+def _compute_quadrature_slab_weights(h_arr: np.ndarray) -> np.ndarray:
+    """Compute central-difference trapezoidal quadrature slab thicknesses dh_k (m) for altitude grid h_arr."""
+    dh = np.empty_like(h_arr, dtype=float)
+    if len(h_arr) == 0:
+        return dh
+    if len(h_arr) == 1:
+        dh[0] = 1.0
+        return dh
+    dh[0] = 0.5 * (h_arr[1] - h_arr[0])
+    dh[-1] = 0.5 * (h_arr[-1] - h_arr[-2])
+    if len(h_arr) > 2:
+        dh[1:-1] = 0.5 * (h_arr[2:] - h_arr[:-2])
+    return np.maximum(dh, 0.0)
+
+
 def _profile_to_j_and_r0(
     profile: np.ndarray,
     heights: Optional[np.ndarray],
@@ -98,13 +153,14 @@ def _profile_to_j_and_r0(
     values_are_integrals: bool,
 ) -> tuple:
     """Shared helper: profile -> (J_total, r0) per sample."""
+    h_arr = _validate_profile_heights(profile, heights)
     k = 2 * np.pi / wavelength
     profile = np.maximum(profile, 1e-19)
 
     if values_are_integrals:
         J = np.sum(profile, axis=1)
-    elif heights is not None:
-        J = _trapezoid(profile, x=heights, axis=1)
+    elif h_arr is not None:
+        J = _trapezoid(profile, x=h_arr, axis=1)
     else:
         raise ValueError("heights must be provided when values_are_integrals=False.")
 
@@ -136,8 +192,7 @@ def profile_to_fried_parameter(
     arr = np.asarray(profile, dtype=float)
     if arr.ndim == 1:
         arr = arr[:, np.newaxis]
-    if values_are_integrals and len(arr) > 0 and np.nanmedian(arr) < 0:
-        arr = np.power(10.0, arr)
+    arr = _to_linear_profile(arr)
     h_arr = np.asarray(heights, dtype=float) if heights is not None else None
     return _profile_to_j_and_r0(arr, h_arr, wavelength, values_are_integrals)
 
@@ -151,17 +206,21 @@ def _effective_height(
 
     H_eff = [ sum( J_i * h_i^(5/3) ) / sum( J_i ) ]^(3/5)
     """
+    if heights is None:
+        raise ValueError("heights must be provided to compute effective height H_eff.")
+    h = _validate_profile_heights(profile, heights)
     profile = np.maximum(profile, 1e-19)
-    h = np.asarray(heights, dtype=float)
+    h_53 = np.power(h, 5.0 / 3.0)  # (n_layers,)
 
     if values_are_integrals:
-        weights = profile  # J_i per layer
+        num = np.sum(profile * h_53[np.newaxis, :], axis=1)  # (n_samples,)
+        den = np.sum(profile, axis=1)
+    elif h is not None:
+        num = _trapezoid(profile * h_53[np.newaxis, :], x=h, axis=1)
+        den = _trapezoid(profile, x=h, axis=1)
     else:
-        raise NotImplementedError("Effective height from C_n^2 density requires layer boundaries.")
+        raise ValueError("heights must be provided when values_are_integrals=False.")
 
-    h_53 = np.power(h, 5.0 / 3.0)  # (n_layers,)
-    num = np.sum(weights * h_53[np.newaxis, :], axis=1)  # (n_samples,)
-    den = np.sum(weights, axis=1)
     den = np.clip(den, 1e-30, None)
     return np.power(num / den, 3.0 / 5.0)
 
@@ -194,9 +253,7 @@ def isoplanatic_angle(
     if len(y_pred) == 0:
         return _format_metric(np.nan, 0)
 
-    if values_are_integrals and np.nanmedian(y_true) < 0:
-        y_true = np.power(10.0, y_true)
-        y_pred = np.power(10.0, y_pred)
+    y_true, y_pred = _prepare_profile_pair(y_true, y_pred)
 
     h_arr = np.asarray(heights, dtype=float)
 
@@ -228,6 +285,12 @@ def _align_profiles_and_wind(
     min_wind_speed: float = 1.0,
 ) -> tuple:
     """Align y_true, y_pred, and scalar or 1D wind_speed, masking NaNs and clamping calm wind."""
+    if isinstance(y_true, (pd.Series, pd.DataFrame)) and isinstance(y_pred, (pd.Series, pd.DataFrame)):
+        if len(y_true) == len(y_pred) and not y_true.index.equals(y_pred.index):
+            raise ValueError("y_true and y_pred are both pandas objects with mismatched indices "
+                             f"(first entries: {y_true.index[:3].tolist()} vs {y_pred.index[:3].tolist()}). "
+                             "Align indices before evaluation or pass numpy arrays.")
+
     yt_raw = np.asarray(y_true, dtype=float)
     yp_raw = np.asarray(y_pred, dtype=float)
     if len(yt_raw) == 0:
@@ -299,9 +362,7 @@ def coherence_time(
     if len(y_pred) == 0:
         return _format_metric(np.nan, 0)
 
-    if values_are_integrals and np.nanmedian(y_true) < 0:
-        y_true = np.power(10.0, y_true)
-        y_pred = np.power(10.0, y_pred)
+    y_true, y_pred = _prepare_profile_pair(y_true, y_pred)
 
     h_arr = np.asarray(heights, dtype=float)
 
@@ -353,9 +414,7 @@ def greenwood_frequency(
     if len(y_pred) == 0:
         return _format_metric(np.nan, 0)
 
-    if values_are_integrals and np.nanmedian(y_true) < 0:
-        y_true = np.power(10.0, y_true)
-        y_pred = np.power(10.0, y_pred)
+    y_true, y_pred = _prepare_profile_pair(y_true, y_pred)
 
     h_arr = np.asarray(heights, dtype=float)
 
@@ -423,8 +482,7 @@ def ao_wavefront_error_budget(
     arr = np.asarray(profile, dtype=float)
     if arr.ndim == 1:
         arr = arr[:, np.newaxis]
-    if values_are_integrals and len(arr) > 0 and np.nanmedian(arr) < 0:
-        arr = np.power(10.0, arr)
+    arr = _to_linear_profile(arr)
 
     arr = np.maximum(arr, 1e-19)
     h_arr = np.asarray(heights, dtype=float)
@@ -444,7 +502,12 @@ def ao_wavefront_error_budget(
 
     opd_rms_nm = (wavelength / (2.0 * np.pi)) * np.sqrt(sigma2_total) * 1e9
     strehl = np.exp(-sigma2_total)
-    layer_weights = arr / np.clip(np.sum(arr, axis=1, keepdims=True), 1e-30, None)
+    if not values_are_integrals and len(h_arr) == arr.shape[1] and len(h_arr) >= 2:
+        dh = _compute_quadrature_slab_weights(h_arr)
+        layer_j = arr * dh[np.newaxis, :]
+        layer_weights = layer_j / np.clip(np.sum(layer_j, axis=1, keepdims=True), 1e-30, None)
+    else:
+        layer_weights = arr / np.clip(np.sum(arr, axis=1, keepdims=True), 1e-30, None)
 
     return {
         "j_total": j_total,
@@ -483,7 +546,12 @@ def strehl_ratio(
     """
     y_true, y_pred, v = _align_profiles_and_wind(y_true, y_pred, wind_speed)
     if len(y_pred) == 0:
-        return _format_metric(np.nan, 0)
+        res = _format_metric(np.nan, 0)
+        res["mean_opd_rms_error_nm"] = np.nan
+        res["layer_weight_kl_divergence"] = np.nan
+        return res
+
+    y_true, y_pred = _prepare_profile_pair(y_true, y_pred)
 
     budget_true = ao_wavefront_error_budget(
         y_true,
@@ -524,4 +592,66 @@ def strehl_ratio(
         res["detailed_score"] = error.tolist()
         res["strehl_true"] = s_true.tolist()
         res["strehl_pred"] = s_pred.tolist()
+    return res
+
+
+def ground_layer_fraction(
+    y_true: Sequence,
+    y_pred: Sequence,
+    heights: Optional[Sequence[float]] = None,
+    detailed: bool = False,
+    values_are_integrals: bool = True,
+) -> dict:
+    """RMSE of the Ground-Layer Fraction (GLF = J_0 / sum_k J_k in [0, 1]).
+
+    Quantifies the fraction of total column optical turbulence residing in the
+    lowest (ground/surface) layer (k = 0, h_0 = 0 m), which directly governs
+    Ground-Layer Adaptive Optics (GLAO) wide-field correction efficiency.
+
+    Args:
+        y_true: True profile (samples x layers).
+        y_pred: Predicted profile (samples x layers).
+        heights: Optional layer heights in meters (required when values_are_integrals=False).
+        detailed: If True, return per-sample GLF errors and series.
+        values_are_integrals: If True (default), values are J_i (m^{1/3}).
+
+    Returns:
+        Dictionary with 'metric_value' (RMSE of GLF), 'valid_predictions',
+        'mean_glf_true', and 'mean_glf_pred'.
+    """
+    y_true, y_pred = _get_valid_indices(y_true, y_pred)
+    if len(y_pred) == 0:
+        res = _format_metric(np.nan, 0)
+        res["mean_glf_true"] = np.nan
+        res["mean_glf_pred"] = np.nan
+        return res
+
+    y_true, y_pred = _prepare_profile_pair(y_true, y_pred)
+    h_arr = _validate_profile_heights(y_true, heights)
+
+    def _compute_glf(profile: np.ndarray) -> np.ndarray:
+        arr = np.maximum(profile, 1e-19)
+        if arr.ndim == 1 or arr.shape[1] == 1:
+            return np.ones(len(arr), dtype=float)
+        if not values_are_integrals:
+            if h_arr is None or len(h_arr) < 2:
+                raise ValueError("heights must be provided when values_are_integrals=False.")
+            dh = _compute_quadrature_slab_weights(h_arr)
+            layer_j = arr * dh[np.newaxis, :]
+            return layer_j[:, 0] / np.clip(np.sum(layer_j, axis=1), 1e-30, None)
+        return arr[:, 0] / np.clip(np.sum(arr, axis=1), 1e-30, None)
+
+    glf_true = _compute_glf(y_true)
+    glf_pred = _compute_glf(y_pred)
+    error = glf_true - glf_pred
+    rmse = float(np.sqrt(np.mean(error**2)))
+
+    res = _format_metric(rmse, len(y_pred))
+    res["mean_glf_true"] = float(np.mean(glf_true))
+    res["mean_glf_pred"] = float(np.mean(glf_pred))
+
+    if detailed:
+        res["detailed_score"] = error.tolist()
+        res["glf_true"] = glf_true.tolist()
+        res["glf_pred"] = glf_pred.tolist()
     return res

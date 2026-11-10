@@ -118,4 +118,3 @@ def test_linear_and_mean_window_nan_and_residual_modes():
     preds_clim = clim_mdl.predict(X_clim)
     # Row 1 is at 06:00:00; with median dt = 1 min and horizon = 1, target time is 06:01:00 -> value 21.0
     assert np.isclose(preds_clim[1], 21.0)
-

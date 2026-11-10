@@ -21,7 +21,10 @@ which are injected automatically by ``BaseTask._build_metric_kwargs`` when
 the metric name appears in a task's ``eval_metrics`` list.
 """
 from otbench.eval.metrics import (
+    MetricSpec,
+    get_metric_spec,
     is_implemented_metric,
+    is_lower_better,
     coefficient_of_determination,
     root_mean_square_error,
     mean_absolute_error,
@@ -34,12 +37,16 @@ from otbench.eval.metrics import (
     profile_to_fried_parameter,
     ao_wavefront_error_budget,
     strehl_ratio,
+    ground_layer_fraction,
     bootstrap_ci,
     paired_bootstrap_test,
 )
 
 __all__ = [
+    "MetricSpec",
+    "get_metric_spec",
     "is_implemented_metric",
+    "is_lower_better",
     "coefficient_of_determination",
     "root_mean_square_error",
     "mean_absolute_error",
@@ -52,6 +59,7 @@ __all__ = [
     "profile_to_fried_parameter",
     "ao_wavefront_error_budget",
     "strehl_ratio",
+    "ground_layer_fraction",
     "bootstrap_ci",
     "paired_bootstrap_test",
 ]

@@ -69,3 +69,25 @@ def test_get_valid_indices(metrics, sample_data):
     assert len(metrics._get_valid_indices(y_true=y_true, y_pred=y_pred)) == len((y_true[:-1], y_pred[:-1]))
     with pytest.raises(ValueError):
         metrics._get_valid_indices(y_true=y_true, y_pred=y_pred[:-1])
+
+
+def test_get_metric_spec(metrics):
+    """Test declarative MetricSpec lookup and properties."""
+    r2_spec = metrics.get_metric_spec("coefficient_of_determination")
+    assert not r2_spec.lower_is_better
+    assert r2_spec.bootstrap_reduction is None
+
+    rmse_spec = metrics.get_metric_spec("root_mean_square_error")
+    assert rmse_spec.lower_is_better
+    assert rmse_spec.bootstrap_reduction == "rmse"
+
+    seeing_spec = metrics.get_metric_spec("integrated_seeing")
+    assert seeing_spec.needs_heights
+    assert seeing_spec.uses_detailed_score
+    assert seeing_spec.bootstrap_reduction == "rmse"
+
+    tau0_spec = metrics.get_metric_spec("coherence_time")
+    assert tau0_spec.needs_heights
+    assert tau0_spec.needs_wind_speed
+
+    assert metrics.get_metric_spec("not_a_metric") is None

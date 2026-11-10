@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import List, Union
 
 import numpy as np
 import pandas as pd
@@ -22,52 +22,43 @@ class PersistenceForecastingModel(BaseForecastingModel):
             self.static_persistence = np.nan
             return
 
-        # store the last valid row of the training target
         valid_mask = ~np.isnan(y_arr).any(axis=1) if y_arr.ndim > 1 else ~np.isnan(y_arr)
-        if np.any(valid_mask):
-            self.static_persistence = y_arr[valid_mask][-1]
-        else:
-            self.static_persistence = y_arr[-1]
+        self.static_persistence = y_arr[valid_mask][-1] if np.any(valid_mask) else y_arr[-1]
 
-    def _predict(self, X: 'pd.DataFrame'):
+    def _predict(self, X: Union['pd.DataFrame', np.ndarray]):
         """Predict using dynamic persistence if target features are available, else static fallback."""
         n_samples = len(X)
-
         if n_samples == 0:
-            if self.output_size > 1:
-                return np.empty((0, self.output_size))
-            return np.array([])
+            return np.empty((0, self.output_size)) if self.output_size > 1 else np.array([])
 
-        # in residual mode, persistence predicts zero change from t to t+k
         if self.predict_residuals:
-            if self.output_size > 1:
-                return np.zeros((n_samples, self.output_size))
-            return np.zeros(n_samples)
+            return np.zeros((n_samples, self.output_size)) if self.output_size > 1 else np.zeros(n_samples)
+
+        if isinstance(X, np.ndarray) and X.ndim == 3:
+            p_idx = self._persistence_indices_3d or self._find_persistence_indices_3d(X.shape[2], strict=False)
+            if p_idx:
+                vals = np.asarray(X[:, -1, p_idx], dtype=float).copy()
+                return self._maybe_log10_array(vals)
+            return self._fallback_static_persistence(n_samples)
 
         try:
             feature_cols = self._find_features_for_targets(X)
-            vals = X[feature_cols].values
-            if self.use_log10:
-                vals = np.log10(np.maximum(vals, 1e-19))
-            return vals
+            vals = X[feature_cols].to_numpy(dtype=float).copy()
+            return self._maybe_log10_array(vals)
         except ValueError:
-            if np.all(np.isnan(self.static_persistence)):
-                raise RuntimeError("model has not been trained and X does not contain target history.")
+            return self._fallback_static_persistence(n_samples)
 
-            if np.ndim(self.static_persistence) == 0 or (np.ndim(self.static_persistence) == 1
-                                                         and len(self.static_persistence) == 1):
-                return np.full(n_samples, self.static_persistence)
+    def _fallback_static_persistence(self, n_samples: int) -> np.ndarray:
+        """Return tiled static persistence fallback or raise if untrained."""
+        if np.all(np.isnan(self.static_persistence)):
+            raise RuntimeError("model has not been trained and X does not contain target history.")
 
-            return np.tile(self.static_persistence, (n_samples, 1))
+        if np.ndim(self.static_persistence) == 0 or (np.ndim(self.static_persistence) == 1
+                                                     and len(self.static_persistence) == 1):
+            return np.full(n_samples, self.static_persistence)
+
+        return np.tile(self.static_persistence, (n_samples, 1))
 
     def _find_features_for_targets(self, X: pd.DataFrame) -> List[str]:
         """Identify columns in X that correspond to the target variable(s) at t=0."""
-        found_cols = []
-        for t in self.target_cols:
-            if t in X.columns:
-                found_cols.append(t)
-            elif f"{t} (t-0)" in X.columns:
-                found_cols.append(f"{t} (t-0)")
-            else:
-                raise ValueError(f"target '{t}' not found in X features.")
-        return found_cols
+        return self._find_persistence_cols(X, pd.DataFrame(columns=self.target_cols))

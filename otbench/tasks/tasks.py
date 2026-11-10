@@ -1,3 +1,4 @@
+import copy
 import inspect
 import json
 import os
@@ -22,6 +23,8 @@ _SUMMARY_METRIC_KEYS = frozenset({
     "ci_upper",
     "mean_opd_rms_error_nm",
     "layer_weight_kl_divergence",
+    "mean_glf_true",
+    "mean_glf_pred",
 })
 
 
@@ -218,11 +221,11 @@ class BaseTask(TaskABC):
             return benchmark_info[task_name]
         else:
             raise FileNotFoundError(
-                f"benchmark file {self.benchmark_fp} not found. Please run `otb benchmark` to generate the benchmark file."
+                f"benchmark file {self.benchmark_fp} not found. Please run `otbench.run_benchmarks()` to generate the benchmark file."
             )
 
     def top_models(self, n: int = 5, metric: str = "") -> dict:
-        """Returns the top n models for this task."""
+        """Returns the top n models for this task, respecting metric orientation (lower vs. higher is better)."""
         benchmark_info = self.get_benchmark_info(task_name=self.task_name)
         if metric == "":
             metrics = self.get_metric_names()
@@ -230,12 +233,70 @@ class BaseTask(TaskABC):
                 raise ValueError(f"task {self.task_name} has no metrics defined.")
             metric = metrics[0]
         model_benchmark_info = {k: v for k, v in benchmark_info.items() if k != "possible_predictions" and metric in v}
-        model_benchmark_info_keys = sorted(model_benchmark_info.keys(),
-                                           key=lambda x: model_benchmark_info[x][metric]["metric_value"])[:n]
+        lower_better = eval_metrics.is_lower_better(metric)
+
+        def _sort_key(model_key: str) -> Tuple[int, float]:
+            raw_val = model_benchmark_info[model_key][metric].get("metric_value")
+            if raw_val is None or (isinstance(raw_val, (int, float, np.floating)) and np.isnan(raw_val)):
+                return (1, float("inf"))
+            val = float(raw_val)
+            return (0, val if lower_better else -val)
+
+        model_benchmark_info_keys = sorted(model_benchmark_info.keys(), key=_sort_key)[:n]
         model_benchmark_info = {k: model_benchmark_info[k] for k in model_benchmark_info_keys}
-        model_benchmark_info["possible_predictions"] = benchmark_info["possible_predictions"]
+        if "possible_predictions" in benchmark_info:
+            model_benchmark_info["possible_predictions"] = benchmark_info["possible_predictions"]
 
         return model_benchmark_info
+
+    def leaderboard(
+        self,
+        n: Optional[int] = None,
+        metric: str = "",
+        include_ci: bool = False,
+    ) -> pd.DataFrame:
+        """Return a tidy DataFrame comparing all benchmarked models across this task's metrics."""
+        benchmark_info = self.get_benchmark_info(task_name=self.task_name)
+        metric_names = self.get_metric_names()
+        if metric == "":
+            if len(metric_names) < 1:
+                raise ValueError(f"task {self.task_name} has no metrics defined.")
+            metric = metric_names[0]
+
+        rows: List[dict] = []
+        for model_name, model_entry in benchmark_info.items():
+            if model_name == "possible_predictions" or not isinstance(model_entry, dict):
+                continue
+            row: dict = {"model": model_name}
+            valid_preds = None
+            for m_name in metric_names:
+                m_val = model_entry.get(m_name)
+                if isinstance(m_val, dict):
+                    row[m_name] = m_val.get("metric_value", np.nan)
+                    if valid_preds is None and "valid_predictions" in m_val:
+                        valid_preds = m_val["valid_predictions"]
+                    if include_ci:
+                        if "ci_lower" in m_val:
+                            row[f"{m_name}_ci_lower"] = m_val["ci_lower"]
+                        if "ci_upper" in m_val:
+                            row[f"{m_name}_ci_upper"] = m_val["ci_upper"]
+                else:
+                    row[m_name] = np.nan
+            if metric not in row and metric in model_entry and isinstance(model_entry[metric], dict):
+                row[metric] = model_entry[metric].get("metric_value", np.nan)
+            row["valid_predictions"] = valid_preds if valid_preds is not None else np.nan
+            rows.append(row)
+
+        if not rows:
+            return pd.DataFrame(columns=["model"] + list(metric_names) + ["valid_predictions"]).set_index("model")
+
+        df = pd.DataFrame(rows).set_index("model")
+        if metric in df.columns:
+            ascending = eval_metrics.is_lower_better(metric)
+            df = df.sort_values(by=metric, ascending=ascending, na_position="last")
+        if n is not None:
+            df = df.head(n)
+        return df
 
     def get_description(self) -> str:
         """Return the description of the task."""
@@ -265,6 +326,18 @@ class BaseTask(TaskABC):
     def get_target_name(self) -> Union[str, List[str]]:
         """Return the target feature name for this task."""
         return self.task["target"]
+
+    @property
+    def target(self) -> Union[str, List[str]]:
+        """Alias property for :meth:`get_target_name` matching ``window_size`` and ``forecast_horizon``."""
+        return self.get_target_name()
+
+    @property
+    def feature_names(self) -> List[str]:
+        """Return ordered base feature names available to models on this task (excluding ``session_col``)."""
+        session_col = self.task.get("session_col")
+        X_sample, _ = self._ds.get_test(task=self.task, data_type="pd")
+        return [c for c in X_sample.columns if c != session_col]
 
     def get_unavailable_features(self) -> List[str]:
         """Return the names of features which are unavailable for training and inference in this task."""
@@ -301,6 +374,39 @@ class BaseTask(TaskABC):
     def get_validation_data(self, data_type: str = "pd") -> Any:
         """Return the underlying validation data for this task."""
         return self._ds.get_val(task=self.task, data_type=data_type)
+
+    def get_prepared_data(
+        self,
+        split: str = "train",
+        use_sequence_data: bool = False,
+        dropna_target: bool = True,
+    ) -> Tuple[Any, Any]:
+        """Return model-ready (X, y) for 'train', 'val', 'test', or 'train+val'."""
+        split_norm = split.strip().lower()
+        if split_norm == "train":
+            X, y = self._ds.get_train(task=self.task, data_type="pd")
+        elif split_norm in ("val", "validation"):
+            X, y = self._ds.get_val(task=self.task, data_type="pd")
+        elif split_norm == "test":
+            X, y = self._ds.get_test(task=self.task, data_type="pd")
+        elif split_norm in ("train+val", "train_val"):
+            X_tr, y_tr = self._ds.get_train(task=self.task, data_type="pd")
+            X_va, y_va = self._ds.get_val(task=self.task, data_type="pd")
+            X = pd.concat([X_tr, X_va], axis=0)
+            y = pd.concat([y_tr, y_va], axis=0)
+        else:
+            raise ValueError(f"Unsupported split '{split}'. Expected 'train', 'val', 'test', or 'train+val'.")
+
+        if dropna_target and len(y) > 0:
+            valid = y.notna().all(axis=1) if isinstance(y, pd.DataFrame) else y.notna()
+            X = X[valid]
+            y = y[valid]
+
+        if use_sequence_data:
+            X_arr = X.to_numpy(dtype=float)[:, np.newaxis, :]
+            y_arr = y.to_numpy(dtype=float)
+            return X_arr, y_arr
+        return X, y
 
     def evaluate_model(
         self,
@@ -346,52 +452,18 @@ class BaseTask(TaskABC):
                 default=lambda o: o.item() if hasattr(o, "item") else o.tolist() if hasattr(o, "tolist") else str(o),
             )
 
-    # Metrics requiring profile context (heights, wind speed, layer names).
-    _PROFILE_METRICS = frozenset({
-        "integrated_seeing",
-        "isoplanatic_angle",
-        "coherence_time",
-        "greenwood_frequency",
-        "per_layer_rmse",
-        "strehl_ratio",
-    })
+    def _resolve_profile_heights(self) -> List[Union[int, float]]:
+        """Resolve vertical layer heights (in meters) from dataset xarray coordinates or target column names."""
+        cached = getattr(self, "_profile_heights_cache", None)
+        if cached is not None:
+            return list(cached)
 
-    # Subset of profile metrics that accept a 'heights' parameter.
-    _HEIGHT_METRICS = frozenset({
-        "integrated_seeing",
-        "isoplanatic_angle",
-        "coherence_time",
-        "greenwood_frequency",
-        "strehl_ratio",
-    })
-
-    def _build_metric_kwargs(self, metric_name: str) -> dict:
-        """Build additional kwargs for profile-aware metrics.
-
-        Injects ``heights``, ``wind_speed``, and ``layer_names`` from the
-        task/dataset configuration so that profile metrics can be used
-        declaratively in ``eval_metrics`` lists without custom code.
-
-        Each kwarg is only injected for metrics whose signature accepts it:
-          - ``heights``: AO metrics (integrated_seeing, isoplanatic_angle, etc.)
-          - ``layer_names``: per_layer_rmse
-          - ``wind_speed``: coherence_time, greenwood_frequency, strehl_ratio
-        """
-        if metric_name not in self._PROFILE_METRICS:
-            return {}
-
-        kwargs: dict = {}
-
-        # Resolve heights from dataset xarray coords or target column names.
         ds = self.get_dataset()
         xr_ds = ds.get_xarray()
-
         ds_config = ds._supported_datasets().get(self._name_to_ds(), {})
-        feature_map = ds_config.get("feature_map", {})
-        height_coord = feature_map.get("height_mass_coord", "height_mass")
-
+        height_coord = ds_config.get("feature_map", {}).get("height_mass_coord", "height_mass")
         target = self.task.get("target", [])
-        heights: list = []
+        heights: List[Union[int, float]] = []
 
         if xr_ds is not None and height_coord in xr_ds.coords:
             heights = [
@@ -401,7 +473,6 @@ class BaseTask(TaskABC):
                 heights = [0] + heights
 
         if isinstance(target, list) and len(heights) != len(target):
-            # Derive heights from target column names (e.g. cn2_free_atmos_500)
             heights = []
             has_ground = False
             for t in target:
@@ -411,27 +482,27 @@ class BaseTask(TaskABC):
                 parts = t.rsplit("_", 1)
                 if len(parts) == 2 and parts[1].isdigit():
                     heights.append(int(parts[1]))
-            # Prepend ground layer at h=0 if target includes it.
             if has_ground:
                 heights = [0] + heights
 
-        # Inject heights only for metrics that accept them.
-        if heights and metric_name in self._HEIGHT_METRICS:
+        self._profile_heights_cache = list(heights)
+        return heights
+
+    def _build_metric_kwargs(self, metric_name: str) -> dict:
+        """Build additional kwargs for profile-aware metrics using declarative MetricSpec metadata."""
+        spec = eval_metrics.get_metric_spec(metric_name)
+        if spec is None or not spec.requires_profile_context:
+            return {}
+
+        kwargs: dict = {}
+        heights = self._resolve_profile_heights()
+
+        if heights and spec.needs_heights:
             kwargs["heights"] = heights
-
-        # Layer names for per_layer_rmse (derived from heights).
-        if metric_name == "per_layer_rmse" and heights:
+        if heights and spec.needs_layer_names:
             kwargs["layer_names"] = [f"{h}m" for h in heights]
-
-        # Effective wind speed for tau_0, f_G, and strehl_ratio:
-        # Hold v_bar at the canonical site reference constant (10.0 m/s for Paranal,
-        # overridable via task["effective_wind_speed"]) during automated benchmark
-        # evaluation so profile forecast errors at t+H are not conflated with
-        # unmodeled 30 m surface anemometer fluctuations at observation time t.
-        if metric_name in ("coherence_time", "greenwood_frequency", "strehl_ratio"):
-            wind_col = feature_map.get("wind_speed_col_name")
-            if wind_col or "effective_wind_speed" in self.task:
-                kwargs["wind_speed"] = float(self.task.get("effective_wind_speed", 10.0))
+        if spec.needs_wind_speed:
+            kwargs["wind_speed"] = float(self.task.get("effective_wind_speed", 10.0))
 
         return kwargs
 
@@ -456,35 +527,24 @@ class BaseTask(TaskABC):
         yt_valid, yp_valid = (_get_valid_indices(y_true, y_pred) if compute_ci else (None, None))
 
         for m in eval_metric_names:
-            if eval_metrics.is_implemented_metric(m):
+            spec = eval_metrics.get_metric_spec(m)
+            if spec is not None:
                 extra_kwargs = self._build_metric_kwargs(m)
-                metric_fn = getattr(eval_metrics, m)
-                need_sample_detail = compute_ci and m in self._HEIGHT_METRICS
-                val = metric_fn(
+                need_sample_detail = compute_ci and spec.uses_detailed_score
+                val = spec.fn(
                     y_true,
                     y_pred,
                     detailed=(detailed_metrics or need_sample_detail),
                     **extra_kwargs,
                 )
                 if compute_ci and isinstance(val, dict) and val.get("valid_predictions", 0) > 1:
-                    sample_losses = None
-                    reduction = "rmse"
-                    if m in ("root_mean_square_error", "per_layer_rmse") and yt_valid is not None:
-                        sample_losses = (yt_valid - yp_valid)**2
-                        reduction = "rmse"
-                    elif m == "mean_absolute_error" and yt_valid is not None:
-                        sample_losses = np.abs(yt_valid - yp_valid)
-                        reduction = "mae"
-                    elif m in self._HEIGHT_METRICS and "detailed_score" in val:
-                        sample_losses = np.asarray(val["detailed_score"], dtype=float)**2
-                        reduction = "rmse"
-
-                    if sample_losses is not None:
+                    sample_losses = spec.extract_sample_losses(yt_valid, yp_valid, eval_result=val)
+                    if sample_losses is not None and spec.bootstrap_reduction is not None:
                         ci_low, ci_high = eval_metrics.bootstrap_ci(
                             y_true,
                             y_pred,
                             sample_losses=sample_losses,
-                            reduction=reduction,
+                            reduction=spec.bootstrap_reduction,
                             n_bootstrap=n_bootstrap,
                             ci=ci,
                             block_size=bootstrap_block_size,
@@ -493,8 +553,8 @@ class BaseTask(TaskABC):
                         ci_low, ci_high = eval_metrics.bootstrap_ci(
                             y_true,
                             y_pred,
-                            metric_fn=lambda yt, yp, _fn=metric_fn, _kw=extra_kwargs: _fn(yt, yp, detailed=False, **_kw)
-                            ["metric_value"],
+                            metric_fn=lambda yt, yp, _fn=spec.fn, _kw=extra_kwargs: _fn(yt, yp, detailed=False, **_kw)[
+                                "metric_value"],
                             n_bootstrap=n_bootstrap,
                             ci=ci,
                             block_size=bootstrap_block_size,
@@ -527,14 +587,6 @@ class BaseTask(TaskABC):
             eval_metric_names = self.task["eval_metrics"]
         eff_block_size = block_size if block_size is not None else bootstrap_block_size
 
-        ao_detail_keys = {
-            "integrated_seeing": ("seeing_true", "seeing_pred"),
-            "isoplanatic_angle": ("theta0_true", "theta0_pred"),
-            "coherence_time": ("tau0_true", "tau0_pred"),
-            "greenwood_frequency": ("fg_true", "fg_pred"),
-            "strehl_ratio": ("strehl_true", "strehl_pred"),
-        }
-
         yt_arr = np.asarray(y_true, dtype=float)
         ya_arr = np.asarray(y_pred_a, dtype=float)
         yb_arr = np.asarray(y_pred_b, dtype=float)
@@ -548,46 +600,38 @@ class BaseTask(TaskABC):
             if yt_arr.ndim == 1:
                 joint_mask = ~np.isnan(yt_arr) & ~np.isnan(ya_arr) & ~np.isnan(yb_arr)
             else:
-                joint_mask = ~np.isnan(yt_arr).any(axis=1) & ~np.isnan(ya_arr).any(axis=1) & ~np.isnan(yb_arr).any(axis=1)
+                joint_mask = ~np.isnan(yt_arr).any(axis=1) & ~np.isnan(ya_arr).any(axis=1) & ~np.isnan(yb_arr).any(
+                    axis=1)
             yt_joint, ya_joint, yb_joint = yt_arr[joint_mask], ya_arr[joint_mask], yb_arr[joint_mask]
         else:
             yt_joint = ya_joint = yb_joint = np.array([])
 
         comparisons: dict = {}
         for m in eval_metric_names:
-            if not eval_metrics.is_implemented_metric(m):
+            spec = eval_metrics.get_metric_spec(m)
+            if spec is None:
                 continue
             extra_kwargs = self._build_metric_kwargs(m)
-            metric_fn = getattr(eval_metrics, m)
-            lower_is_better = m != "coefficient_of_determination"
 
             sample_losses_a = None
             sample_losses_b = None
-            reduction = "rmse"
+            reduction = spec.bootstrap_reduction or "rmse"
             fn_arg = None
 
-            if m in ("root_mean_square_error", "per_layer_rmse"):
-                reduction = "rmse"
-            elif m == "mean_absolute_error":
-                if len(yt_joint) > 0:
-                    sample_losses_a = np.abs(yt_joint - ya_joint)
-                    sample_losses_b = np.abs(yt_joint - yb_joint)
-                    reduction = "mae"
-            elif m in ao_detail_keys and len(yt_joint) > 0:
-                true_k, pred_k = ao_detail_keys[m]
-                val_a = metric_fn(y_true=yt_joint, y_pred=ya_joint, detailed=True, **extra_kwargs)
-                val_b = metric_fn(y_true=yt_joint, y_pred=yb_joint, detailed=True, **extra_kwargs)
-                if true_k in val_a and pred_k in val_a and true_k in val_b and pred_k in val_b:
-                    la = (np.asarray(val_a[true_k], dtype=float) - np.asarray(val_a[pred_k], dtype=float))**2
-                    lb = (np.asarray(val_b[true_k], dtype=float) - np.asarray(val_b[pred_k], dtype=float))**2
-                    if len(la) == len(lb):
-                        sample_losses_a = la
-                        sample_losses_b = lb
-                        reduction = "rmse"
-                if sample_losses_a is None:
-                    fn_arg = lambda yt, yp, _fn=metric_fn, _kw=extra_kwargs: _fn(yt, yp, detailed=False, **_kw)
-            else:
-                fn_arg = lambda yt, yp, _fn=metric_fn, _kw=extra_kwargs: _fn(yt, yp, detailed=False, **_kw)
+            if len(yt_joint) > 0 and spec.bootstrap_reduction is not None:
+                if spec.uses_detailed_score:
+                    val_a = spec.fn(y_true=yt_joint, y_pred=ya_joint, detailed=True, **extra_kwargs)
+                    val_b = spec.fn(y_true=yt_joint, y_pred=yb_joint, detailed=True, **extra_kwargs)
+                    la = spec.extract_sample_losses(yt_joint, ya_joint, eval_result=val_a)
+                    lb = spec.extract_sample_losses(yt_joint, yb_joint, eval_result=val_b)
+                    if la is not None and lb is not None and len(la) == len(lb):
+                        sample_losses_a, sample_losses_b = la, lb
+                else:
+                    sample_losses_a = spec.extract_sample_losses(yt_joint, ya_joint)
+                    sample_losses_b = spec.extract_sample_losses(yt_joint, yb_joint)
+
+            if sample_losses_a is None and spec.bootstrap_reduction != "rmse":
+                fn_arg = lambda yt, yp, _fn=spec.fn, _kw=extra_kwargs: _fn(yt, yp, detailed=False, **_kw)
 
             comparisons[m] = eval_metrics.paired_bootstrap_test(
                 y_true=y_true,
@@ -598,7 +642,7 @@ class BaseTask(TaskABC):
                 ci=ci,
                 seed=seed,
                 block_size=eff_block_size,
-                lower_is_better=lower_is_better,
+                lower_is_better=spec.lower_is_better,
                 sample_losses_a=sample_losses_a,
                 sample_losses_b=sample_losses_b,
                 reduction=reduction,
@@ -636,7 +680,7 @@ class BaseTask(TaskABC):
 
         regime_masks: Dict[str, np.ndarray] = {}
         if yt.ndim == 2 and yt.shape[1] > 1:
-            heights = self._build_metric_kwargs("integrated_seeing").get("heights")
+            heights = self._resolve_profile_heights() or None
             j_total, r0 = eval_metrics.profile_to_fried_parameter(yt, heights=heights)
             seeing_arcsec = (0.98 * 500e-9 / r0) * 206265.0
             q25, q90 = np.nanpercentile(seeing_arcsec, [25.0, 90.0])
@@ -646,7 +690,11 @@ class BaseTask(TaskABC):
             regime_masks["turbulence_burst"] = seeing_arcsec > q90
 
             lin_yt = np.power(10.0, yt) if np.nanmedian(yt) < 0 else yt
-            j_free = np.sum(lin_yt[:, 1:], axis=1)
+            if heights is not None and len(heights) == lin_yt.shape[1]:
+                free_cols = [i for i, h in enumerate(heights) if float(h) > 0.0]
+            else:
+                free_cols = list(range(1, lin_yt.shape[1]))
+            j_free = np.sum(lin_yt[:, free_cols], axis=1) if free_cols else np.zeros(len(lin_yt), dtype=float)
             regime_masks["free_atmos_dominated"] = (j_free / np.clip(j_total, 1e-30, None)) > 0.50
         else:
             q25, q90 = np.nanpercentile(yt, [25.0, 90.0])
@@ -731,11 +779,19 @@ class RegressionTask(BaseTask):
             else:
                 X_test = x_transforms(X_test)
 
+        # Resolve estimator objects exposing .predict(X)
+        if not callable(predict_call) and hasattr(predict_call, "predict"):
+            if model_name is None and hasattr(predict_call, "name"):
+                model_name = str(predict_call.name)
+            predict_fn = predict_call.predict
+        else:
+            predict_fn = predict_call
+
         # get predictions
         if predict_call_kwargs is not None:
-            y_test_pred = predict_call(X_test, **predict_call_kwargs)
+            y_test_pred = predict_fn(X_test, **predict_call_kwargs)
         else:
-            y_test_pred = predict_call(X_test)
+            y_test_pred = predict_fn(X_test)
 
         model_metrics = self._compute_metrics_dict(
             y_true=y_test,
@@ -762,6 +818,115 @@ class ForecastingTask(BaseTask):
         self.forecast_horizon = self.task["forecast_horizon"]
         self.window_size = self.task["window_size"]
 
+    @staticmethod
+    def _get_session_group_positions(sessions: pd.Series) -> List[np.ndarray]:
+        """Return positional index arrays for each contiguous non-null session run."""
+        if len(sessions) == 0:
+            return []
+        valid_mask = sessions.notna().to_numpy()
+        if not np.any(valid_mask):
+            return []
+        run_ids = (sessions != sessions.shift()).cumsum().to_numpy()
+        valid_positions = np.flatnonzero(valid_mask)
+        valid_runs = run_ids[valid_mask]
+        _, split_idx = np.unique(valid_runs, return_index=True)
+        return np.split(valid_positions, np.sort(split_idx)[1:])
+
+    def get_train_data(
+        self,
+        data_type: str = "pd",
+        prepared: bool = False,
+        use_sequence_data: bool = False,
+    ) -> Any:
+        """Return training data (raw split by default, or windowed when prepared=True)."""
+        if prepared or use_sequence_data:
+            return self.get_prepared_data(split="train", use_sequence_data=use_sequence_data)
+        return super().get_train_data(data_type=data_type)
+
+    def get_validation_data(
+        self,
+        data_type: str = "pd",
+        prepared: bool = False,
+        use_sequence_data: bool = False,
+    ) -> Any:
+        """Return validation data (raw split by default, or windowed when prepared=True)."""
+        if prepared or use_sequence_data:
+            return self.get_prepared_data(split="val", use_sequence_data=use_sequence_data)
+        return super().get_validation_data(data_type=data_type)
+
+    def get_test_data(
+        self,
+        data_type: str = "pd",
+        prepared: bool = False,
+        use_sequence_data: bool = False,
+    ) -> Any:
+        """Return test data (raw split by default, or windowed when prepared=True)."""
+        if prepared or use_sequence_data:
+            return self.get_prepared_data(split="test", use_sequence_data=use_sequence_data)
+        return super().get_test_data(data_type=data_type)
+
+    def get_prepared_data(
+        self,
+        split: str = "train",
+        use_sequence_data: bool = False,
+        dropna_target: bool = True,
+        window_size: Optional[int] = None,
+        forecast_horizon: Optional[int] = None,
+        lag_features: Optional[List[str]] = None,
+        as_sequence: Optional[bool] = None,
+    ) -> Tuple[Any, Any]:
+        """Return windowed forecasting (X, y) for 'train', 'val', 'test', or 'train+val'."""
+        if as_sequence is not None:
+            use_sequence_data = bool(as_sequence)
+        split_norm = split.strip().lower()
+        if split_norm in ("train+val", "train_val"):
+            X_tr, y_tr = self.get_prepared_data(
+                split="train",
+                use_sequence_data=use_sequence_data,
+                dropna_target=dropna_target,
+                window_size=window_size,
+                forecast_horizon=forecast_horizon,
+                lag_features=lag_features,
+            )
+            X_va, y_va = self.get_prepared_data(
+                split="val",
+                use_sequence_data=use_sequence_data,
+                dropna_target=dropna_target,
+                window_size=window_size,
+                forecast_horizon=forecast_horizon,
+                lag_features=lag_features,
+            )
+            if use_sequence_data:
+                return np.concatenate([X_tr, X_va], axis=0), np.concatenate([y_tr, y_va], axis=0)
+            return pd.concat([X_tr, X_va], axis=0), pd.concat([y_tr, y_va], axis=0)
+
+        if split_norm == "train":
+            X_raw, y_raw = self._ds.get_train(task=self.task, data_type="pd")
+        elif split_norm in ("val", "validation"):
+            X_raw, y_raw = self._ds.get_val(task=self.task, data_type="pd")
+        elif split_norm == "test":
+            X_raw, y_raw = self._ds.get_test(task=self.task, data_type="pd")
+        else:
+            raise ValueError(f"Unsupported split '{split}'. Expected 'train', 'val', 'test', or 'train+val'.")
+
+        if use_sequence_data:
+            X_seq, y_seq, _ = self.prepare_sequence_data(
+                X_raw,
+                y_raw,
+                window_size=window_size,
+                forecast_horizon=forecast_horizon,
+                dropna=dropna_target,
+            )
+            return X_seq, y_seq
+
+        return self.prepare_forecasting_data(
+            X_raw,
+            y_raw,
+            window_size=window_size,
+            forecast_horizon=forecast_horizon,
+            lag_features=lag_features,
+        )
+
     def prepare_forecasting_data(self,
                                  X: pd.DataFrame,
                                  y: Union[pd.DataFrame, pd.Series],
@@ -787,8 +952,12 @@ class ForecastingTask(BaseTask):
                 contemporaneous only (t-0). Defaults to ``self.task.get("lag_features")``
                 (None = lag all columns).
         """
-        window_size = window_size if window_size is not None else self.window_size
-        forecast_horizon = forecast_horizon if forecast_horizon is not None else self.forecast_horizon
+        window_size = int(window_size if window_size is not None else self.window_size)
+        forecast_horizon = int(forecast_horizon if forecast_horizon is not None else self.forecast_horizon)
+        if window_size < 1:
+            raise ValueError(f"window_size must be >= 1, got {window_size}.")
+        if forecast_horizon < 0:
+            raise ValueError(f"forecast_horizon must be >= 0, got {forecast_horizon}.")
         if lag_features is None:
             lag_features = self.task.get("lag_features")
         session_col = self.task.get("session_col")
@@ -824,50 +993,39 @@ class ForecastingTask(BaseTask):
             return X_out_df, y_out_df
 
         if session_col and session_col in X.columns:
-            # Build lags independently within each contiguous session block
             sessions = X[session_col]
             X = X.drop(columns=[session_col])
-
-            X_parts: list = []
-            y_parts: list = []
-
-            for pos in sessions.groupby(sessions, sort=False).indices.values():
-                X_sess = X.iloc[pos]
-                y_sess = y.iloc[pos]
-
-                if window_size > 1:
-                    X_sess = self._add_lags(X_sess, window_size - 1, lag_features=lag_features)
-                y_sess = self._shift_target(y_sess, forecast_horizon)
-
-                combined = self._join_and_clean(X_sess, y_sess)
-                if combined is None:
-                    continue
-
-                target_cols, original_y_cols = combined.attrs["_target_cols"], combined.attrs["_orig_y_cols"]
-                y_out = combined[target_cols].copy()
-                y_out.columns = original_y_cols
-                X_parts.append(combined.drop(columns=target_cols))
-                y_parts.append(y_out)
-
-            if not X_parts:
-                return pd.DataFrame(), pd.DataFrame()
-
-            return pd.concat(X_parts), pd.concat(y_parts)
-
+            group_positions = self._get_session_group_positions(sessions)
         else:
-            # Contiguous split with no session boundary
-            if window_size > 1:
-                X = self._add_lags(X, window_size - 1, lag_features=lag_features)
-            y = self._shift_target(y, forecast_horizon)
+            group_positions = [np.arange(len(X))] if len(X) > 0 else []
 
-            combined = self._join_and_clean(X, y)
+        X_parts: list = []
+        y_parts: list = []
+
+        for pos in group_positions:
+            X_sess = X.iloc[pos]
+            y_sess = y.iloc[pos]
+
+            if window_size > 1:
+                X_sess = self._add_lags(X_sess, window_size - 1, lag_features=lag_features)
+            y_sess = self._shift_target(y_sess, forecast_horizon)
+
+            combined = self._join_and_clean(X_sess, y_sess)
             if combined is None:
-                return pd.DataFrame(), pd.DataFrame()
+                continue
 
             target_cols, original_y_cols = combined.attrs["_target_cols"], combined.attrs["_orig_y_cols"]
             y_out = combined[target_cols].copy()
             y_out.columns = original_y_cols
-            return combined.drop(columns=target_cols), y_out
+            X_parts.append(combined.drop(columns=target_cols))
+            y_parts.append(y_out)
+
+        if not X_parts:
+            return pd.DataFrame(), pd.DataFrame()
+
+        if len(X_parts) == 1:
+            return X_parts[0], y_parts[0]
+        return pd.concat(X_parts), pd.concat(y_parts)
 
     def prepare_sequence_data(
         self,
@@ -913,7 +1071,7 @@ class ForecastingTask(BaseTask):
         if session_col and session_col in X.columns:
             sessions = X[session_col]
             X_clean = X.drop(columns=[session_col])
-            group_positions = list(sessions.groupby(sessions, sort=False).indices.values())
+            group_positions = self._get_session_group_positions(sessions)
         else:
             X_clean = X
             group_positions = [np.arange(len(X_clean))] if len(X_clean) > 0 else []
@@ -1029,9 +1187,16 @@ class ForecastingTask(BaseTask):
         if X_test is None or y_test is None:
             X_test, y_test = self.get_test_data(data_type=data_type)
 
-        assert forecast_horizon + window_size < len(
-            X_test
-        ), f"window_size and forecast_horizon must be less than the length of the evaluation set ({len(X_test)})."
+        already_prepared = (
+            (isinstance(X_test, np.ndarray) and X_test.ndim == 3)
+            or (isinstance(X_test, pd.DataFrame) and bool(X_test.attrs.get("_already_prepared", False)))
+            or (isinstance(X_test, pd.DataFrame) and window_size > 1
+                and any(str(c).endswith((f" (t-{window_size - 1})", f"_t-{window_size - 1}")) for c in X_test.columns)))
+
+        if not already_prepared:
+            assert forecast_horizon + window_size < len(
+                X_test
+            ), f"window_size and forecast_horizon must be less than the length of the evaluation set ({len(X_test)})."
 
         # apply x_transforms if present
         if x_transforms is not None:
@@ -1047,17 +1212,30 @@ class ForecastingTask(BaseTask):
             else:
                 y_test = forecast_transforms(y_test)
 
+        # Resolve estimator objects exposing .predict(X)
+        mdl_obj = getattr(predict_call, "__self__", predict_call)
+        needs_seq = bool(use_sequence_data or getattr(mdl_obj, "_trained_on_3d", False)
+                         or getattr(mdl_obj, "_persistence_indices_3d", None) is not None)
+
         # obtain forecasting data (automatically recovers session_col if needed)
-        if use_sequence_data:
-            X_test, y_test, _ = self.prepare_sequence_data(X_test, y_test, window_size, forecast_horizon)
+        if not already_prepared:
+            if needs_seq:
+                X_test, y_test, _ = self.prepare_sequence_data(X_test, y_test, window_size, forecast_horizon)
+            else:
+                X_test, y_test = self.prepare_forecasting_data(X_test, y_test, window_size, forecast_horizon)
+
+        if not callable(predict_call) and hasattr(predict_call, "predict"):
+            if model_name is None and hasattr(predict_call, "name"):
+                model_name = str(predict_call.name)
+            predict_fn = predict_call.predict
         else:
-            X_test, y_test = self.prepare_forecasting_data(X_test, y_test, window_size, forecast_horizon)
+            predict_fn = predict_call
 
         # get predictions
         if predict_call_kwargs is not None:
-            y_test_pred = predict_call(X_test, **predict_call_kwargs)
+            y_test_pred = predict_fn(X_test, **predict_call_kwargs)
         else:
-            y_test_pred = predict_call(X_test)
+            y_test_pred = predict_fn(X_test)
 
         model_metrics = self._compute_metrics_dict(
             y_true=y_test,
@@ -1113,6 +1291,7 @@ class ForecastingTask(BaseTask):
         if X_test is None or y_test is None:
             X_test, y_test = self.get_test_data(data_type="pd")
 
+        seq_feat_names = [c for c in X_test.columns if c != self.task.get("session_col")]
         rows: list = []
         for h in horizons:
             X_h, y_h = self.prepare_forecasting_data(X_test.copy(), y_test.copy(), window_size=w, forecast_horizon=h)
@@ -1123,10 +1302,12 @@ class ForecastingTask(BaseTask):
                 needs_seq = use_sequence_data or (getattr(mdl, "_persistence_indices_3d", None) is not None)
                 if needs_seq:
                     if seq_cache is None:
-                        seq_cache = self.prepare_sequence_data(
-                            X_test.copy(), y_test.copy(), window_size=w, forecast_horizon=h
-                        )
-                    X_in, y_in, feat_names = seq_cache
+                        seq_cache = self.prepare_sequence_data(X_test.copy(),
+                                                               y_test.copy(),
+                                                               window_size=w,
+                                                               forecast_horizon=h)
+                    X_in, y_in, _ = seq_cache
+                    feat_names = seq_feat_names
                 else:
                     X_in, y_in, feat_names = X_h, y_h, None
 
@@ -1180,6 +1361,8 @@ class ForecastingTask(BaseTask):
             df["skill_score"] = 1.0 - (df["root_mean_square_error"]**2) / np.clip(ref_rmse**2, 1e-30, None)
         return df
 
+    evaluate_horizon_sweep = evaluate_horizon_curve
+
     def _add_lags(
         self,
         X: pd.DataFrame,
@@ -1203,6 +1386,8 @@ class ForecastingTask(BaseTask):
 
     def _shift_target(self, y, forecast_horizon):
         """Shift the target by the forecast horizon."""
+        if forecast_horizon < 0:
+            raise ValueError(f"forecast_horizon must be >= 0, got {forecast_horizon}.")
         if forecast_horizon > 0:
             y = y.shift(-forecast_horizon)
 
@@ -1266,10 +1451,10 @@ class TaskApi(object):
     def _get_task(self, key: str) -> dict:
         """Traverse a task key, returning bottom-level data."""
         path = key.split(".")
-        d = self.tasks.copy()
+        d = self.tasks
         for i in range(len(path)):
             d = d[path[i]]
-        return d
+        return copy.deepcopy(d)
 
     def _is_supported_task(self, task_name: str) -> bool:
         """Check whether a task is supported by otbench."""

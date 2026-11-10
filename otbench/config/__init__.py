@@ -1,5 +1,5 @@
 from otbench.config.settings import settings
-from otbench.models import Task, DatasetConfig
+from otbench.config.schemas import Task, DatasetConfig
 
 # Re-exports for backward compatibility.  Internal and external code that
 # imports ``from otbench.config import CACHE_DIR`` etc. continues to work.

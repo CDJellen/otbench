@@ -846,8 +846,7 @@ class TestNightAwareModeling:
                                       f"{short_nights}.")
         else:
             assert len(short_nights) / max(1, len(interior_vc)) < 0.01, (
-                f"{task_name}: >1% of training nights are shorter than {min_length} rows: {short_nights}"
-            )
+                f"{task_name}: >1% of training nights are shorter than {min_length} rows: {short_nights}")
 
         # Invariant 4: intra-night temporal cadence
 
@@ -883,8 +882,7 @@ class TestNightAwareModeling:
             assert not bad_nights, f"{task_name}: synthetic nights have cadence != 1 min: {bad_nights}"
         else:
             assert len(bad_nights) / max(1, n_checked) < 0.005, (
-                f"{task_name}: >0.5% of nights have intra-night cadence ≠ 1 min: {bad_nights}"
-            )
+                f"{task_name}: >0.5% of nights have intra-night cadence ≠ 1 min: {bad_nights}")
 
 
 # Group 14: Lazy Loading and Dataset API
@@ -1146,3 +1144,331 @@ class TestAuditRemediationVerification:
         lo2, hi2 = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, seed=99)
         assert lo1 == lo2
         assert hi1 == hi2
+
+
+# Group 16: OTB2 Multi-Annual Tasks, Strehl Metrics, and Physics Loss Extensions
+
+
+class TestOTB2BenchmarkExtensions:
+    """Verify OTB2 benchmark extensions: multiannual tasks, Strehl/MAE profile metrics,
+    as_sequence convenience alias, and use_physics_loss auto-wiring.
+    """
+
+    MULTIANNUAL_TASKS = [
+        "regression.paranal_tomography.multiannual.cn2_profile_reconstruction",
+        "forecasting.paranal_tomography.multiannual.seeing_nowcast",
+        "forecasting.paranal_tomography.multiannual.cn2_profile_forecast",
+    ]
+
+    PROFILE_TASKS = [
+        "regression.paranal_tomography.full.cn2_profile_reconstruction",
+        "forecasting.paranal_tomography.full.cn2_profile_forecast",
+        "regression.paranal_tomography.multiannual.cn2_profile_reconstruction",
+        "forecasting.paranal_tomography.multiannual.cn2_profile_forecast",
+    ]
+
+    @pytest.mark.parametrize("task_name", MULTIANNUAL_TASKS)
+    def test_multiannual_tasks_registered_and_loadable(self, task_api, task_name):
+        """All 3 multiannual 5-year benchmark tasks must load and expose canonical split boundaries."""
+        task = task_api.get_task(task_name)
+        assert task is not None
+        if settings.USE_SYNTHETIC_DATA:
+            assert task.task["train_idx"] == ["0:1000"]
+            assert task.task["val_idx"] == ["1000:1500"]
+            assert task.task["test_idx"] == ["1500:2000"]
+        else:
+            assert task.task["train_idx"] == ["0:1500000"]
+            assert task.task["val_idx"] == ["1500000:1850000"]
+            assert task.task["test_idx"] == ["1850000:2247245"]
+
+    @pytest.mark.parametrize("task_name", PROFILE_TASKS)
+    def test_profile_tasks_include_strehl_and_mae(self, task_api, task_name):
+        """Profile reconstruction and forecasting tasks must evaluate Strehl ratio, MAE, and all AO metrics."""
+        task = task_api.get_task(task_name)
+        eval_metrics = set(task.task["eval_metrics"])
+        expected = {
+            "root_mean_square_error",
+            "mean_absolute_error",
+            "per_layer_rmse",
+            "integrated_seeing",
+            "isoplanatic_angle",
+            "coherence_time",
+            "greenwood_frequency",
+            "strehl_ratio",
+        }
+        assert expected.issubset(eval_metrics), f"Missing metrics in {task_name}: {expected - eval_metrics}"
+
+    def test_as_sequence_alias_in_get_prepared_data(self, task_api):
+        """ForecastingTask.get_prepared_data must accept as_sequence=True as an alias for use_sequence_data."""
+        task = task_api.get_task("forecasting.paranal_tomography.full.seeing_nowcast")
+        X_seq, y_seq = task.get_prepared_data("val", as_sequence=True)
+        assert isinstance(X_seq, np.ndarray)
+        assert X_seq.ndim == 3
+        assert X_seq.shape[1] == task.window_size
+        assert len(X_seq) == len(y_seq)
+
+    def test_use_physics_loss_wires_ao_physics_loss(self):
+        """BasePyTorchForecastingModel subclasses must automatically configure AOPhysicsLoss when use_physics_loss=True."""
+        from otbench.benchmark.models.forecasting.pytorch import AOPhysicsLoss, TransformerModel
+
+        targets = [
+            "cn2_ground_scalar",
+            "cn2_free_atmos_500",
+            "cn2_free_atmos_1000",
+            "cn2_free_atmos_2000",
+            "cn2_free_atmos_4000",
+            "cn2_free_atmos_8000",
+            "cn2_free_atmos_16000",
+        ]
+        model = TransformerModel(
+            name="PhysicsTransformerTest",
+            window_size=60,
+            forecast_horizon=10,
+            target_name=targets,
+            input_size=50,
+            output_size=len(targets),
+            n_epochs=1,
+            use_physics_loss=True,
+            lambda_r0=0.05,
+            lambda_theta0=0.05,
+        )
+        assert isinstance(model.criterion, AOPhysicsLoss)
+        assert model.criterion.lambda_r0 == 0.05
+        assert model.criterion.lambda_theta0 == 0.05
+
+    def test_isoplanatic_angle_heff_algebraic_identity(self):
+        """Verify exact algebraic identity between 0.314 * r0 / H_eff and [0.423 * 0.314^(-5/3) * k^2 * sum(J_k * h_k^(5/3))]^(-3/5)."""
+        from otbench.eval.integrated_metrics import isoplanatic_angle
+
+        heights = np.array([0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0])
+        j_true = np.array([[2.5e-13, 3.0e-14, 1.5e-14, 2.0e-14, 4.0e-14, 3.0e-14, 1.5e-14]])
+        j_pred = j_true * 1.15
+        res = isoplanatic_angle(j_true, j_pred, heights=heights, wavelength=500e-9, detailed=True)
+
+        k_wav = 2.0 * np.pi / 500e-9
+        m53_true = np.sum(j_true[0] * (heights**(5.0 / 3.0)))
+        # Exact constant from 0.314 * (0.423)^(-3/5) = (2.9183924)^(-3/5)
+        c_iso = 0.423 * (0.314**(-5.0 / 3.0))
+        theta0_direct_arcsec = ((c_iso * (k_wav**2) * m53_true)**(-3.0 / 5.0)) * 206265.0
+        np.testing.assert_allclose(res["theta0_true"][0], theta0_direct_arcsec, rtol=1e-12)
+
+    def test_profile_heights_length_mismatch_raises(self):
+        """Integrated profile metrics and AOPhysicsLoss must raise ValueError when heights length != n_layers."""
+        import torch
+        from otbench.benchmark.models.forecasting.pytorch import AOPhysicsLoss
+        from otbench.eval.integrated_metrics import integrated_seeing, isoplanatic_angle, ground_layer_fraction
+
+        y_true = np.full((8, 7), -14.2)
+        y_pred = np.full((8, 7), -14.1)
+        bad_heights = [0.0, 500.0, 1000.0]
+
+        for fn in (integrated_seeing, isoplanatic_angle, ground_layer_fraction):
+            with pytest.raises(ValueError, match="heights length"):
+                fn(y_true, y_pred, heights=bad_heights)
+
+        loss_fn = AOPhysicsLoss(heights=bad_heights, lambda_r0=0.15, lambda_theta0=0.15)
+        with pytest.raises(ValueError, match="AOPhysicsLoss expected 3 profile layers"):
+            loss_fn(torch.zeros((4, 7)), torch.zeros((4, 7)))
+
+    def test_ground_layer_fraction_metric_and_task_integration(self, task_api):
+        """ground_layer_fraction must compute GLF RMSE in both integral and density modes and wire into evaluate_model."""
+        from otbench.eval import ground_layer_fraction, is_implemented_metric
+
+        assert is_implemented_metric("ground_layer_fraction")
+        heights = [0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
+        # True: J_0 = 3e-13, sum(J_{1..6}) = 1e-13 -> GLF_true = 0.75
+        j_true = np.array([[3.0e-13, 2.0e-14, 2.0e-14, 2.0e-14, 2.0e-14, 1.0e-14, 1.0e-14]] * 10)
+        # Pred: J_0 = 1e-13, sum(J_{1..6}) = 1e-13 -> GLF_pred = 0.50
+        j_pred = np.array([[1.0e-13, 2.0e-14, 2.0e-14, 2.0e-14, 2.0e-14, 1.0e-14, 1.0e-14]] * 10)
+
+        res = ground_layer_fraction(np.log10(j_true), np.log10(j_pred), heights=heights, detailed=True)
+        np.testing.assert_allclose(res["mean_glf_true"], 0.75, rtol=1e-12)
+        np.testing.assert_allclose(res["mean_glf_pred"], 0.50, rtol=1e-12)
+        np.testing.assert_allclose(res["metric_value"], 0.25, rtol=1e-12)
+        assert len(res["glf_true"]) == 10
+
+        res_dens = ground_layer_fraction(j_true, j_pred, heights=heights, values_are_integrals=False)
+        assert np.isfinite(res_dens["metric_value"]) and res_dens["metric_value"] > 0.0
+
+        task = task_api.get_task("regression.paranal_tomography.full.cn2_profile_reconstruction")
+        X_te, y_te = task.get_test_data()
+        valid_mask = y_te.notna().all(axis=1)
+        X_sub = X_te[valid_mask].iloc[:40]
+        y_sub = y_te[valid_mask].iloc[:40]
+        eval_res = task.evaluate_model(
+            predict_call=lambda X: np.full((len(X), 7), -14.2),
+            eval_metric_names=["ground_layer_fraction"],
+            X_test=X_sub,
+            y_test=y_sub,
+        )
+        assert "ground_layer_fraction" in eval_res
+        assert 0.0 <= eval_res["ground_layer_fraction"]["mean_glf_pred"] <= 1.0
+
+    def test_gru_lstm_physics_transformer_and_horizon_sweep_alias(self, task_api):
+        """GRUModel, LSTMModel, and PhysicsTransformerModel must be first-class PyTorch models,
+        and ForecastingTask.evaluate_horizon_sweep must alias evaluate_horizon_curve."""
+        from otbench.benchmark.models.forecasting.pytorch import (
+            AOPhysicsLoss,
+            GRUModel,
+            LSTMModel,
+            PhysicsTransformerModel,
+        )
+
+        targets = [f"l{i}" for i in range(7)]
+        gru = GRUModel(name="gru", window_size=6, forecast_horizon=1, target_name=targets, input_size=10, output_size=7)
+        lstm = LSTMModel(name="lstm",
+                         window_size=6,
+                         forecast_horizon=1,
+                         target_name=targets,
+                         input_size=10,
+                         output_size=7)
+        ptf = PhysicsTransformerModel(name="ptf",
+                                      window_size=6,
+                                      forecast_horizon=1,
+                                      target_name=targets,
+                                      input_size=10,
+                                      output_size=7)
+
+        assert gru.cell_type == "gru"
+        assert lstm.cell_type == "lstm"
+        assert ptf.use_physics_loss is True
+        assert isinstance(ptf.criterion, AOPhysicsLoss)
+        assert ptf.criterion.jensen_correction is True
+
+        task = task_api.get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
+        assert task.evaluate_horizon_sweep == task.evaluate_horizon_curve
+
+    def test_compute_mass_slab_thicknesses_geometric_boundaries(self):
+        """Verify unified geometric-mean MASS slab thickness computation across tomography plots."""
+        from otbench.plot.tomography import compute_mass_slab_thicknesses
+
+        heights = [0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
+        dh = compute_mass_slab_thicknesses(heights)
+        expected = np.array([
+            500.0,
+            500.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            1000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            2000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            4000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            8000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            16000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+        ])
+        np.testing.assert_allclose(dh, expected, rtol=1e-12)
+
+    def test_ao_physics_loss_jensen_convexity_correction_stationarity(self):
+        """Verify that second-order LogSumExp Jensen correction eliminates positive bias at E[y|X] = mu."""
+        import torch
+        from otbench.benchmark.models.forecasting.pytorch import AOPhysicsLoss
+
+        torch.manual_seed(42)
+        heights = [0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
+        mu = torch.tensor([-12.85, -14.20, -14.35, -14.30, -13.95, -13.80, -14.10], dtype=torch.float32)
+        sigma = torch.tensor([0.25, 0.50, 0.48, 0.45, 0.35, 0.30, 0.25], dtype=torch.float32)
+
+        # Draw M=20000 Monte Carlo realizations y ~ N(mu, diag(sigma^2))
+        y_samples = mu.unsqueeze(0) + sigma.unsqueeze(0) * torch.randn(20000, 7)
+
+        loss_uncorr = AOPhysicsLoss(heights=heights, lambda_r0=1.0, lambda_theta0=1.0, jensen_correction=False)
+        loss_corr = AOPhysicsLoss(heights=heights, lambda_r0=1.0, lambda_theta0=1.0, jensen_correction=True)
+
+        pred_uncorr = mu.unsqueeze(0).expand_as(y_samples).clone().detach().requires_grad_(True)
+        l_u = loss_uncorr(pred_uncorr, y_samples)
+        l_u.backward()
+        grad_uncorr = pred_uncorr.grad.sum(dim=0)
+
+        pred_corr = mu.unsqueeze(0).expand_as(y_samples).clone().detach().requires_grad_(True)
+        l_c = loss_corr(pred_corr, y_samples)
+        l_c.backward()
+        grad_corr = pred_corr.grad.sum(dim=0)
+
+        # Uncorrected moment loss has a strong negative gradient at y_hat = mu (pushing y_hat upward > mu)
+        assert torch.norm(grad_corr) < 0.35 * torch.norm(grad_uncorr), (
+            f"Expected Jensen correction to reduce gradient norm at conditional mean mu: "
+            f"corr={torch.norm(grad_corr):.6f} vs uncorr={torch.norm(grad_uncorr):.6f}")
+
+    def test_manuscript_section_2_3_verbatim_snippet_contract(self, task_api):
+        """Execute the exact 15-line researcher snippet from Section 2.3 of manuscript.tex."""
+        from otbench.benchmark.models.forecasting.pytorch import PhysicsTransformerModel
+
+        task = task_api.get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
+        X_train, y_train = task.get_prepared_data(split="train", as_sequence=True)
+        X_test, y_test = task.get_prepared_data(split="test", as_sequence=True)
+
+        assert task.target == task.get_target_name()
+        assert len(task.feature_names) == X_train.shape[-1]
+
+        model = PhysicsTransformerModel(
+            name="CustomPhysicsTransformer",
+            window_size=task.window_size,
+            forecast_horizon=task.forecast_horizon,
+            target_name=task.target,
+            input_size=X_train.shape[-1],
+            output_size=y_train.shape[-1],
+            predict_residuals=True,
+            use_physics_loss=True,
+            n_epochs=1,
+            batch_size=64,
+        )
+        model.train(X_train[:64], y_train[:64])
+        metrics = task.evaluate_model(model.predict, X_test=X_test[:32], y_test=y_test[:32])
+        assert np.isfinite(metrics["root_mean_square_error"]["metric_value"])
+        assert np.isfinite(metrics["integrated_seeing"]["metric_value"])
+        assert np.isfinite(metrics["isoplanatic_angle"]["metric_value"])
+        assert np.isfinite(metrics["strehl_ratio"]["metric_value"])
+
+    def test_otb2_single_source_of_truth_manuscript_and_preprint_integrity(self):
+        """Verify that manuscript.tex (AMETSOC) and preprint.tex (arXiv) share a single source of truth
+        with balanced environments, conditionals, labels, citations, and figures."""
+        import re
+        from pathlib import Path
+
+        otb2_dir = Path(__file__).resolve().parents[2] / "doc" / "manuscirpts" / "otb2"
+        manuscript_fp = otb2_dir / "manuscript.tex"
+        preprint_fp = otb2_dir / "preprint.tex"
+        bib_fp = otb2_dir / "references.bib"
+        makefile_fp = otb2_dir / "Makefile"
+
+        assert manuscript_fp.exists() and preprint_fp.exists() and bib_fp.exists() and makefile_fp.exists()
+
+        preprint_tex = preprint_fp.read_text()
+        assert r"\def\ispreprint{1}" in preprint_tex
+        assert r"\input{manuscript.tex}" in preprint_tex
+        assert r"\section{" not in preprint_tex, "preprint.tex must not duplicate manuscript sections"
+
+        tex = manuscript_fp.read_text()
+        assert r"\documentclass[11pt,letterpaper]{article}" in tex
+        assert r"\documentclass{ametsocV6.1}" in tex
+
+        # Verify balanced \ifdefined ... \fi blocks
+        n_if = len(re.findall(r"\\ifdefined\\ispreprint\b", tex))
+        n_fi = len(re.findall(r"\\fi\b", tex))
+        assert n_if == 3 and n_fi == 3
+
+        # Verify balanced \begin{env} and \end{env}
+        begins = re.findall(r"\\begin\{([^}]+)\}", tex)
+        ends = re.findall(r"\\end\{([^}]+)\}", tex)
+        assert begins.count("document") == 1 and ends.count("document") == 1
+        assert sorted(begins) == sorted(ends)
+
+        # Verify 100% label <-> Cref resolution
+        labels = set(re.findall(r"\\label\{([^}]+)\}", tex))
+        refs = set()
+        for m in re.findall(r"\\[Cc]ref\{([^}]+)\}", tex):
+            for part in m.split(","):
+                refs.add(part.strip())
+        assert refs.issubset(labels), f"Unresolved Cref labels: {refs - labels}"
+
+        # Verify 100% citation <-> BibTeX bijection
+        cited = set()
+        for m in re.findall(r"\\cite[a-zA-Z]*\*?(?:\[[^\]]*\])*\{([^}]+)\}", tex):
+            for k in m.split(","):
+                cited.add(k.strip())
+        bib_entries = set(re.findall(r"@\w+\{\s*([^,\s]+)\s*,", bib_fp.read_text()))
+        assert cited == bib_entries, f"Citation/BibTeX mismatch: missing={cited - bib_entries}, unused={bib_entries - cited}"
+
+        # Verify all included figures exist and are non-empty
+        figs = re.findall(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}", tex)
+        assert len(figs) == 4
+        for fig_name in figs:
+            fig_path = otb2_dir / fig_name
+            assert fig_path.exists() and fig_path.stat().st_size > 50_000

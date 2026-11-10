@@ -33,68 +33,79 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
+def _resolve_model_map(
+    requested: Union[List, str, dict, None],
+    available_registry: dict,
+    kind: str,
+    extended_registry: Union[dict, None] = None,
+) -> dict:
+    """Resolve user-supplied model names, classes, or mapping against available_registry."""
+    if requested is None:
+        return dict(available_registry)
+    if isinstance(requested, dict):
+        return dict(requested)
+    if isinstance(requested, str):
+        requested = [requested]
+
+    lookup = dict(available_registry)
+    if extended_registry:
+        lookup.update(extended_registry)
+
+    resolved = {}
+    for item in requested:
+        if isinstance(item, str):
+            if item not in lookup:
+                raise ValueError(f"Unknown {kind} model '{item}'. Available {kind} models: {sorted(lookup.keys())}")
+            resolved[item] = lookup[item]
+        elif isinstance(item, tuple) and len(item) >= 2 and callable(item[1]):
+            resolved[str(item[0])] = item[1]
+        elif callable(item):
+            name = getattr(item, "__name__", str(item))
+            resolved[name] = item
+        else:
+            raise ValueError(f"Unsupported model specification {item!r} for {kind} benchmark.")
+    return resolved
+
+
 def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
-                   benchmark_regression_models: Union[List[str], str, None] = None,
-                   benchmark_forecasting_models: Union[List[str], str, None] = None,
+                   benchmark_regression_models: Union[List[str], str, dict, None] = None,
+                   benchmark_forecasting_models: Union[List[str], str, dict, None] = None,
                    verbose: bool = True,
                    include_pytorch_models: bool = True,
                    write_metrics: bool = True,
                    metrics_fp: Union[os.PathLike, str, None] = None,
-                   n_epochs_override: Union[int, None] = None) -> dict:
+                   n_epochs_override: Union[int, None] = None,
+                   seed: Union[int, None] = None,
+                   include_multiannual: bool = False) -> dict:
     """Run benchmarks for all tasks and models."""
-    if benchmark_regression_models is None:
-        reg_models = {n: getattr(regression_models, n) for n in regression_models.__all__}
-    else:
-        if isinstance(benchmark_regression_models, str):
-            benchmark_regression_models = [benchmark_regression_models]
-        reg_models = {
-            n: getattr(regression_models, n) for n in benchmark_regression_models if n in regression_models.__all__
-        }
-    if benchmark_forecasting_models is None:
-        fcn_models = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
-    else:
-        if isinstance(benchmark_forecasting_models, str):
-            benchmark_forecasting_models = [benchmark_forecasting_models]
-        fcn_models = {
-            n: getattr(forecasting_models, n) for n in benchmark_forecasting_models if n in forecasting_models.__all__
-        }
+    available_reg = {n: getattr(regression_models, n) for n in regression_models.__all__}
+    available_fcn = {n: getattr(forecasting_models, n) for n in forecasting_models.__all__}
+    extended_fcn = dict(available_fcn)
 
     if include_pytorch_models:
         try:
             import otbench.benchmark.models.regression.pytorch as pt_regression_models
             import otbench.benchmark.models.forecasting.pytorch as pt_forecasting_models
 
-            if benchmark_regression_models is None:
-                pytorch_regression_models = {n: getattr(pt_regression_models, n) for n in pt_regression_models.__all__}
-            else:
-                pytorch_regression_models = {
-                    n: getattr(pt_regression_models, n)
-                    for n in benchmark_regression_models
-                    if n in pt_regression_models.__all__
-                }
-            if benchmark_forecasting_models is None:
-                pytorch_forecasting_models = {
-                    n: getattr(pt_forecasting_models, n) for n in pt_forecasting_models.__all__
-                }
-            else:
-                pytorch_forecasting_models = {
-                    n: getattr(pt_forecasting_models, n)
-                    for n in benchmark_forecasting_models
-                    if n in pt_forecasting_models.__all__
-                }
-
-            reg_models = {**reg_models, **pytorch_regression_models}
-            fcn_models = {**fcn_models, **pytorch_forecasting_models}
-
+            available_reg.update({n: getattr(pt_regression_models, n) for n in pt_regression_models.__all__})
+            available_fcn.update({n: getattr(pt_forecasting_models, n) for n in pt_forecasting_models.__all__})
+            ext_names = getattr(pt_forecasting_models, "__all_extended__", pt_forecasting_models.__all__)
+            extended_fcn.update({n: getattr(pt_forecasting_models, n) for n in ext_names})
         except ImportError as e:
             print(f"failed to import dependency with error {e}.\n skipping PyTorch models.")
+
+    reg_models = _resolve_model_map(benchmark_regression_models, available_reg, kind="regression")
+    fcn_models = _resolve_model_map(benchmark_forecasting_models,
+                                    available_fcn,
+                                    kind="forecasting",
+                                    extended_registry=extended_fcn)
 
     if metrics_fp is None:
         metrics_fp = BENCHMARK_FP
 
     task_api = TaskApi()
     if benchmark_tasks is None:
-        benchmark_tasks = sorted(task_api.list_tasks())
+        benchmark_tasks = sorted(t for t in task_api.list_tasks() if include_multiannual or ".multiannual." not in t)
     elif isinstance(benchmark_tasks, str):
         benchmark_tasks = [benchmark_tasks]
 
@@ -140,17 +151,32 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             session_col = task_info.get("session_col")
             seq_feature_names = [c for c in X_combined.columns if c != session_col]
             X_seq_bench, y_seq_bench, idx_seq_bench = task.prepare_sequence_data(X_combined, y_combined)
-            # Lazily materialize 2D lagged DataFrame only when at least one non-PyTorch tabular model runs
-            needs_2d_bench = any(m not in ("RNNModel", "TransformerModel") for m in models.keys())
+            y_cols = (list(y_combined.columns) if isinstance(y_combined, pd.DataFrame) else [y_combined.name])
+            y_2d = y_seq_bench[:, np.newaxis] if y_seq_bench.ndim == 1 else y_seq_bench
+            y_bench_df = pd.DataFrame(y_2d, index=idx_seq_bench, columns=y_cols)
+
+            seq_native_models = {
+                "RNNModel",
+                "GRUModel",
+                "LSTMModel",
+                "TransformerModel",
+                "PhysicsTransformerModel",
+                "PersistenceForecastingModel",
+                "ClimatologyForecastingModel",
+                "MeanWindowForecastingModel",
+                "LinearForecastingModel",
+                "GradientBoostingForecastingModel",
+            }
+            # Lazily materialize full 2D lagged DataFrame only when a model requires all lagged columns as DataFrame
+            needs_2d_bench = any(
+                m not in seq_native_models and m != "MinuteClimatologyForecastingModel" for m in models.keys())
+            lag_col_names = list(seq_feature_names) + [
+                f"{col} (t-{lag})" for lag in range(1, task.window_size) for col in seq_feature_names
+            ]
             if needs_2d_bench and len(X_seq_bench) > 0:
-                lag_col_names = list(seq_feature_names) + [
-                    f"{col} (t-{lag})" for lag in range(1, task.window_size) for col in seq_feature_names
-                ]
                 X_flat = X_seq_bench[:, ::-1, :].reshape(len(X_seq_bench), task.window_size * len(seq_feature_names))
-                y_2d = y_seq_bench[:, np.newaxis] if y_seq_bench.ndim == 1 else y_seq_bench
-                y_cols = (list(y_combined.columns) if isinstance(y_combined, pd.DataFrame) else [y_combined.name])
                 X_bench = pd.DataFrame(X_flat, index=idx_seq_bench, columns=lag_col_names)
-                y_bench = pd.DataFrame(y_2d, index=idx_seq_bench, columns=y_cols)
+                y_bench = y_bench_df
             else:
                 X_bench = None
                 y_bench = y_seq_bench
@@ -159,8 +185,15 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             raise ValueError(f"unknown task type {type(task)}.")
 
         if isinstance(task, tasks.ForecastingTask):
-            _, y_eval, _ = task.prepare_sequence_data(X_test, y_test)
+            X_seq_eval, y_eval, idx_eval = task.prepare_sequence_data(X_test, y_test)
             possible_preds = int(len(y_eval))
+            y_eval_2d = y_eval[:, np.newaxis] if y_eval.ndim == 1 else y_eval
+            y_eval_df = pd.DataFrame(y_eval_2d, index=idx_eval, columns=y_cols)
+            X_eval_2d = None
+            if needs_2d_bench and len(X_seq_eval) > 0:
+                X_eval_flat = X_seq_eval[:, ::-1, :].reshape(len(X_seq_eval), task.window_size * len(seq_feature_names))
+                X_eval_2d = pd.DataFrame(X_eval_flat, index=idx_eval, columns=lag_col_names)
+                X_eval_2d.attrs["_already_prepared"] = True
         else:
             possible_preds = int(y_test.notna().all(axis=1).sum())
 
@@ -247,7 +280,7 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                 model_kwargs["input_size"] = len(seq_feature_names)
 
             # Model Specific Configs
-            if "RNNModel" in model_name and "forecasting" in task_name:
+            if any(k in model_name for k in ("RNNModel", "GRUModel", "LSTMModel")) and "forecasting" in task_name:
                 model_kwargs.update({
                     "batch_size": 256,
                     "n_epochs": 20,
@@ -256,6 +289,11 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
                     "val_fraction": 0.1,
                     "patience": 5,
                 })
+                if "paranal_tomography" in task_name:
+                    model_kwargs["hidden_size"] = 128
+                    if "RNNModel" in model_name:
+                        import torch
+                        model_kwargs["optimizer"] = torch.optim.Adam
 
             if "TransformerModel" in model_name:
                 model_kwargs.update({
@@ -276,27 +314,75 @@ def run_benchmarks(benchmark_tasks: Union[List[str], str, None] = None,
             if n_epochs_override is not None:
                 model_kwargs["n_epochs"] = n_epochs_override
 
+            if seed is not None:
+                model_kwargs["random_state"] = int(seed)
+                np.random.seed(int(seed))
+                try:
+                    import torch
+                    torch.manual_seed(int(seed))
+                except ImportError:
+                    pass
+
             # Instantiate & Train
             try:
                 mdl = model(**model_kwargs)
-                use_seq = isinstance(task, tasks.ForecastingTask) and model_name in ("RNNModel", "TransformerModel")
-                if use_seq:
-                    mdl.train(
-                        X_seq_bench.copy(),
-                        y_seq_bench.copy(),
-                        feature_names=seq_feature_names,
-                    )
+                if isinstance(task, tasks.ForecastingTask):
+                    if model_name in seq_native_models:
+                        mdl.train(
+                            X_seq_bench,
+                            y_seq_bench,
+                            feature_names=seq_feature_names,
+                        )
+                        results = task.evaluate_model(
+                            predict_call=mdl.predict,
+                            x_transforms=None,
+                            x_transform_kwargs=None,
+                            detailed_metrics=True,
+                            use_sequence_data=True,
+                            X_test=X_seq_eval,
+                            y_test=y_eval_df,
+                        )
+                    elif model_name == "MinuteClimatologyForecastingModel":
+                        X_min_tr = pd.DataFrame(
+                            X_seq_bench[:, -1, :1] if len(X_seq_bench) > 0 else np.empty((0, 1)),
+                            index=idx_seq_bench,
+                            columns=seq_feature_names[:1],
+                        )
+                        X_min_te = pd.DataFrame(
+                            X_seq_eval[:, -1, :1] if len(X_seq_eval) > 0 else np.empty((0, 1)),
+                            index=idx_eval,
+                            columns=seq_feature_names[:1],
+                        )
+                        X_min_te.attrs["_already_prepared"] = True
+                        mdl.train(X_min_tr, y_bench_df)
+                        results = task.evaluate_model(
+                            predict_call=mdl.predict,
+                            x_transforms=None,
+                            x_transform_kwargs=None,
+                            detailed_metrics=True,
+                            X_test=X_min_te,
+                            y_test=y_eval_df,
+                        )
+                    else:
+                        mdl.train(X_bench, y_bench)
+                        results = task.evaluate_model(
+                            predict_call=mdl.predict,
+                            x_transforms=None,
+                            x_transform_kwargs=None,
+                            detailed_metrics=True,
+                            X_test=X_eval_2d,
+                            y_test=y_eval_df,
+                        )
                 else:
-                    mdl.train(X_bench.copy(deep=True), y_bench.copy(deep=True))
-
-                # Evaluate
-                results = task.evaluate_model(
-                    predict_call=mdl.predict,
-                    x_transforms=None,
-                    x_transform_kwargs=None,
-                    detailed_metrics=True,
-                    **(dict(use_sequence_data=True) if use_seq else {}),
-                )
+                    mdl.train(X_bench, y_bench)
+                    results = task.evaluate_model(
+                        predict_call=mdl.predict,
+                        x_transforms=None,
+                        x_transform_kwargs=None,
+                        detailed_metrics=True,
+                        X_test=X_test,
+                        y_test=y_test,
+                    )
                 benchmark_results[task_name][model_name] = tasks._compact_metrics_for_benchmark(results)
 
                 if verbose:

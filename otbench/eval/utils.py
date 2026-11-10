@@ -20,6 +20,13 @@ def _get_valid_indices(y_true: Sequence, y_pred: Sequence) -> Tuple[Sequence, Se
     - Creates a mask excluding rows where any value is NaN (for both scalar and vector targets)
     - Returns masked arrays of identical shape
     """
+    # Verify index alignment when both inputs are pandas objects
+    if isinstance(y_true, (pd.Series, pd.DataFrame)) and isinstance(y_pred, (pd.Series, pd.DataFrame)):
+        if len(y_true) == len(y_pred) and not y_true.index.equals(y_pred.index):
+            raise ValueError("y_true and y_pred are both pandas objects with mismatched indices "
+                             f"(first entries: {y_true.index[:3].tolist()} vs {y_pred.index[:3].tolist()}). "
+                             "Align indices before evaluation or pass numpy arrays.")
+
     # Convert to numpy arrays
     y_true = np.asarray(y_true)
     y_pred = np.asarray(y_pred)
@@ -210,6 +217,11 @@ def paired_bootstrap_test(
         ``ci_lower``, ``ci_upper``, ``p_value`` (two-sided), ``significant`` (bool),
         ``a_is_better`` (bool), and ``valid_predictions`` (int).
     """
+    if isinstance(y_true, (pd.Series, pd.DataFrame)):
+        for other in (y_pred_a, y_pred_b):
+            if isinstance(other, (pd.Series, pd.DataFrame)) and not y_true.index.equals(other.index):
+                raise ValueError("y_true and model predictions have mismatched indices.")
+
     yt = np.asarray(y_true, dtype=float)
     ya = np.asarray(y_pred_a, dtype=float)
     yb = np.asarray(y_pred_b, dtype=float)

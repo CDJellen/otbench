@@ -42,10 +42,22 @@ class MinuteClimatologyForecastingModel(BaseForecastingModel):
             positive_diffs = diffs[diffs > pd.Timedelta(0)]
             dt = positive_diffs.median() if len(positive_diffs) > 0 else pd.Timedelta(minutes=1)
             shift = pd.Timedelta(seconds=self.forecast_horizon * dt.total_seconds())
-            target_times = (times + shift).time
+            shifted_dt = times + shift
         else:
-            target_times = (times + pd.Timedelta(minutes=self.forecast_horizon)).time
+            shifted_dt = times + pd.Timedelta(minutes=self.forecast_horizon)
 
+        if (self.means and np.all(shifted_dt.second == 0) and np.all(shifted_dt.microsecond == 0)
+                and all(t.second == 0 and t.microsecond == 0 for t in self.means)):
+            g_mean = np.asarray(self.global_mean, dtype=float)
+            table = np.broadcast_to(g_mean, (1440,) + g_mean.shape).copy()
+            for t, val in self.means.items():
+                val_arr = np.asarray(val, dtype=float)
+                if not np.isnan(val_arr).all():
+                    table[t.hour * 60 + t.minute] = val_arr
+            minute_idx = shifted_dt.hour.to_numpy() * 60 + shifted_dt.minute.to_numpy()
+            return table[minute_idx]
+
+        target_times = shifted_dt.time
         preds = []
         for t in target_times:
             if t in self.means:

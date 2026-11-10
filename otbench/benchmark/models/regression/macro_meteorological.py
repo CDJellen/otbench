@@ -1,5 +1,5 @@
 """
-Offshore Macro-Meteorological Model from:
+Macro-Meteorological Model from:
 
 @article{sadot1992forecasting,
   title={Forecasting optical turbulence strength on the basis of macroscale meteorology and aerosols: models and validation},
@@ -12,7 +12,6 @@ Offshore Macro-Meteorological Model from:
   publisher={SPIE}
 }
 """
-import os
 import sys
 from typing import Union
 
@@ -25,6 +24,10 @@ from otbench.utils import apply_fried_height_adjustment, add_temporal_hour, add_
 
 class MacroMeteorologicalModel(BaseRegressionModel):
     """A model which predicts the Cn2 value using macro-meteorological parameters."""
+
+    _REFERENCE_HEIGHT: float = 15.0
+    _TEMP_KELVIN_OFFSET: float = 273.15
+    _COEFFS = (3.8e-14, 2e-15, -2.8e-15, 2.9e-17, -1.1e-19, -2.5e-15, 1.2e-15, -8.5e-17, -5.3e-13)
 
     def __init__(self,
                  name: str,
@@ -57,15 +60,17 @@ class MacroMeteorologicalModel(BaseRegressionModel):
         self.enforce_dynamic_range = enforce_dynamic_range
         self.constant_adjustment = constant_adjustment
         self.use_log10 = use_log10
+        self._trained_constant_offset = None
 
-    def train(self, X: pd.DataFrame, y: Union[pd.DataFrame, pd.Series, np.ndarray]):
-        """Maintain the same interface as the other models."""
-        pass
+    def _out_of_range_mask(self, X: pd.DataFrame) -> pd.Series:
+        """Identify rows outside the empirical validity envelope of the polynomial."""
+        return ((X[self.wind_speed_col_name] > 10) | ((X[self.air_temperature_col_name] < 9) |
+                                                      (X[self.air_temperature_col_name] > 35)) |
+                ((X[self.humidity_col_name] < 14) | (X[self.humidity_col_name] > 92)))
 
-    def predict(self, X: pd.DataFrame):
-        """Generate predictions from the model using an input DataFrame."""
-
-        # add temporal hour and temporal hour weight
+    def _compute_raw_prediction(self, X: pd.DataFrame) -> np.ndarray:
+        """Compute unshifted macro-meteorological polynomial predictions without mutating X."""
+        X = X.copy()
         if self.temporal_hour_col_name not in X.columns:
             X = add_temporal_hour(X,
                                   name=self.name,
@@ -82,49 +87,60 @@ class MacroMeteorologicalModel(BaseRegressionModel):
         X_ = X.loc[X[self.air_temperature_col_name].notna() & X[self.humidity_col_name].notna() &
                    X[self.wind_speed_col_name].notna() & X[self.temporal_hour_weight_col_name].notna()].copy()
 
-        T = X_[self.air_temperature_col_name]  # temperature in [C]
-        T = T + 273.15  # convert to Kelvin
-        U = X_[self.wind_speed_col_name]  # Wind Speed in [m/s]
-        RH = X_[self.humidity_col_name]  # Relative Humidity [%]
-        W = X_[self.temporal_hour_weight_col_name]  # Temporal Hour Weight
+        T = X_[self.air_temperature_col_name] + self._TEMP_KELVIN_OFFSET
+        U = X_[self.wind_speed_col_name]
+        RH = X_[self.humidity_col_name]
+        W = X_[self.temporal_hour_weight_col_name]
 
-        w = 3.8e-14  # coefficient for temporal hour weight W
-        t = 2e-15  # coefficient for temperature (Kelvin) T
-        rh = -2.8e-15  # coefficient for relative humidity RH
-        rh2 = 2.9e-17  # coefficient for relative humidity squared RH^2
-        rh3 = -1.1e-19  # coefficient for relative humidity cubed RH^3
-        u = -2.5e-15  # coefficient for wind speed U
-        u2 = 1.2e-15  # coefficient for wind speed squared U^2
-        u3 = -8.5e-17  # coefficient for wind speed cubed U^3
-        c = -5.3e-13  # final coefficient
+        w, t, rh, rh2, rh3, u, u2, u3, c = self._COEFFS
 
-        mm_prediction = pd.Series((w * W + t * T + rh * RH + rh2 * (RH * RH) + rh3 * (RH * RH * RH) + u * U + u2 *
-                                   (U * U) + u3 * (U * U * U) + c),
-                                  index=X.index,
-                                  name=self.name)
+        mm_series = pd.Series(
+            (w * W + t * T + rh * RH + rh2 * (RH * RH) + rh3 * (RH * RH * RH) + u * U + u2 * (U * U) + u3 *
+             (U * U * U) + c),
+            index=X.index,
+            name=self.name,
+            dtype=float,
+        )
 
         if self.enforce_dynamic_range:
-            X[self.name] = mm_prediction
-            X.loc[(X[self.wind_speed_col_name] > 10) | ((X[self.air_temperature_col_name] < 9) |
-                                                        (X[self.air_temperature_col_name] > 35)) |
-                  ((X[self.humidity_col_name] < 14) | (X[self.humidity_col_name] > 92)), self.name] = np.nan
+            mm_series.loc[self._out_of_range_mask(X)] = np.nan
 
-            mm_prediction = X[self.name].values
-            X.drop(columns=[self.name], inplace=True)
+        return mm_series.to_numpy(dtype=float, copy=True)
 
-        if len(mm_prediction[~np.isnan(mm_prediction)]) > 0:
-            if self.constant_adjustment & (min(mm_prediction[~np.isnan(mm_prediction)]) < 0):
-                constant_adjustment = min(mm_prediction[~np.isnan(mm_prediction)]) * -1
-                mm_prediction = mm_prediction + \
-                    constant_adjustment + \
-                    sys.float_info.epsilon
+    def train(self, X: pd.DataFrame, y: Union[pd.DataFrame, pd.Series, np.ndarray]):
+        """Record the training-set constant adjustment offset so single-row inference is consistent."""
+        if X is not None and len(X) > 0:
+            raw = self._compute_raw_prediction(X)
+            valid = raw[~np.isnan(raw)]
+            if len(valid) > 0 and np.min(valid) <= 0:
+                self._trained_constant_offset = float(-np.min(valid))
             else:
-                mm_prediction[mm_prediction <= 0] = np.nan
+                self._trained_constant_offset = 0.0
+
+    def predict(self, X: pd.DataFrame):
+        """Generate predictions from the model using an input DataFrame."""
+        mm_prediction = self._compute_raw_prediction(X)
+        valid = mm_prediction[~np.isnan(mm_prediction)]
+
+        if len(valid) > 0:
+            batch_min = float(np.min(valid))
+            if self.constant_adjustment:
+                offset = (self._trained_constant_offset if self._trained_constant_offset is not None else
+                          (-batch_min if batch_min <= 0 else 0.0))
+                if offset > 0:
+                    mm_prediction = mm_prediction + offset + sys.float_info.epsilon
+                elif batch_min <= 0:
+                    mm_prediction = mm_prediction + (-batch_min) + sys.float_info.epsilon
+                finite_nonpos = ~np.isnan(mm_prediction) & (mm_prediction <= 0)
+                if np.any(finite_nonpos):
+                    mm_prediction[finite_nonpos] = sys.float_info.epsilon
+            else:
+                mm_prediction[~np.isnan(mm_prediction) & (mm_prediction <= 0)] = np.nan
 
         # convert from model reference height to height of observation
         if self.height_of_observation is not None:
             mm_prediction = apply_fried_height_adjustment(cn2=mm_prediction,
-                                                          observed=15.0,
+                                                          observed=self._REFERENCE_HEIGHT,
                                                           desired=self.height_of_observation)
 
         if self.use_log10:

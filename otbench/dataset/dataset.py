@@ -1,15 +1,24 @@
+import copy
+import functools
 import os
 import json
+from pathlib import Path
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 import pandas as pd
 import numpy as np
 import xarray as xr
 
-from otbench.config import settings, RETURN_TYPES
+from otbench.config import settings, RETURN_TYPES, Task
 from otbench.cache import CACHE
-from otbench.models import Task
 from otbench.dataset.synthetic import SYNTHETIC_REGISTRY
+
+
+@functools.lru_cache(maxsize=4)
+def _load_datasets_registry(datasets_fp: str) -> dict:
+    """Load and cache the datasets configuration file by path."""
+    with open(datasets_fp, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 class Dataset(object):
@@ -55,6 +64,11 @@ class Dataset(object):
             slices = []
             max_len = len(self._data.time)
             for start_idx, end_idx in zip(start_indices, end_indices):
+                if settings.USE_SYNTHETIC_DATA and end_idx > max_len and start_idx >= 0 and start_idx < end_idx:
+                    cfg_rows = int(self._supported_datasets().get(self._name, {}).get("n_rows", end_idx))
+                    full_len = max(end_idx, cfg_rows)
+                    start_idx = int(start_idx * max_len / full_len)
+                    end_idx = max(start_idx + 1, min(max_len, int(end_idx * max_len / full_len)))
                 if start_idx >= 0 and end_idx <= max_len and start_idx < end_idx:
                     # isel slicing is efficient
                     slices.append(self._data.isel(time=slice(start_idx, end_idx)))
@@ -63,6 +77,8 @@ class Dataset(object):
 
             if not slices:
                 return xr.Dataset()
+            if len(slices) == 1:
+                return slices[0]
             return xr.concat(slices, dim="time")
 
         else:
@@ -141,7 +157,10 @@ class Dataset(object):
 
     def get_all(self, data_type: str = "pd", device: str = "") -> Any:
         """Obtain all data for this dataset."""
-        return self._handle_return_type(data=self._data, return_type=data_type)
+        res = self._handle_return_type(data=self._data, return_type=data_type)
+        if isinstance(res, pd.DataFrame):
+            return res.copy(deep=True)
+        return res
 
     def get_train(self, task: Union[dict, Task], data_type: str = "pd") -> Tuple[Any, Any]:
         """Obtain the training data for this dataset from the supplied task."""
@@ -299,6 +318,33 @@ class Dataset(object):
         Flattens a multi-dimensional xarray Dataset into a 2D DataFrame.
         Variables with extra dimensions (e.g. height) are pivoted into columns.
         """
+        if 'time' not in ds.dims:
+            return pd.DataFrame()
+
+        # Fast vectorised path when all time-indexed variables are 1D or 2D
+        time_vars = [da for da in ds.data_vars.values() if 'time' in da.dims]
+        if not time_vars:
+            return pd.DataFrame()
+
+        if all(len(da.dims) <= 2 for da in time_vars):
+            time_index = ds.indexes['time']
+            cols = {}
+            for var_name, da in ds.data_vars.items():
+                if 'time' not in da.dims:
+                    continue
+                if len(da.dims) == 1:
+                    cols[var_name] = da.values
+                else:
+                    other_dim = [d for d in da.dims if d != 'time'][0]
+                    vals = da.transpose('time', other_dim).values
+                    coord_vals = (ds.coords[other_dim].values
+                                  if other_dim in ds.coords else np.arange(da.sizes[other_dim]))
+                    for j, cv in enumerate(coord_vals):
+                        cols[f"{var_name}_{cv}"] = vals[:, j]
+            df = pd.DataFrame(cols, index=time_index)
+            df.index.name = 'time'
+            return df
+
         dfs = []
         for var_name, da in ds.data_vars.items():
             if 'time' not in da.dims:
@@ -360,7 +406,8 @@ class Dataset(object):
                         return ds.to_dataframe()
                 return ds
         file_name = supported_datasets[self._name]["local_data_path"]
-        fp = settings.DATA_DIR / self._name / file_name
+        base_data_dir = Path(self._data_dir) if self._data_dir is not None else Path(settings.DATA_DIR)
+        fp = base_data_dir / self._name / file_name
         fp_str = str(fp)
         try:
             file_type = fp_str.split(".")[-1]
@@ -394,7 +441,4 @@ class Dataset(object):
 
     def _supported_datasets(self) -> dict:
         """Load the datasets configuration file."""
-        with open(self._datasets_fp, 'r') as f:
-            supported_datasets = json.load(f)
-
-        return supported_datasets
+        return copy.deepcopy(_load_datasets_registry(str(self._datasets_fp)))
