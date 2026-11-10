@@ -1,3 +1,3 @@
-from .memcache import InMemoryCache
+from otbench.cache.memcache import InMemoryCache
 
 CACHE = InMemoryCache()

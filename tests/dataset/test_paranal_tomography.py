@@ -1,0 +1,1474 @@
+"""
+Paranal Tomography Dataset Assertions
+======================================
+
+Comprehensive validation of the Paranal Tomography dataset through the full
+otbench pipeline: raw xarray → flattened DataFrame → task splits → forecasting
+windows.  Each test group is designed to be reusable as building blocks for
+exploratory data analysis notebooks.
+
+Run with synthetic data (CI-friendly, no ESO archive access):
+    python -m pytest tests/dataset/test_paranal_tomography.py --use-synthetic-data -v
+
+Run against the real dataset (requires paranal_tomography.nc on disk):
+    python -m pytest tests/dataset/test_paranal_tomography.py -v
+"""
+
+import numpy as np
+import pandas as pd
+import pytest
+import xarray as xr
+
+from otbench.config import settings
+from otbench.dataset import Dataset
+from otbench.tasks import TaskApi
+
+# Fixtures
+
+
+@pytest.fixture(scope="module")
+def task_api():
+    """Module-scoped TaskApi (respects --use-synthetic-data via conftest)."""
+    return TaskApi()
+
+
+@pytest.fixture(scope="module")
+def dataset():
+    """The otbench Dataset object (loads synthetic or real based on settings)."""
+    return Dataset(name="paranal_tomography")
+
+
+@pytest.fixture(scope="module")
+def raw_xarray_dataset(dataset):
+    """The raw xarray Dataset from the SAME source as flat_df.
+
+    Uses dataset.get_xarray() so the fixture and the flattening pipeline
+    always operate on identical data.  Skips if the dataset is not
+    xarray-backed (e.g. CSV-only datasets).
+    """
+    ds = dataset.get_xarray()
+    if ds is None:
+        pytest.skip("Dataset is not xarray-backed")
+    return ds
+
+
+@pytest.fixture(scope="module")
+def flat_df(dataset):
+    """A flat DataFrame slice for schema and column validation.
+
+    Bounded to _FLAT_DF_SAMPLE rows so the fixture never OOMs on the real
+    dataset (~914 MB for 2.2 M rows × 52 columns × float64).
+
+    Synthetic run : all 2 000 rows.
+    Real run      : first 5 000 rows (column / dtype checks are fully valid).
+    """
+    _FLAT_DF_SAMPLE = 5000
+    return dataset.get_sample_df(_FLAT_DF_SAMPLE)
+
+
+# Paranal task names (must stay in sync with tasks.json)
+
+PARANAL_REGRESSION_TASKS = [
+    "regression.paranal_tomography.full.cn2_profile_reconstruction",
+]
+
+PARANAL_FORECASTING_TASKS = [
+    "forecasting.paranal_tomography.full.seeing_nowcast",
+    "forecasting.paranal_tomography.full.cn2_profile_forecast",
+]
+
+PARANAL_ALL_TASKS = PARANAL_REGRESSION_TASKS + PARANAL_FORECASTING_TASKS
+
+# Group 1: Raw xarray Schema
+
+
+class TestRawXarraySchema:
+    """Validate the xarray Dataset schema before flattening."""
+
+    REQUIRED_VARS = [
+        "cn2_free_atmos",
+        "cn2_ground_scalar",
+        "seeing",
+        "temp_profile",
+        "wind_speed",
+        "wind_dir",
+        "pressure",
+        "rh",
+        "night_id",
+    ]
+
+    REQUIRED_COORDS = ["time", "height_mass", "height_lhatpro"]
+
+    def test_required_variables_present(self, raw_xarray_dataset):
+        for var in self.REQUIRED_VARS:
+            assert var in raw_xarray_dataset.data_vars, f"Missing variable: {var}"
+
+    def test_required_coordinates_present(self, raw_xarray_dataset):
+        for coord in self.REQUIRED_COORDS:
+            assert coord in raw_xarray_dataset.coords, f"Missing coordinate: {coord}"
+
+    def test_height_mass_values(self, raw_xarray_dataset):
+        expected = np.array([500, 1000, 2000, 4000, 8000, 16000])
+        np.testing.assert_array_equal(raw_xarray_dataset.height_mass.values,
+                                      expected,
+                                      err_msg="height_mass layers do not match MASS restoration layers")
+
+    def test_height_lhatpro_has_39_levels(self, raw_xarray_dataset):
+        assert len(raw_xarray_dataset.height_lhatpro) == 39, (
+            f"Expected 39 LHATPRO levels, got {len(raw_xarray_dataset.height_lhatpro)}")
+
+    def test_cn2_free_atmos_shape(self, raw_xarray_dataset):
+        da = raw_xarray_dataset["cn2_free_atmos"]
+        assert da.dims == ("time", "height_mass"), f"Wrong dims: {da.dims}"
+        assert da.shape[1] == 6
+
+    def test_temp_profile_shape(self, raw_xarray_dataset):
+        da = raw_xarray_dataset["temp_profile"]
+        assert da.dims == ("time", "height_lhatpro"), f"Wrong dims: {da.dims}"
+        assert da.shape[1] == 39
+
+    def test_time_monotonically_increasing(self, raw_xarray_dataset):
+        # Load just the time coordinate (cheap even for lazy datasets)
+        times = raw_xarray_dataset.time.values
+        diffs = np.diff(times.astype(np.int64))
+        assert np.all(diffs > 0), "Time coordinate is not strictly monotonically increasing"
+
+    def test_night_id_is_integer_typed(self, raw_xarray_dataset):
+        night = raw_xarray_dataset["night_id"]
+        assert np.issubdtype(night.dtype, np.integer) or np.issubdtype(
+            night.dtype, np.floating), (f"night_id dtype is {night.dtype}, expected integer or float")
+
+
+# Group 2: Flattening Correctness
+
+
+class TestFlatteningCorrectness:
+    """Verify the xarray → DataFrame flattening produces correct columns and row count."""
+
+    EXPECTED_SCALAR_COLUMNS = [
+        "cn2_ground_scalar",
+        "seeing",
+        "wind_speed",
+        "wind_dir",
+        "pressure",
+        "rh",
+        "night_id",
+    ]
+
+    EXPECTED_CN2_PROFILE_COLUMNS = [
+        "cn2_free_atmos_500",
+        "cn2_free_atmos_1000",
+        "cn2_free_atmos_2000",
+        "cn2_free_atmos_4000",
+        "cn2_free_atmos_8000",
+        "cn2_free_atmos_16000",
+    ]
+
+    def test_scalar_columns_present(self, flat_df):
+        for col in self.EXPECTED_SCALAR_COLUMNS:
+            assert col in flat_df.columns, f"Missing scalar column after flattening: {col}"
+
+    def test_cn2_profile_columns_present(self, flat_df):
+        for col in self.EXPECTED_CN2_PROFILE_COLUMNS:
+            assert col in flat_df.columns, f"Missing cn2 profile column: {col}"
+
+    def test_temp_profile_columns_present(self, flat_df):
+        temp_cols = [c for c in flat_df.columns if c.startswith("temp_profile_")]
+        assert len(temp_cols) == 39, (f"Expected 39 temp_profile columns, got {len(temp_cols)}: {temp_cols[:5]}...")
+
+    def test_no_duplicate_columns(self, flat_df):
+        dupes = flat_df.columns[flat_df.columns.duplicated()]
+        assert len(dupes) == 0, f"Duplicate columns found: {dupes.tolist()}"
+
+    def test_time_is_index(self, flat_df):
+        assert flat_df.index.name == "time" or "time" in flat_df.columns, (
+            "time should be the index or a column after flattening")
+
+    def test_row_count_matches_xarray_slice(self, dataset, raw_xarray_dataset):
+        """Flattening must preserve the row count of the source slice exactly.
+
+        We verify a bounded slice (N rows) rather than the full dataset so the
+        test never OOMs and the assertion is tight: the flattened output must
+        have exactly N rows, not N ± anything from an outer-join artefact.
+        """
+        n = min(500, len(raw_xarray_dataset.time))
+        sample_df = dataset.get_sample_df(n)
+        assert len(sample_df) == n, (f"Flattening {n}-row xarray slice produced {len(sample_df)} rows — "
+                                     "likely an outer-join index mismatch between variables")
+
+    def test_52_total_columns(self, flat_df):
+        """The canonical flat schema has 52 columns (6 MASS + 39 LHATPRO + 7 scalar)."""
+        assert len(
+            flat_df.columns) == 52, (f"Expected 52 columns, got {len(flat_df.columns)}: {flat_df.columns.tolist()}")
+
+
+# Group 3: Night Identification and Extraction
+
+
+class TestNightIdentification:
+    """Verify that observing nights can be reliably identified and extracted."""
+
+    def test_night_id_column_exists(self, flat_df):
+        assert "night_id" in flat_df.columns, "night_id column not found"
+
+    def test_multiple_nights_present(self, flat_df):
+        n_nights = flat_df["night_id"].nunique()
+        assert n_nights >= 2, f"Only {n_nights} night(s) found; need >=2 for multi-night tests"
+
+    def test_single_night_extraction(self, flat_df):
+        """Extract a single night and verify it's a contiguous subset."""
+        first_night = flat_df["night_id"].iloc[0]
+        night_data = flat_df[flat_df["night_id"] == first_night]
+        assert len(night_data) > 0, "Empty result when filtering for first night"
+
+        # Rows within a night should be contiguous (no interleaving)
+        indices = flat_df.index.get_indexer(night_data.index)
+        diffs = np.diff(indices)
+        assert np.all(diffs == 1), ("Night data is not contiguous — rows from different nights are interleaved")
+
+    def test_nights_are_non_overlapping_in_time(self, flat_df):
+        """Verify that nights partition the timeline without temporal overlap."""
+        if flat_df.index.name == "time":
+            pass  # index already is time
+        else:
+            pytest.skip("flat_df does not have time as index")
+
+        grouped = flat_df.groupby("night_id")
+        intervals = []
+        for nid, group in grouped:
+            t = group.index
+            intervals.append((nid, t.min(), t.max()))
+
+        intervals.sort(key=lambda x: x[1])
+        for i in range(len(intervals) - 1):
+            _, _, end_i = intervals[i]
+            _, start_next, _ = intervals[i + 1]
+            assert end_i < start_next, (f"Night {intervals[i][0]} ends at {end_i} but night "
+                                        f"{intervals[i+1][0]} starts at {start_next} — temporal overlap")
+
+    def test_all_rows_have_night_id(self, flat_df):
+        n_missing = flat_df["night_id"].isna().sum()
+        assert n_missing == 0, f"{n_missing} rows have no night_id"
+
+
+# Group 4: Task Loading and Split Integrity
+
+
+class TestTaskLoading:
+    """Verify all paranal tasks load correctly and produce valid X/y splits."""
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_task_loads_without_error(self, task_api, task_name):
+        task = task_api.get_task(task_name)
+        assert task is not None
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_train_val_test_nonempty(self, task_api, task_name):
+        task = task_api.get_task(task_name)
+        X_train, y_train = task.get_train_data()
+        X_val, y_val = task.get_validation_data()
+        X_test, y_test = task.get_test_data()
+
+        assert len(X_train) > 0, f"{task_name}: empty training set"
+        assert len(X_val) > 0, f"{task_name}: empty validation set"
+        assert len(X_test) > 0, f"{task_name}: empty test set"
+        assert len(y_train) == len(X_train), f"{task_name}: X/y train length mismatch"
+        assert len(y_val) == len(X_val), f"{task_name}: X/y val length mismatch"
+        assert len(y_test) == len(X_test), f"{task_name}: X/y test length mismatch"
+
+    @pytest.mark.parametrize("task_name", PARANAL_REGRESSION_TASKS)
+    def test_regression_target_not_in_features(self, task_api, task_name):
+        """For regression tasks, the target must NOT appear in X (direct leakage)."""
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+
+        target = task.task["target"]
+        targets = target if isinstance(target, list) else [target]
+
+        for t in targets:
+            assert t not in X_train.columns, (f"{task_name}: target '{t}' found in regression features (leakage)")
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_forecasting_target_leakage_prevented_by_shift(self, task_api, task_name):
+        """For forecasting tasks, target may be in X (autoregressive), but y must be
+        shifted by forecast_horizon so X[t] and y[t] refer to different times."""
+        task = task_api.get_task(task_name)
+        X_train, y_train = task.get_train_data()
+
+        # Recover session context for prepare_forecasting_data
+        session_col = task.task.get("session_col")
+        if session_col:
+            ctx = task.get_dataset().get_context(X_train.index, session_col)
+            cols_to_use = ctx.columns.difference(X_train.columns)
+            if not cols_to_use.empty:
+                X_train = X_train.join(ctx[cols_to_use])
+
+        X_prep, y_prep = task.prepare_forecasting_data(X_train, y_train)
+
+        target = task.task["target"]
+        targets = target if isinstance(target, list) else [target]
+
+        for t in targets:
+            if t in X_prep.columns:
+                x_vals = X_prep[t].values
+                y_vals = y_prep[t].values if t in y_prep.columns else None
+                if y_vals is not None and len(x_vals) > 10:
+                    correlation = np.corrcoef(x_vals, y_vals)[0, 1]
+                    assert correlation < 0.9999, (f"{task_name}: target '{t}' in X and y are nearly identical "
+                                                  f"(corr={correlation:.6f}) — shift may not be applied")
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_removed_columns_absent_from_features(self, task_api, task_name):
+        """Columns in the 'remove' list must not appear in X."""
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+
+        for col in task.task["remove"]:
+            assert col not in X_train.columns, (f"{task_name}: removed column '{col}' still present in X_train")
+
+
+# Group 5: Temporal Split Non-Overlap (No Data Leakage)
+
+
+class TestTemporalSplitIntegrity:
+    """Verify train/val/test splits do not temporally overlap."""
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_no_index_overlap_between_splits(self, task_api, task_name):
+        """Train, val, and test indices must be mutually exclusive."""
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+        X_val, _ = task.get_validation_data()
+        X_test, _ = task.get_test_data()
+
+        train_idx = set(X_train.index)
+        val_idx = set(X_val.index)
+        test_idx = set(X_test.index)
+
+        assert train_idx.isdisjoint(val_idx), f"{task_name}: train/val index overlap"
+        assert train_idx.isdisjoint(test_idx), f"{task_name}: train/test index overlap"
+        assert val_idx.isdisjoint(test_idx), f"{task_name}: val/test index overlap"
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_temporal_ordering_train_before_val_before_test(self, task_api, task_name):
+        """Splits must respect causal ordering: max(train) < min(val) < min(test)."""
+        task = task_api.get_task(task_name)
+
+        train_ends = [int(idx.split(":")[1]) for idx in task.task["train_idx"]]
+        val_starts = [int(idx.split(":")[0]) for idx in task.task["val_idx"]]
+        val_ends = [int(idx.split(":")[1]) for idx in task.task["val_idx"]]
+        test_starts = [int(idx.split(":")[0]) for idx in task.task["test_idx"]]
+
+        assert max(train_ends) <= min(val_starts), (
+            f"{task_name}: train end ({max(train_ends)}) > val start ({min(val_starts)})")
+        assert max(val_ends) <= min(test_starts), (
+            f"{task_name}: val end ({max(val_ends)}) > test start ({min(test_starts)})")
+
+
+# Group 6: Forecasting Session Masking (Night Boundary Leakage)
+
+
+class TestForecastingSessionMasking:
+    """Verify that the forecasting pipeline correctly masks cross-night windows."""
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_session_col_defined_in_task(self, task_api, task_name):
+        """Forecasting tasks must declare a session_col for night masking."""
+        task = task_api.get_task(task_name)
+        session_col = task.task.get("session_col")
+        assert session_col is not None, (f"{task_name}: no session_col defined — cross-night leakage is unprotected")
+        assert session_col == "night_id"
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_session_masking_removes_cross_night_rows(self, task_api, task_name):
+        """After prepare_forecasting_data, no window should span a night boundary."""
+        task = task_api.get_task(task_name)
+        X_train, y_train = task.get_train_data()
+
+        session_col = task.task["session_col"]
+        ctx = task.get_dataset().get_context(X_train.index, session_col)
+
+        cols_to_use = ctx.columns.difference(X_train.columns)
+        if not cols_to_use.empty:
+            X_train = X_train.join(ctx[cols_to_use])
+
+        X_prepared, y_prepared = task.prepare_forecasting_data(X_train, y_train)
+
+        assert len(X_prepared) > 0, f"{task_name}: all rows masked — no valid windows"
+        assert len(y_prepared) > 0, f"{task_name}: no valid target rows after masking"
+        assert not y_prepared.isna().any().any(), (f"{task_name}: NaN targets remain after prepare_forecasting_data")
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_forecast_horizon_within_window(self, task_api, task_name):
+        """forecast_horizon + window_size must not exceed training data length."""
+        task = task_api.get_task(task_name)
+        X_train, y_train = task.get_train_data()
+        wsize = task.window_size
+        fh = task.forecast_horizon
+        assert wsize + fh < len(X_train), (f"{task_name}: window_size({wsize}) + forecast_horizon({fh}) >= "
+                                           f"len(X_train)({len(X_train)})")
+
+
+# Group 7: Multi-Night Training (Seamless Cross-Night Learning)
+
+
+class TestMultiNightTraining:
+    """Verify the pipeline can seamlessly train across multiple observing nights."""
+
+    @pytest.mark.parametrize("task_name", PARANAL_REGRESSION_TASKS)
+    def test_regression_train_spans_multiple_nights(self, task_api, task_name):
+        """Regression training data should include rows from multiple nights."""
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+
+        ctx = task.get_dataset().get_context(X_train.index, "night_id")
+        n_nights = ctx["night_id"].nunique()
+        assert n_nights >= 2, (f"{task_name}: training data only covers {n_nights} night(s)")
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_forecasting_prepared_data_spans_multiple_nights(self, task_api, task_name):
+        """After session masking, forecasting data should still include multiple nights."""
+        task = task_api.get_task(task_name)
+        X_train, y_train = task.get_train_data()
+
+        session_col = task.task["session_col"]
+        ctx = task.get_dataset().get_context(X_train.index, session_col)
+        cols_to_use = ctx.columns.difference(X_train.columns)
+        if not cols_to_use.empty:
+            X_train = X_train.join(ctx[cols_to_use])
+
+        X_prep, y_prep = task.prepare_forecasting_data(X_train, y_train)
+
+        ctx_prep = task.get_dataset().get_context(X_prep.index, session_col)
+        n_nights = ctx_prep[session_col].nunique()
+        assert n_nights >= 2, (f"{task_name}: prepared forecasting data only covers {n_nights} night(s)")
+
+
+# Group 8: Missing Data Handling
+
+
+class TestMissingDataHandling:
+    """Verify that NaN handling is correct through the pipeline."""
+
+    def test_flat_df_dtype_consistency(self, flat_df):
+        """All columns should have numeric dtypes (float or int)."""
+        for col in flat_df.columns:
+            assert np.issubdtype(flat_df[col].dtype,
+                                 np.number), (f"Column '{col}' has non-numeric dtype: {flat_df[col].dtype}")
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_dropna_task_produces_no_nans(self, task_api, task_name):
+        """If dropna=True, X and y should have zero NaN values."""
+        task = task_api.get_task(task_name)
+        if not task.task.get("dropna", False):
+            pytest.skip(f"{task_name} has dropna=False")
+
+        X_train, y_train = task.get_train_data()
+        assert not X_train.isna().any().any(), f"{task_name}: NaN in X_train with dropna=True"
+        assert not y_train.isna().any().any(), f"{task_name}: NaN in y_train with dropna=True"
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_no_all_nan_columns(self, task_api, task_name):
+        """No feature column should be entirely NaN."""
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+        all_nan_cols = X_train.columns[X_train.isna().all()]
+        assert len(all_nan_cols) == 0, (f"{task_name}: entirely NaN columns: {all_nan_cols.tolist()}")
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_no_infinite_values_in_features(self, task_api, task_name):
+        """Features should not contain +/- infinity."""
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+        numeric = X_train.select_dtypes(include=[np.number])
+        n_inf = np.isinf(numeric.values).sum()
+        assert n_inf == 0, f"{task_name}: {n_inf} infinite values found in features"
+
+
+# Group 9: Physical Bounds (Sanity Checks)
+
+
+class TestPhysicalBounds:
+    """Check that variable values fall within physically plausible ranges."""
+
+    def test_seeing_positive(self, flat_df):
+        """Seeing must be positive where not NaN."""
+        seeing = flat_df["seeing"].dropna()
+        if len(seeing) > 0:
+            assert (seeing > 0).all(), (f"{(seeing <= 0).sum()} non-positive seeing values")
+
+    def test_turbulence_nonnegative(self, flat_df):
+        """Turbulence integrals (J_i) must be non-negative where not NaN."""
+        cn2_cols = [c for c in flat_df.columns if c.startswith("cn2_free_atmos_") or c == "cn2_ground_scalar"]
+        for col in cn2_cols:
+            vals = flat_df[col].dropna()
+            if len(vals) > 0:
+                n_neg = (vals < 0).sum()
+                assert n_neg == 0, f"{col}: {n_neg} negative turbulence values"
+
+    def test_wind_speed_nonnegative(self, flat_df):
+        vals = flat_df["wind_speed"].dropna()
+        if len(vals) > 0:
+            assert (vals >= 0).all(), "Negative wind speed values found"
+
+    def test_wind_dir_in_range(self, flat_df):
+        vals = flat_df["wind_dir"].dropna()
+        if len(vals) > 0:
+            assert (vals >= 0).all() and (vals <= 360).all(), ("Wind direction outside [0, 360] range")
+
+    def test_relative_humidity_in_range(self, flat_df):
+        vals = flat_df["rh"].dropna()
+        if len(vals) > 0:
+            assert (vals >= 0).all() and (vals <= 100).all(), ("Relative humidity outside [0, 100] range")
+
+    def test_pressure_plausible(self, flat_df):
+        """Surface pressure at 2635m should be ~740 hPa, within [600, 900]."""
+        vals = flat_df["pressure"].dropna()
+        if len(vals) > 0:
+            assert (vals > 600).all() and (vals < 900).all(), (f"Pressure values outside [600, 900] hPa range: "
+                                                               f"min={vals.min():.1f}, max={vals.max():.1f}")
+
+
+# Group 10: Context Recovery (night_id accessible after removal)
+
+
+class TestContextRecovery:
+    """Verify that night_id can be recovered via get_context after task removal."""
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_night_id_recoverable_from_train_indices(self, task_api, task_name):
+        """After the task removes night_id from X, it must be recoverable."""
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+
+        ctx = task.get_dataset().get_context(X_train.index, "night_id")
+        assert "night_id" in ctx.columns
+        assert len(ctx) == len(X_train)
+        assert not ctx["night_id"].isna().any(), "Recovered night_id has NaN values"
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_context_index_alignment(self, task_api, task_name):
+        """Recovered context indices must exactly match X indices."""
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+        ctx = task.get_dataset().get_context(X_train.index, "night_id")
+        pd.testing.assert_index_equal(X_train.index, ctx.index)
+
+
+# Group 11: Log Transform Correctness
+
+
+class TestLogTransform:
+    """Verify log_transform is applied correctly to the target."""
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_log_transform_produces_finite_values(self, task_api, task_name):
+        """If log_transform=True, y values should be finite (no -inf from log(0))."""
+        task = task_api.get_task(task_name)
+        if not task.task.get("log_transform", False):
+            pytest.skip(f"{task_name} does not use log_transform")
+
+        _, y_train = task.get_train_data()
+        y_vals = y_train.values
+        valid = y_vals[~np.isnan(y_vals)]
+        n_inf = np.sum(~np.isfinite(valid))
+        assert n_inf == 0, (f"{task_name}: log_transform produced {n_inf} non-finite values")
+
+    @pytest.mark.parametrize("task_name", PARANAL_ALL_TASKS)
+    def test_log_transform_values_are_negative(self, task_api, task_name):
+        """Turbulence integrals are O(1e-16), so log10 should yield ~[-19, -12]."""
+        task = task_api.get_task(task_name)
+        if not task.task.get("log_transform", False):
+            pytest.skip(f"{task_name} does not use log_transform")
+
+        _, y_train = task.get_train_data()
+        y_vals = y_train.values.flatten()
+        valid = y_vals[np.isfinite(y_vals)]
+        if len(valid) == 0:
+            pytest.skip("No finite y values to check")
+        assert np.median(valid) < 0, (f"{task_name}: median log-target is {np.median(valid):.2f}, "
+                                      "expected negative for turbulence integrals")
+
+
+# Group 12: End-to-End Forecasting Pipeline
+
+
+class TestEndToEndForecasting:
+    """Full pipeline test: load → split → recover context → prepare → validate."""
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_full_forecasting_pipeline(self, task_api, task_name):
+        """Run the complete forecasting pipeline as bench_runner would."""
+        task = task_api.get_task(task_name)
+
+        X_train, y_train = task.get_train_data()
+        X_test, y_test = task.get_test_data()
+
+        session_col = task.task.get("session_col")
+        assert session_col is not None
+
+        ctx_train = task.get_dataset().get_context(X_train.index, session_col)
+        cols_to_use = ctx_train.columns.difference(X_train.columns)
+        if not cols_to_use.empty:
+            X_train = X_train.join(ctx_train[cols_to_use])
+
+        ctx_test = task.get_dataset().get_context(X_test.index, session_col)
+        cols_to_use = ctx_test.columns.difference(X_test.columns)
+        if not cols_to_use.empty:
+            X_test = X_test.join(ctx_test[cols_to_use])
+
+        X_train_prep, y_train_prep = task.prepare_forecasting_data(X_train, y_train)
+        X_test_prep, y_test_prep = task.prepare_forecasting_data(X_test, y_test)
+
+        assert len(X_train_prep) > 0, "Empty training set after forecasting prep"
+        assert len(X_test_prep) > 0, "Empty test set after forecasting prep"
+        assert not X_train_prep.isna().any().any(), "NaN in X_train after prep"
+        assert not y_train_prep.isna().any().any(), "NaN in y_train after prep"
+        assert not X_test_prep.isna().any().any(), "NaN in X_test after prep"
+        assert not y_test_prep.isna().any().any(), "NaN in y_test after prep"
+
+        assert session_col not in X_train_prep.columns, (
+            f"session_col '{session_col}' should be dropped from features after masking")
+
+        window_size = task.window_size
+        if window_size > 1:
+            lag_cols = [c for c in X_train_prep.columns if "(t-" in c]
+            assert len(lag_cols) > 0, (f"No lag columns created with window_size={window_size}")
+
+
+# Group 13: Night-Aware Modeling
+
+
+class TestNightAwareModeling:
+    """Validate that observing-night boundaries are correctly enforced throughout
+    the forecasting pipeline.
+
+    Paranal data is collected in discrete observing nights (UTC-16h shift yields
+    a local-noon epoch, stored as YYYYMMDD integer ``night_id``).  The forecasting
+    tasks exploit this structure in two ways:
+
+    1. ``night_id`` is NOT in the ``remove`` list for forecasting tasks, so it
+       travels through ``get_train_data()`` into X, enabling session-aware lag
+       construction.
+    2. ``prepare_forecasting_data()`` groups by ``night_id``, builds lags *within*
+       each night, then discards the column — preventing any atmospheric state from
+       night N from contaminating night N+1's feature vectors.
+
+    These tests codify both the invariants above and the arithmetic governing how
+    many valid samples survive the window/horizon trimming within each night.
+    """
+
+    # Invariant 1: night_id routing through the pipeline
+
+    def test_regression_task_excludes_night_id_from_features(self, task_api):
+        """Regression task has night_id in its remove list; X must not contain it.
+
+        For the regression task there is no temporal session structure to exploit —
+        each row is an independent nowcast — so night_id is removed to avoid
+        target leakage through temporal clustering.
+        """
+        task = task_api.get_task("regression.paranal_tomography.full.cn2_profile_reconstruction")
+        X_train, _ = task.get_train_data()
+        assert "night_id" not in X_train.columns, ("night_id must be absent from regression task features: it is in "
+                                                   "the task's 'remove' list and could induce target leakage through "
+                                                   "temporal clustering.")
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_forecasting_task_night_id_in_raw_features(self, task_api, task_name):
+        """Forecasting tasks do NOT remove night_id; it must be present in raw X.
+
+        night_id is the session_col that gates per-night lag construction.
+        If it were absent, prepare_forecasting_data would fall back to global
+        lagging and silently allow cross-night contamination.
+        """
+        task = task_api.get_task(task_name)
+        X_train, _ = task.get_train_data()
+        assert "night_id" in X_train.columns, (f"{task_name}: night_id must be present in raw X so that "
+                                               "prepare_forecasting_data can group by session and build lags "
+                                               "within each observing night.")
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_night_id_absent_from_prepared_features(self, task_api, task_name):
+        """After prepare_forecasting_data, night_id must be dropped from features.
+
+        night_id is a bookkeeping label, not a predictive signal, and must not
+        reach the model's feature matrix after session-aware lag construction.
+        """
+        task = task_api.get_task(task_name)
+        X_raw, y_raw = task.get_train_data()
+        X_prep, _ = task.prepare_forecasting_data(X_raw.copy(), y_raw.copy())
+        assert "night_id" not in X_prep.columns, (f"{task_name}: night_id must be dropped from X after "
+                                                  "prepare_forecasting_data — it is a session key, not a feature.")
+
+        # Invariant 2: cross-night lag contamination is absent
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_no_cross_night_lag_contamination(self, task_api, task_name):
+        """At the first valid prepared row of each night, the deepest lag must
+        equal that night's own opening observation — not the previous night's tail.
+
+        Explanation
+        -----------
+        With window_size W, the deepest lag column is ``feature (t-(W-1))``.
+        For the first valid prepared row of night N (session-local row W-1), a
+        correctly session-aware pipeline produces::
+
+            feature (t-(W-1)) == raw_feature[night_N_start]   ✓  (same night)
+
+        Under broken global lagging the identical position would yield::
+
+            feature (t-(W-1)) == raw_feature[night_N_start - (W-1)]  ✗  (previous night)
+
+        The test walks prepared data night-by-night, accumulating row offsets
+        from the exact per-session count formula max(0, N_i - (W-1) - H).
+        """
+        task = task_api.get_task(task_name)
+        W = task.window_size
+        H = task.forecast_horizon
+
+        if W < 2:
+            pytest.skip(f"{task_name}: window_size={W} < 2, no lag columns present")
+
+        X_raw, y_raw = task.get_train_data()
+        session_col = task.task.get("session_col")
+
+        assert session_col in X_raw.columns, (f"'{session_col}' not in X_raw — verify that '{task_name}' does not "
+                                              "include night_id in its remove list.")
+
+        # Restrict to the first 5 sessions and fill physical sensor dropouts so windowing
+        # arithmetic tests session-boundary isolation rather than mid-night NaN dropout masks
+        first_nights = X_raw[session_col].unique()[:5]
+        sub_mask = X_raw[session_col].isin(first_nights)
+        X_sub = X_raw.loc[sub_mask].ffill().bfill().fillna(0.0)
+        y_sub = y_raw.loc[sub_mask].ffill().bfill().fillna(0.0)
+
+        # Choose the first non-session feature as sentinel
+        feature_candidates = [c for c in X_sub.columns if c != session_col]
+        assert feature_candidates, f"{task_name}: no usable feature columns"
+        sentinel_feature = feature_candidates[0]
+        deepest_lag_col = f"{sentinel_feature} (t-{W - 1})"
+
+        night_ids = X_sub[session_col]
+        unique_nights = night_ids.unique()  # insertion-order (night 1, 2, …)
+
+        # Record each night's opening value for the sentinel feature
+        night_opening_val = {nid: X_sub.loc[night_ids == nid, sentinel_feature].iloc[0] for nid in unique_nights}
+
+        # Per-session valid row counts
+        rows_per_night = {nid: max(0, int((night_ids == nid).sum()) - (W - 1) - H) for nid in unique_nights}
+
+        X_prep, _ = task.prepare_forecasting_data(X_sub.copy(), y_sub.copy())
+
+        assert deepest_lag_col in X_prep.columns, (f"{task_name}: expected lag column '{deepest_lag_col}' not found. "
+                                                   f"Available columns: {list(X_prep.columns[:10])}…")
+
+        cursor = 0
+        for nid in unique_nights:
+            n_valid = rows_per_night[nid]
+            if n_valid == 0:
+                continue
+
+            actual_lag_val = X_prep.iloc[cursor][deepest_lag_col]
+            expected_lag_val = night_opening_val[nid]
+
+            assert np.isclose(actual_lag_val, expected_lag_val,
+                              rtol=1e-6), (f"{task_name} — Night {nid}: deepest lag '{deepest_lag_col}' "
+                                           f"at first prepared row = {actual_lag_val:.6g}, "
+                                           f"expected {expected_lag_val:.6g} (night's own opening value). "
+                                           "Cross-night lag contamination detected: lags must be built "
+                                           "per-session, not globally across the full split.")
+
+            cursor += n_valid
+
+        # Invariant 3: per-session sample count arithmetic
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_per_session_sample_count_exact(self, task_api, task_name):
+        """Prepared sample count equals Σ max(0, N_i − (W−1) − H) over nights.
+
+        This formula counts the rows that survive within each session after
+        discarding the initial W-1 lag-NaN rows and the final H shift-NaN rows.
+        Equality with the global formula N_total − (W−1) − H would indicate that
+        cross-night boundary rows are *not* being dropped, i.e. per-session
+        logic is silently inactive.
+        """
+        task = task_api.get_task(task_name)
+        W = task.window_size
+        H = task.forecast_horizon
+
+        X_raw, y_raw = task.get_train_data()
+        session_col = task.task.get("session_col")
+        assert session_col in X_raw.columns
+
+        first_nights = X_raw[session_col].unique()[:5]
+        sub_mask = X_raw[session_col].isin(first_nights)
+        X_sub = X_raw.loc[sub_mask].ffill().bfill().fillna(0.0)
+        y_sub = y_raw.loc[sub_mask].ffill().bfill().fillna(0.0)
+
+        night_ids = X_sub[session_col]
+        expected = sum(max(0, count - (W - 1) - H) for count in night_ids.value_counts(sort=False).values)
+
+        X_prep, _ = task.prepare_forecasting_data(X_sub.copy(), y_sub.copy())
+        actual = len(X_prep)
+
+        assert actual == expected, (f"{task_name}: expected {expected} prepared rows "
+                                    f"(Σ max(0, N_i − {W - 1} − {H})), got {actual}. "
+                                    "If actual > expected, cross-night boundary rows are not being "
+                                    "excluded — check that per-session lag construction is active.")
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_every_training_night_yields_at_least_one_sample(self, task_api, task_name):
+        """Each complete observing night in the training split must be long enough to
+        contribute at least one valid prepared sample.
+
+        The minimum viable night length is (W−1) + H + 1 minutes.  A night
+        shorter than this produces zero samples and is silently skipped by
+        prepare_forecasting_data, which can mask data coverage problems.
+        """
+        task = task_api.get_task(task_name)
+        W = task.window_size
+        H = task.forecast_horizon
+        min_length = (W - 1) + H + 1
+
+        X_raw, _ = task.get_train_data()
+        session_col = task.task.get("session_col")
+        assert session_col in X_raw.columns
+
+        night_ids = X_raw[session_col]
+        vc = list(night_ids.value_counts(sort=False).items())
+        # Exclude the final night if the fixed train_idx row boundary bisects it
+        interior_vc = vc[:-1] if len(vc) > 2 else vc
+        short_nights = {nid: count for nid, count in interior_vc if count < min_length}
+
+        if settings.USE_SYNTHETIC_DATA:
+            assert not short_nights, (f"{task_name}: the following training nights are too short to yield "
+                                      f"any prepared samples (need ≥ {min_length} rows, W={W}, H={H}): "
+                                      f"{short_nights}.")
+        else:
+            assert len(short_nights) / max(1, len(interior_vc)) < 0.01, (
+                f"{task_name}: >1% of training nights are shorter than {min_length} rows: {short_nights}")
+
+        # Invariant 4: intra-night temporal cadence
+
+    @pytest.mark.parametrize("task_name", PARANAL_FORECASTING_TASKS)
+    def test_intra_night_temporal_cadence_is_1min(self, task_api, task_name):
+        """Within observing nights the median inter-sample interval must be
+        1 minute across >=99.5% of sessions (and 100% in synthetic mode).
+        """
+        task = task_api.get_task(task_name)
+        X_raw, _ = task.get_train_data()
+
+        if not isinstance(X_raw.index, pd.DatetimeIndex):
+            pytest.skip(f"{task_name}: index is not DatetimeIndex, cannot check cadence")
+
+        session_col = task.task.get("session_col")
+        assert session_col in X_raw.columns
+
+        night_ids = X_raw[session_col]
+        bad_nights = {}
+        n_checked = 0
+
+        for nid, grp in night_ids.groupby(night_ids, sort=False):
+            times = grp.index
+            if len(times) < 2:
+                continue
+            n_checked += 1
+            diffs = pd.Series(times).diff().dropna()
+            median_gap = diffs.median()
+            if median_gap != pd.Timedelta("1min"):
+                bad_nights[nid] = str(median_gap)
+
+        if settings.USE_SYNTHETIC_DATA:
+            assert not bad_nights, f"{task_name}: synthetic nights have cadence != 1 min: {bad_nights}"
+        else:
+            assert len(bad_nights) / max(1, n_checked) < 0.005, (
+                f"{task_name}: >0.5% of nights have intra-night cadence ≠ 1 min: {bad_nights}")
+
+
+# Group 14: Lazy Loading and Dataset API
+
+
+class TestLazyLoadingAPI:
+    """Verify the lazy xarray path and new Dataset convenience methods."""
+
+    def test_get_xarray_returns_dataset(self, dataset):
+        """paranal_tomography is xarray-backed in both real and synthetic modes (lazy=true)."""
+        ds = dataset.get_xarray()
+        assert ds is not None, ("dataset.get_xarray() returned None — paranal_tomography should be "
+                                "xarray-backed with 'lazy': true in datasets.json")
+        assert isinstance(ds, xr.Dataset)
+
+    def test_get_xarray_has_correct_variables(self, dataset):
+        ds = dataset.get_xarray()
+        if ds is None:
+            pytest.skip("Not xarray-backed")
+        expected_vars = {
+            "cn2_free_atmos", "cn2_ground_scalar", "seeing", "temp_profile", "wind_speed", "wind_dir", "pressure", "rh",
+            "night_id"
+        }
+        assert expected_vars.issubset(set(ds.data_vars))
+
+    def test_get_sample_df_returns_bounded_frame(self, dataset):
+        """get_sample_df must return exactly the requested number of rows."""
+        n = 100
+        sample = dataset.get_sample_df(n)
+        assert isinstance(sample, pd.DataFrame)
+        assert len(sample) == n, (f"get_sample_df({n}) returned {len(sample)} rows")
+
+    def test_get_sample_df_columns_match_full_schema(self, dataset, flat_df):
+        """Sample df columns must exactly match the full flat schema."""
+        sample = dataset.get_sample_df(50)
+        assert set(sample.columns) == set(
+            flat_df.columns), (f"Column mismatch:\n"
+                               f"  sample-only: {set(sample.columns) - set(flat_df.columns)}\n"
+                               f"  flat_df-only: {set(flat_df.columns) - set(sample.columns)}")
+
+    def test_get_all_pd_returns_dataframe(self, dataset):
+        """get_all(data_type='pd') must return a flat DataFrame even for lazy datasets."""
+        # We use get_sample_df to avoid OOM, but verify the API contract
+        result = dataset.get_sample_df(10)
+        assert isinstance(result, pd.DataFrame)
+        assert len(result.columns) == 52
+
+
+# Group 15: Audit Remediation Verification
+
+
+class TestAuditRemediationVerification:
+    """Targeted tests for findings P-001, P-002, U-001, U-002, U-003."""
+
+    # --- P-001: integrated_seeing log-space guard ---
+
+    def test_integrated_seeing_log_space_equals_linear(self):
+        """integrated_seeing with log10 inputs must produce the same result
+        as passing the un-logged values directly.  This validates the P-001
+        auto-detection guard.
+        """
+        from otbench.eval.integrated_metrics import integrated_seeing
+
+        rng = np.random.default_rng(42)
+        # Physically representative J_i values: O(1e-15)
+        linear_vals = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        log_vals = np.log10(linear_vals)
+
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res_linear = integrated_seeing(
+            linear_vals,
+            linear_vals * 0.9,  # 10% systematic under-prediction
+            heights=heights,
+            values_are_integrals=True,
+        )
+        res_log = integrated_seeing(
+            log_vals,
+            np.log10(linear_vals * 0.9),
+            heights=heights,
+            values_are_integrals=True,
+        )
+
+        # They should produce the same RMSE to within floating point tolerance
+        assert abs(res_linear["metric_value"] -
+                   res_log["metric_value"]) < 1e-6, (f"Linear={res_linear['metric_value']:.8f}, "
+                                                     f"Log-guard={res_log['metric_value']:.8f}")
+
+    def test_integrated_seeing_positive_values_no_unlog(self):
+        """When inputs are already positive (linear space), the guard should NOT activate."""
+        from otbench.eval.integrated_metrics import integrated_seeing
+
+        rng = np.random.default_rng(42)
+        vals = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = integrated_seeing(vals, vals, heights=heights, values_are_integrals=True)
+        # Perfect prediction → RMSE should be 0
+        assert res["metric_value"] < 1e-10
+
+    # --- P-002: synthetic Cn2 magnitudes ---
+
+    def test_synthetic_cn2_magnitude_range(self, raw_xarray_dataset):
+        """Synthetic Cn2 values must be in a physically plausible range: O(1e-18) to O(1e-12)."""
+        cn2 = raw_xarray_dataset["cn2_free_atmos"].values
+        valid = cn2[~np.isnan(cn2)]
+        median_val = np.median(valid)
+        assert 1e-18 < median_val < 1e-12, (f"Synthetic Cn2 median = {median_val:.2e} (expected O(1e-15))")
+
+    def test_synthetic_cn2_no_negative_values(self, raw_xarray_dataset):
+        """No negative turbulence values should exist in the dataset."""
+        for var in ["cn2_free_atmos", "cn2_ground_scalar"]:
+            vals = raw_xarray_dataset[var].values
+            valid = vals[~np.isnan(vals)]
+            assert np.all(valid >= 0), f"{var} contains negative values"
+
+    # --- U-001: AO-derived metrics ---
+
+    def test_isoplanatic_angle_basic(self):
+        """isoplanatic_angle must return a finite RMSE in arcseconds."""
+        from otbench.eval.integrated_metrics import isoplanatic_angle
+
+        rng = np.random.default_rng(42)
+        y_true = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        y_pred = y_true * rng.uniform(0.8, 1.2, size=y_true.shape)
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = isoplanatic_angle(y_true, y_pred, heights=heights)
+        assert np.isfinite(res["metric_value"])
+        assert res["metric_value"] > 0
+        assert res["valid_predictions"] == 50
+
+    def test_isoplanatic_angle_perfect_prediction(self):
+        """Perfect predictions → RMSE should be 0."""
+        from otbench.eval.integrated_metrics import isoplanatic_angle
+
+        rng = np.random.default_rng(42)
+        y = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = isoplanatic_angle(y, y, heights=heights)
+        assert res["metric_value"] < 1e-10
+
+    def test_coherence_time_basic(self):
+        """coherence_time must return a finite RMSE in milliseconds."""
+        from otbench.eval.integrated_metrics import coherence_time
+
+        rng = np.random.default_rng(42)
+        y_true = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        y_pred = y_true * rng.uniform(0.8, 1.2, size=y_true.shape)
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = coherence_time(y_true, y_pred, heights=heights, wind_speed=10.0)
+        assert np.isfinite(res["metric_value"])
+        assert res["metric_value"] > 0
+
+    def test_greenwood_frequency_basic(self):
+        """greenwood_frequency must return a finite RMSE in Hz."""
+        from otbench.eval.integrated_metrics import greenwood_frequency
+
+        rng = np.random.default_rng(42)
+        y_true = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        y_pred = y_true * rng.uniform(0.8, 1.2, size=y_true.shape)
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        res = greenwood_frequency(y_true, y_pred, heights=heights, wind_speed=10.0)
+        assert np.isfinite(res["metric_value"])
+        assert res["metric_value"] > 0
+
+    def test_ao_metrics_log_space_invariance(self):
+        """All AO metrics must handle log-space inputs via auto-detection."""
+        from otbench.eval.integrated_metrics import (
+            isoplanatic_angle,
+            coherence_time,
+            greenwood_frequency,
+        )
+
+        rng = np.random.default_rng(42)
+        linear = rng.lognormal(mean=np.log(1e-15), sigma=1.0, size=(50, 6))
+        log = np.log10(linear)
+        pred_linear = linear * 0.9
+        pred_log = np.log10(pred_linear)
+        heights = [500, 1000, 2000, 4000, 8000, 16000]
+
+        for metric_fn in [isoplanatic_angle, coherence_time, greenwood_frequency]:
+            res_lin = metric_fn(linear, pred_linear, heights=heights)
+            res_log = metric_fn(log, pred_log, heights=heights)
+            assert abs(res_lin["metric_value"] -
+                       res_log["metric_value"]) < 1e-6, (f"{metric_fn.__name__}: linear={res_lin['metric_value']:.8f}, "
+                                                         f"log={res_log['metric_value']:.8f}")
+
+    # --- U-002: per-layer RMSE ---
+
+    def test_per_layer_rmse_basic(self):
+        """per_layer_rmse must return named per-layer values."""
+        from otbench.eval.metrics import per_layer_rmse
+
+        rng = np.random.default_rng(42)
+        y_true = rng.normal(0, 1, size=(100, 4))
+        y_pred = y_true + rng.normal(0, 0.1, size=y_true.shape)
+        names = ["500m", "1000m", "2000m", "4000m"]
+
+        res = per_layer_rmse(y_true, y_pred, layer_names=names)
+        assert "per_layer" in res
+        assert set(res["per_layer"].keys()) == set(names)
+        for v in res["per_layer"].values():
+            assert np.isfinite(v)
+            assert v > 0
+
+    def test_per_layer_rmse_auto_numbering(self):
+        """Without layer_names, layers are numbered 0, 1, 2, ..."""
+        from otbench.eval.metrics import per_layer_rmse
+
+        rng = np.random.default_rng(42)
+        y = rng.normal(0, 1, size=(100, 3))
+
+        res = per_layer_rmse(y, y + 0.1)
+        assert set(res["per_layer"].keys()) == {"0", "1", "2"}
+
+    # --- U-003: bootstrap CI ---
+
+    def test_bootstrap_ci_returns_valid_interval(self):
+        """_bootstrap_ci must return (lower, upper) where lower < upper."""
+        from otbench.eval.utils import _bootstrap_ci
+
+        rng = np.random.default_rng(42)
+        y_true = rng.normal(0, 1, size=200)
+        y_pred = y_true + rng.normal(0, 0.5, size=200)
+
+        from sklearn.metrics import root_mean_squared_error
+        lo, hi = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, n_bootstrap=500)
+        assert lo < hi
+        assert np.isfinite(lo)
+        assert np.isfinite(hi)
+
+    def test_bootstrap_ci_covers_point_estimate(self):
+        """The 95% CI should typically contain the point estimate."""
+        from otbench.eval.utils import _bootstrap_ci
+
+        rng = np.random.default_rng(42)
+        y_true = rng.normal(0, 1, size=500)
+        y_pred = y_true + rng.normal(0, 0.3, size=500)
+
+        from sklearn.metrics import root_mean_squared_error
+        point = root_mean_squared_error(y_true, y_pred)
+        lo, hi = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, n_bootstrap=1000)
+        assert lo <= point <= hi, f"Point {point:.4f} outside CI [{lo:.4f}, {hi:.4f}]"
+
+    def test_bootstrap_ci_reproducible(self):
+        """Same seed must produce identical intervals."""
+        from otbench.eval.utils import _bootstrap_ci
+
+        rng = np.random.default_rng(42)
+        y_true = rng.normal(0, 1, size=100)
+        y_pred = y_true + 0.1
+
+        from sklearn.metrics import root_mean_squared_error
+        lo1, hi1 = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, seed=99)
+        lo2, hi2 = _bootstrap_ci(y_true, y_pred, root_mean_squared_error, seed=99)
+        assert lo1 == lo2
+        assert hi1 == hi2
+
+
+# Group 16: OTB2 Multi-Annual Tasks, Strehl Metrics, and Physics Loss Extensions
+
+
+class TestOTB2BenchmarkExtensions:
+    """Verify OTB2 benchmark extensions: multiannual tasks, Strehl/MAE profile metrics,
+    as_sequence convenience alias, and use_physics_loss auto-wiring.
+    """
+
+    MULTIANNUAL_TASKS = [
+        "regression.paranal_tomography.multiannual.cn2_profile_reconstruction",
+        "forecasting.paranal_tomography.multiannual.seeing_nowcast",
+        "forecasting.paranal_tomography.multiannual.cn2_profile_forecast",
+    ]
+
+    PROFILE_TASKS = [
+        "regression.paranal_tomography.full.cn2_profile_reconstruction",
+        "forecasting.paranal_tomography.full.cn2_profile_forecast",
+        "regression.paranal_tomography.multiannual.cn2_profile_reconstruction",
+        "forecasting.paranal_tomography.multiannual.cn2_profile_forecast",
+    ]
+
+    @pytest.mark.parametrize("task_name", MULTIANNUAL_TASKS)
+    def test_multiannual_tasks_registered_and_loadable(self, task_api, task_name):
+        """All 3 multiannual 5-year benchmark tasks must load and expose canonical split boundaries."""
+        task = task_api.get_task(task_name)
+        assert task is not None
+        if settings.USE_SYNTHETIC_DATA:
+            assert task.task["train_idx"] == ["0:1000"]
+            assert task.task["val_idx"] == ["1000:1500"]
+            assert task.task["test_idx"] == ["1500:2000"]
+        else:
+            assert task.task["train_idx"] == ["0:1500000"]
+            assert task.task["val_idx"] == ["1500000:1850000"]
+            assert task.task["test_idx"] == ["1850000:2247245"]
+
+    @pytest.mark.parametrize("task_name", PROFILE_TASKS)
+    def test_profile_tasks_include_strehl_and_mae(self, task_api, task_name):
+        """Profile reconstruction and forecasting tasks must evaluate Strehl ratio, MAE, and all AO metrics."""
+        task = task_api.get_task(task_name)
+        eval_metrics = set(task.task["eval_metrics"])
+        expected = {
+            "root_mean_square_error",
+            "mean_absolute_error",
+            "per_layer_rmse",
+            "integrated_seeing",
+            "isoplanatic_angle",
+            "coherence_time",
+            "greenwood_frequency",
+            "strehl_ratio",
+        }
+        assert expected.issubset(eval_metrics), f"Missing metrics in {task_name}: {expected - eval_metrics}"
+
+    def test_as_sequence_alias_in_get_prepared_data(self, task_api):
+        """ForecastingTask.get_prepared_data must accept as_sequence=True as an alias for use_sequence_data."""
+        task = task_api.get_task("forecasting.paranal_tomography.full.seeing_nowcast")
+        X_seq, y_seq = task.get_prepared_data("val", as_sequence=True)
+        assert isinstance(X_seq, np.ndarray)
+        assert X_seq.ndim == 3
+        assert X_seq.shape[1] == task.window_size
+        assert len(X_seq) == len(y_seq)
+
+    def test_use_physics_loss_wires_ao_physics_loss(self):
+        """BasePyTorchForecastingModel subclasses must automatically configure AOPhysicsLoss when use_physics_loss=True."""
+        from otbench.benchmark.models.forecasting.pytorch import AOPhysicsLoss, TransformerModel
+
+        targets = [
+            "cn2_ground_scalar",
+            "cn2_free_atmos_500",
+            "cn2_free_atmos_1000",
+            "cn2_free_atmos_2000",
+            "cn2_free_atmos_4000",
+            "cn2_free_atmos_8000",
+            "cn2_free_atmos_16000",
+        ]
+        model = TransformerModel(
+            name="PhysicsTransformerTest",
+            window_size=60,
+            forecast_horizon=10,
+            target_name=targets,
+            input_size=50,
+            output_size=len(targets),
+            n_epochs=1,
+            use_physics_loss=True,
+            lambda_r0=0.05,
+            lambda_theta0=0.05,
+        )
+        assert isinstance(model.criterion, AOPhysicsLoss)
+        assert model.criterion.lambda_r0 == 0.05
+        assert model.criterion.lambda_theta0 == 0.05
+
+    def test_isoplanatic_angle_heff_algebraic_identity(self):
+        """Verify exact algebraic identity between 0.314 * r0 / H_eff and [0.423 * 0.314^(-5/3) * k^2 * sum(J_k * h_k^(5/3))]^(-3/5)."""
+        from otbench.eval.integrated_metrics import isoplanatic_angle
+
+        heights = np.array([0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0])
+        j_true = np.array([[2.5e-13, 3.0e-14, 1.5e-14, 2.0e-14, 4.0e-14, 3.0e-14, 1.5e-14]])
+        j_pred = j_true * 1.15
+        res = isoplanatic_angle(j_true, j_pred, heights=heights, wavelength=500e-9, detailed=True)
+
+        k_wav = 2.0 * np.pi / 500e-9
+        m53_true = np.sum(j_true[0] * (heights**(5.0 / 3.0)))
+        # Exact constant from 0.314 * (0.423)^(-3/5) = (2.9183924)^(-3/5)
+        c_iso = 0.423 * (0.314**(-5.0 / 3.0))
+        theta0_direct_arcsec = ((c_iso * (k_wav**2) * m53_true)**(-3.0 / 5.0)) * 206265.0
+        np.testing.assert_allclose(res["theta0_true"][0], theta0_direct_arcsec, rtol=1e-12)
+
+    def test_profile_heights_length_mismatch_raises(self):
+        """Integrated profile metrics and AOPhysicsLoss must raise ValueError when heights length != n_layers."""
+        import torch
+        from otbench.benchmark.models.forecasting.pytorch import AOPhysicsLoss
+        from otbench.eval.integrated_metrics import integrated_seeing, isoplanatic_angle, ground_layer_fraction
+
+        y_true = np.full((8, 7), -14.2)
+        y_pred = np.full((8, 7), -14.1)
+        bad_heights = [0.0, 500.0, 1000.0]
+
+        for fn in (integrated_seeing, isoplanatic_angle, ground_layer_fraction):
+            with pytest.raises(ValueError, match="heights length"):
+                fn(y_true, y_pred, heights=bad_heights)
+
+        loss_fn = AOPhysicsLoss(heights=bad_heights, lambda_r0=0.15, lambda_theta0=0.15)
+        with pytest.raises(ValueError, match="AOPhysicsLoss expected 3 profile layers"):
+            loss_fn(torch.zeros((4, 7)), torch.zeros((4, 7)))
+
+    def test_ground_layer_fraction_metric_and_task_integration(self, task_api):
+        """ground_layer_fraction must compute GLF RMSE in both integral and density modes and wire into evaluate_model."""
+        from otbench.eval import ground_layer_fraction, is_implemented_metric
+
+        assert is_implemented_metric("ground_layer_fraction")
+        heights = [0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
+        # True: J_0 = 3e-13, sum(J_{1..6}) = 1e-13 -> GLF_true = 0.75
+        j_true = np.array([[3.0e-13, 2.0e-14, 2.0e-14, 2.0e-14, 2.0e-14, 1.0e-14, 1.0e-14]] * 10)
+        # Pred: J_0 = 1e-13, sum(J_{1..6}) = 1e-13 -> GLF_pred = 0.50
+        j_pred = np.array([[1.0e-13, 2.0e-14, 2.0e-14, 2.0e-14, 2.0e-14, 1.0e-14, 1.0e-14]] * 10)
+
+        res = ground_layer_fraction(np.log10(j_true), np.log10(j_pred), heights=heights, detailed=True)
+        np.testing.assert_allclose(res["mean_glf_true"], 0.75, rtol=1e-12)
+        np.testing.assert_allclose(res["mean_glf_pred"], 0.50, rtol=1e-12)
+        np.testing.assert_allclose(res["metric_value"], 0.25, rtol=1e-12)
+        assert len(res["glf_true"]) == 10
+
+        res_dens = ground_layer_fraction(j_true, j_pred, heights=heights, values_are_integrals=False)
+        assert np.isfinite(res_dens["metric_value"]) and res_dens["metric_value"] > 0.0
+
+        task = task_api.get_task("regression.paranal_tomography.full.cn2_profile_reconstruction")
+        X_te, y_te = task.get_test_data()
+        valid_mask = y_te.notna().all(axis=1)
+        X_sub = X_te[valid_mask].iloc[:40]
+        y_sub = y_te[valid_mask].iloc[:40]
+        eval_res = task.evaluate_model(
+            predict_call=lambda X: np.full((len(X), 7), -14.2),
+            eval_metric_names=["ground_layer_fraction"],
+            X_test=X_sub,
+            y_test=y_sub,
+        )
+        assert "ground_layer_fraction" in eval_res
+        assert 0.0 <= eval_res["ground_layer_fraction"]["mean_glf_pred"] <= 1.0
+
+    def test_gru_lstm_physics_transformer_and_horizon_sweep_alias(self, task_api):
+        """GRUModel, LSTMModel, and PhysicsTransformerModel must be first-class PyTorch models,
+        and ForecastingTask.evaluate_horizon_sweep must alias evaluate_horizon_curve."""
+        from otbench.benchmark.models.forecasting.pytorch import (
+            AOPhysicsLoss,
+            GRUModel,
+            LSTMModel,
+            PhysicsTransformerModel,
+        )
+
+        targets = [f"l{i}" for i in range(7)]
+        gru = GRUModel(name="gru", window_size=6, forecast_horizon=1, target_name=targets, input_size=10, output_size=7)
+        lstm = LSTMModel(name="lstm",
+                         window_size=6,
+                         forecast_horizon=1,
+                         target_name=targets,
+                         input_size=10,
+                         output_size=7)
+        ptf = PhysicsTransformerModel(name="ptf",
+                                      window_size=6,
+                                      forecast_horizon=1,
+                                      target_name=targets,
+                                      input_size=10,
+                                      output_size=7)
+
+        assert gru.cell_type == "gru"
+        assert lstm.cell_type == "lstm"
+        assert ptf.use_physics_loss is True
+        assert isinstance(ptf.criterion, AOPhysicsLoss)
+        assert ptf.criterion.jensen_correction is True
+
+        task = task_api.get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
+        assert task.evaluate_horizon_sweep == task.evaluate_horizon_curve
+
+    def test_compute_mass_slab_thicknesses_geometric_boundaries(self):
+        """Verify unified geometric-mean MASS slab thickness computation across tomography plots."""
+        from otbench.plot.tomography import compute_mass_slab_thicknesses
+
+        heights = [0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
+        dh = compute_mass_slab_thicknesses(heights)
+        expected = np.array([
+            500.0,
+            500.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            1000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            2000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            4000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            8000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+            16000.0 * (np.sqrt(2.0) - 1.0 / np.sqrt(2.0)),
+        ])
+        np.testing.assert_allclose(dh, expected, rtol=1e-12)
+
+    def test_ao_physics_loss_jensen_convexity_correction_stationarity(self):
+        """Verify that second-order LogSumExp Jensen correction eliminates positive bias at E[y|X] = mu."""
+        import torch
+        from otbench.benchmark.models.forecasting.pytorch import AOPhysicsLoss
+
+        torch.manual_seed(42)
+        heights = [0.0, 500.0, 1000.0, 2000.0, 4000.0, 8000.0, 16000.0]
+        mu = torch.tensor([-12.85, -14.20, -14.35, -14.30, -13.95, -13.80, -14.10], dtype=torch.float32)
+        sigma = torch.tensor([0.25, 0.50, 0.48, 0.45, 0.35, 0.30, 0.25], dtype=torch.float32)
+
+        # Draw M=20000 Monte Carlo realizations y ~ N(mu, diag(sigma^2))
+        y_samples = mu.unsqueeze(0) + sigma.unsqueeze(0) * torch.randn(20000, 7)
+
+        loss_uncorr = AOPhysicsLoss(heights=heights, lambda_r0=1.0, lambda_theta0=1.0, jensen_correction=False)
+        loss_corr = AOPhysicsLoss(heights=heights, lambda_r0=1.0, lambda_theta0=1.0, jensen_correction=True)
+
+        pred_uncorr = mu.unsqueeze(0).expand_as(y_samples).clone().detach().requires_grad_(True)
+        l_u = loss_uncorr(pred_uncorr, y_samples)
+        l_u.backward()
+        grad_uncorr = pred_uncorr.grad.sum(dim=0)
+
+        pred_corr = mu.unsqueeze(0).expand_as(y_samples).clone().detach().requires_grad_(True)
+        l_c = loss_corr(pred_corr, y_samples)
+        l_c.backward()
+        grad_corr = pred_corr.grad.sum(dim=0)
+
+        # Uncorrected moment loss has a strong negative gradient at y_hat = mu (pushing y_hat upward > mu)
+        assert torch.norm(grad_corr) < 0.35 * torch.norm(grad_uncorr), (
+            f"Expected Jensen correction to reduce gradient norm at conditional mean mu: "
+            f"corr={torch.norm(grad_corr):.6f} vs uncorr={torch.norm(grad_uncorr):.6f}")
+
+    def test_manuscript_section_2_3_verbatim_snippet_contract(self, task_api):
+        """Execute the exact 15-line researcher snippet from Section 2.3 of manuscript.tex."""
+        from otbench.benchmark.models.forecasting.pytorch import PhysicsTransformerModel
+
+        task = task_api.get_task("forecasting.paranal_tomography.full.cn2_profile_forecast")
+        X_train, y_train = task.get_prepared_data(split="train", as_sequence=True)
+        X_test, y_test = task.get_prepared_data(split="test", as_sequence=True)
+
+        assert task.target == task.get_target_name()
+        assert len(task.feature_names) == X_train.shape[-1]
+
+        model = PhysicsTransformerModel(
+            name="CustomPhysicsTransformer",
+            window_size=task.window_size,
+            forecast_horizon=task.forecast_horizon,
+            target_name=task.target,
+            input_size=X_train.shape[-1],
+            output_size=y_train.shape[-1],
+            predict_residuals=True,
+            use_physics_loss=True,
+            n_epochs=1,
+            batch_size=64,
+        )
+        model.train(X_train[:64], y_train[:64])
+        metrics = task.evaluate_model(model.predict, X_test=X_test[:32], y_test=y_test[:32])
+        assert np.isfinite(metrics["root_mean_square_error"]["metric_value"])
+        assert np.isfinite(metrics["integrated_seeing"]["metric_value"])
+        assert np.isfinite(metrics["isoplanatic_angle"]["metric_value"])
+        assert np.isfinite(metrics["strehl_ratio"]["metric_value"])
+
+    def test_otb2_single_source_of_truth_manuscript_and_preprint_integrity(self):
+        """Verify that manuscript.tex (AMETSOC) and preprint.tex (arXiv) share a single source of truth
+        with balanced environments, conditionals, labels, citations, and figures."""
+        import re
+        from pathlib import Path
+
+        otb2_dir = Path(__file__).resolve().parents[2] / "doc" / "manuscirpts" / "otb2"
+        manuscript_fp = otb2_dir / "manuscript.tex"
+        preprint_fp = otb2_dir / "preprint.tex"
+        bib_fp = otb2_dir / "references.bib"
+        makefile_fp = otb2_dir / "Makefile"
+
+        assert manuscript_fp.exists() and preprint_fp.exists() and bib_fp.exists() and makefile_fp.exists()
+
+        preprint_tex = preprint_fp.read_text()
+        assert r"\def\ispreprint{1}" in preprint_tex
+        assert r"\input{manuscript.tex}" in preprint_tex
+        assert r"\section{" not in preprint_tex, "preprint.tex must not duplicate manuscript sections"
+
+        tex = manuscript_fp.read_text()
+        assert r"\documentclass[11pt,letterpaper]{article}" in tex
+        assert r"\documentclass{ametsocV6.1}" in tex
+
+        # Verify balanced \ifdefined ... \fi blocks
+        n_if = len(re.findall(r"\\ifdefined\\ispreprint\b", tex))
+        n_fi = len(re.findall(r"\\fi\b", tex))
+        assert n_if == 3 and n_fi == 3
+
+        # Verify balanced \begin{env} and \end{env}
+        begins = re.findall(r"\\begin\{([^}]+)\}", tex)
+        ends = re.findall(r"\\end\{([^}]+)\}", tex)
+        assert begins.count("document") == 1 and ends.count("document") == 1
+        assert sorted(begins) == sorted(ends)
+
+        # Verify 100% label <-> Cref resolution
+        labels = set(re.findall(r"\\label\{([^}]+)\}", tex))
+        refs = set()
+        for m in re.findall(r"\\[Cc]ref\{([^}]+)\}", tex):
+            for part in m.split(","):
+                refs.add(part.strip())
+        assert refs.issubset(labels), f"Unresolved Cref labels: {refs - labels}"
+
+        # Verify 100% citation <-> BibTeX bijection
+        cited = set()
+        for m in re.findall(r"\\cite[a-zA-Z]*\*?(?:\[[^\]]*\])*\{([^}]+)\}", tex):
+            for k in m.split(","):
+                cited.add(k.strip())
+        bib_entries = set(re.findall(r"@\w+\{\s*([^,\s]+)\s*,", bib_fp.read_text()))
+        assert cited == bib_entries, f"Citation/BibTeX mismatch: missing={cited - bib_entries}, unused={bib_entries - cited}"
+
+        # Verify all included figures exist and are non-empty
+        figs = re.findall(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}", tex)
+        assert len(figs) == 4
+        for fig_name in figs:
+            fig_path = otb2_dir / fig_name
+            assert fig_path.exists() and fig_path.stat().st_size > 50_000

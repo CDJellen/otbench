@@ -1,48 +1,48 @@
-import warnings
-
 import pandas as pd
 from astral import LocationInfo
 from astral.sun import sun
 
-warnings.filterwarnings("ignore", category=pd.errors.PerformanceWarning)
-
 
 def add_temporal_hour(X: pd.DataFrame, name, timezone, obs_lat, obs_lon, time_col_name, temporal_hour_col_name):
     """Get the difference between the current time and sunrise."""
-
+    X = X.copy()
     OBS = LocationInfo(name=name, region='', timezone=timezone, latitude=obs_lat, longitude=obs_lon)
 
-    def _get_sunrise_sunset(dt):
-        s = sun(OBS.observer, date=dt, tzinfo=OBS.timezone)
-        return (s['sunrise'], s['sunset'])
-
     if isinstance(X.index, pd.DatetimeIndex):
-        X['date'] = X.index.date
-        if time_col_name not in X.columns:
-            X[time_col_name] = X.index
+        dates = pd.Series(X.index.date, index=X.index)
+        timestamps = pd.to_datetime(X[time_col_name]) if time_col_name in X.columns else pd.Series(X.index,
+                                                                                                   index=X.index)
     else:
-        X['date'] = pd.to_datetime(X[time_col_name]).dt.date
+        timestamps = pd.to_datetime(X[time_col_name])
+        dates = timestamps.dt.date
 
-    suntimes = X['date'].apply(lambda x: _get_sunrise_sunset(x))
-    X['time_sunrise'] = suntimes.apply(lambda x: x[0])
-    X['time_sunset'] = suntimes.apply(lambda x: x[1])
+    if getattr(timestamps.dt, "tz", None) is not None:
+        timestamps = timestamps.dt.tz_convert(timezone).dt.tz_localize(tz=None)
 
-    X['time_sunrise'] = X['time_sunrise'].dt.tz_convert(timezone)
-    X['time_sunrise'] = X['time_sunrise'].dt.tz_localize(tz=None)
-    X['time_sunset'] = X['time_sunset'].dt.tz_convert(timezone)
-    X['time_sunset'] = X['time_sunset'].dt.tz_localize(tz=None)
+    unique_dates = pd.unique(dates)
+    sunrise_map = {}
+    sunset_map = {}
+    for dt in unique_dates:
+        if pd.isna(dt):
+            sunrise_map[dt] = pd.NaT
+            sunset_map[dt] = pd.NaT
+        else:
+            s = sun(OBS.observer, date=dt, tzinfo=OBS.timezone)
+            sunrise_map[dt] = s['sunrise']
+            sunset_map[dt] = s['sunset']
 
-    X[temporal_hour_col_name] = ((X[time_col_name] - X['time_sunrise']).dt.total_seconds()) / (
-        (1 / 12) * (X[time_col_name] - X['time_sunrise']).dt.total_seconds())
+    time_sunrise = pd.to_datetime(dates.map(sunrise_map)).dt.tz_convert(timezone).dt.tz_localize(tz=None)
+    time_sunset = pd.to_datetime(dates.map(sunset_map)).dt.tz_convert(timezone).dt.tz_localize(tz=None)
 
-    X.drop(columns=['date', 'time_sunrise', 'time_sunset'], inplace=True)
+    X[temporal_hour_col_name] = ((timestamps - time_sunrise).dt.total_seconds()) / (
+        (1 / 12) * (time_sunset - time_sunrise).dt.total_seconds())
 
     return X
 
 
 def add_temporal_hour_weight(X: pd.DataFrame, temporal_hour_col_name: str, temporal_hour_weight_col_name: str):
     """Get the temporal hour weight from the temporal hour"""
-
+    X = X.copy()
     TEMPORAL_HOUR_DICT = {
         -99: 0.11,
         -4: 0.11,
@@ -66,7 +66,7 @@ def add_temporal_hour_weight(X: pd.DataFrame, temporal_hour_col_name: str, tempo
         99: 0.13
     }
 
-    X[temporal_hour_weight_col_name] = 0
+    X[temporal_hour_weight_col_name] = 0.0
     keys = list(TEMPORAL_HOUR_DICT.keys())
 
     for idx in range(len(keys) - 1):
@@ -75,8 +75,12 @@ def add_temporal_hour_weight(X: pd.DataFrame, temporal_hour_col_name: str, tempo
         end_temporal_hour = keys[idx + 1]
         temporal_hour_weight_value = TEMPORAL_HOUR_DICT[keys[idx]]
 
-        # assign DataFrame values based on temporal hour of observation and bin in dict
-        X.loc[(X[temporal_hour_col_name] > start_temporal_hour) & (X[temporal_hour_col_name] < end_temporal_hour),
+        # assign DataFrame values based on temporal hour of observation and half-open bin [start, end)
+        X.loc[(X[temporal_hour_col_name] >= start_temporal_hour) & (X[temporal_hour_col_name] < end_temporal_hour),
               temporal_hour_weight_col_name] = temporal_hour_weight_value
+
+    X.loc[X[temporal_hour_col_name] < keys[0], temporal_hour_weight_col_name] = TEMPORAL_HOUR_DICT[keys[0]]
+    X.loc[X[temporal_hour_col_name] >= keys[-1], temporal_hour_weight_col_name] = TEMPORAL_HOUR_DICT[keys[-1]]
+    X.loc[X[temporal_hour_col_name].isna(), temporal_hour_weight_col_name] = float("nan")
 
     return X

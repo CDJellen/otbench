@@ -10,7 +10,7 @@ def test_climatology_forecasting_model(task_api):
     """Test the LinearForecastingModel."""
     # create a DataFrame with the required columns
     periods = 50
-    index = pd.date_range("2020-01-01", periods=periods, freq="1H")
+    index = pd.date_range("2020-01-01", periods=periods, freq="1h")
     X = pd.DataFrame({
         "T_10m": [10 for _ in range(periods)],
         "T_0m": [10 for _ in range(periods)],

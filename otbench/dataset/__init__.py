@@ -1,3 +1,3 @@
-from .dataset import Dataset
+from otbench.dataset.dataset import Dataset
 
 __all__ = ["Dataset"]

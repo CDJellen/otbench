@@ -9,21 +9,18 @@ def apply_fried_height_adjustment(cn2: Union['pd.DataFrame', 'pd.Series', np.nda
 
     Args:
         cn2 (pd.Series): The Cn2 values to adjust.
-        desired (float): The desired height.
-        observed (float, optional): The observed height. Defaults to 0.0.
+        observed (float): The positive observed height (in meters).
+        desired (float): The positive desired height (in meters).
     
     Returns:
         pd.Series: The adjusted Cn2 values.
     """
-    try:
-        assert observed >= 0.0
-        assert desired > 0.0
-    except AssertionError:
-        raise ValueError('The observed and desired heights must be positive.')
+    if observed <= 0.0 or desired <= 0.0:
+        raise ValueError('Both observed and desired heights must be positive.')
 
-    if observed > 0:
-        cn2 /= ((observed**(-1 / 3)) * np.exp(-1 * observed / 3200))
-        cn2 *= ((desired**(-1 / 3)) * np.exp(-1 * desired / 3200))
+    cn2 = cn2.copy() if hasattr(cn2, "copy") else np.array(cn2, copy=True)
+    cn2 = cn2 / ((observed**(-1 / 3)) * np.exp(-1 * observed / 3200))
+    cn2 = cn2 * ((desired**(-1 / 3)) * np.exp(-1 * desired / 3200))
     return cn2
 
 
@@ -36,19 +33,17 @@ def apply_oermann_height_adjustment(
     
     Args:
         cn2 (pd.Series): The Cn2 values to adjust.
-        desired (float): The desired height.
-        observed (float, optional): The observed height. Defaults to 15.0.
+        desired (float): The positive desired height (in meters).
+        observed (float): The positive observed height (in meters).
         power_law_scaling (float, optional): The power law scaling. Defaults to -4/3.
 
     Returns:
         pd.Series: The adjusted Cn2 values.
     """
-    try:
-        assert observed > 0.0
-        assert desired > 0.0
-    except AssertionError:
-        raise ValueError('The observed and desired heights must be positive.')
+    if observed <= 0.0 or desired <= 0.0:
+        raise ValueError('Both observed and desired heights must be positive.')
 
-    cn2 *= (desired / observed)**(power_law_scaling)
+    cn2 = cn2.copy() if hasattr(cn2, "copy") else np.array(cn2, copy=True)
+    cn2 = cn2 * ((desired / observed)**(power_law_scaling))
 
     return cn2
